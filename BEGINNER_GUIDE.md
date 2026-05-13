@@ -1,0 +1,357 @@
+# 零基础使用教程
+
+看来你是个笨蛋（bushi）
+
+## 0 基础傻瓜教程
+
+下面假设你是完全没编程基础的人。
+
+## 第 1 步：先准备工具
+
+电脑上需要安装两个东西：
+
+1. Node.js  
+   用来运行插件命令。
+
+2. Git  
+   用来拉取和提交 Gitee 项目。
+
+装好后打开 PowerShell，输入：
+
+```bash
+node -v
+git --version
+```
+
+如果能看到版本号，就说明安装好了。
+
+## 第 2 步：拿到项目
+
+如果项目已经在 Gitee，先复制仓库地址，然后运行：
+
+```bash
+git clone 你的Gitee仓库地址
+```
+
+例如：
+
+```bash
+git clone https://gitee.com/company/demo-project.git
+```
+
+然后进入项目目录：
+
+```bash
+cd demo-project
+```
+
+这个目录就叫“项目根目录”。
+
+## 第 3 步：确认插件在项目里
+
+项目里应该有这个文件：
+
+```text
+plugins/project-guardian/scripts/guardian.js
+```
+
+如果有，说明插件已经放好了。
+
+## 第 4 步：初始化项目记忆
+
+在项目根目录运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js init
+```
+
+它会生成这些文件：
+
+```text
+PROJECT_CONTEXT.md
+STATE.md
+DECISIONS.md
+docs/AI_CHANGELOG.md
+docs/HANDOVER.md
+AGENTS.md
+.cursorrules
+```
+
+这些就是“项目记忆”。
+
+## 第 5 步：检查是否接入成功
+
+运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js doctor
+```
+
+如果看到：
+
+```text
+Core memory files: ok
+AI rule files: ok
+```
+
+说明基础接入成功。
+
+## 第 6 步：让 AI 帮你补第一版文档
+
+把这段话复制给 AI：
+
+```text
+请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 PROJECT_CONTEXT.md、STATE.md 和 DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
+```
+
+注意：AI 写完后，人要看一遍，防止它乱猜。
+
+## 第 7 步：检查文档有没有太空
+
+运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js validate-docs
+```
+
+刚初始化时失败是正常的，因为文档还是空模板。  
+补完内容后再运行，应该通过。
+
+## 第 8 步：每天开发前怎么做
+
+每天开始写代码前，先运行：
+
+```bash
+git pull
+node plugins/project-guardian/scripts/guardian.js doctor
+```
+
+然后读这几个文件：
+
+```text
+STATE.md
+PROJECT_CONTEXT.md
+DECISIONS.md
+docs/AI_CHANGELOG.md
+```
+
+你可以问 AI：
+
+```text
+请先读取项目记忆文件，然后告诉我这个项目现在做到哪了，今天适合继续做什么，有哪些风险。
+```
+
+## 第 9 步：AI 改完代码后怎么做
+
+比如你让 AI 做了“登录验证码”。
+
+改完后运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js update "实现登录验证码"
+```
+
+它会更新：
+
+```text
+STATE.md
+docs/AI_CHANGELOG.md
+```
+
+然后你要打开 `docs/AI_CHANGELOG.md`，把里面的 TODO 补清楚。
+
+## 第 10 步：提交前检查
+
+提交前运行：
+
+```bash
+git add .
+node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js validate-docs
+```
+
+如果都通过，再提交：
+
+```bash
+git commit -m "feat: add login captcha"
+git push
+```
+
+## 第 11 步：换人交接怎么做
+
+如果实习生离职、换人、暂停项目、上线前，运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js update "阶段交接前整理"
+node plugins/project-guardian/scripts/guardian.js handover
+```
+
+它会生成或刷新：
+
+```text
+docs/HANDOVER.md
+```
+
+新人来了先读这个文件。
+
+## 第 12 步：新人接手怎么做
+
+新人第一天不要急着改代码。
+
+先运行：
+
+```bash
+git pull
+node plugins/project-guardian/scripts/guardian.js doctor
+```
+
+然后读：
+
+```text
+docs/HANDOVER.md
+STATE.md
+PROJECT_CONTEXT.md
+DECISIONS.md
+docs/AI_CHANGELOG.md
+```
+
+再运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js query
+```
+
+可以问：
+
+```text
+这个项目现在做到哪了？
+我今天应该先做什么？
+登录模块入口在哪里？
+最近一次 AI 修改改了什么？
+哪些文件最容易出问题？
+```
+
+退出输入：
+
+```text
+exit
+```
+
+## 第 13 步：安装本地自动检查
+
+如果想每次提交前自动检查，运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js install-hooks
+```
+
+以后 `git commit` 时会自动检查。
+
+## 第 14 步：安装 Gitee 自动检查
+
+如果要让 Gitee 推送后自动检查，运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js install-ci
+```
+
+它会生成：
+
+```text
+.workflow/project-guardian.yml
+```
+
+注意：默认分支是 `master`。  
+如果你的 Gitee 主分支叫 `main` 或 `develop`，要打开 `.workflow/project-guardian.yml`，把：
+
+```yaml
+branch: master
+```
+
+改成：
+
+```yaml
+branch: main
+```
+
+或：
+
+```yaml
+branch: develop
+```
+
+## 熟练使用口诀
+
+每天开发：
+
+```bash
+git pull
+guardian doctor
+读 STATE.md
+让 AI 改代码
+guardian update "任务说明"
+guardian check
+guardian validate-docs
+git commit
+git push
+```
+
+换人交接：
+
+```bash
+guardian update "阶段交接前整理"
+guardian handover
+guardian check
+guardian validate-docs
+git commit
+git push
+```
+
+新人接手：
+
+```bash
+读 HANDOVER.md
+读 STATE.md
+guardian query
+先做小任务
+改完 update
+提交前 check + validate-docs
+```
+
+## 当前够不够用
+
+够内部使用了。现在已经有：
+
+```text
+初始化
+项目记忆
+AI 修改记录
+交接文档
+本地查询
+提交检查
+文档质量检查
+Git Hook
+Gitee CI
+Codex skill
+Cursor rules
+```
+
+下一步如果要更通用，可以做：
+
+```text
+npx project-guardian
+配置文件 project-guardian.config.json
+GitHub Actions / GitLab CI 模板
+真正 RAG / 向量检索
+自动化测试目录 tests/
+```
+
+## 提交前最重要提醒
+
+如果你要提交到 Gitee，并且还想保留 Codex 插件能力，请不要让这个文件从 Git 里删除：
+
+```text
+plugins/project-guardian/.codex-plugin/plugin.json
+```
+
+当前状态曾显示它有删除风险，需要提交前特别确认。
