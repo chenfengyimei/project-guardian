@@ -1,125 +1,178 @@
 # Project Guardian 接入文档
 
-本文档说明如何把 Project Guardian 接入新项目、已有项目和团队模板。
+本文档说明如何把 Project Guardian 接入新项目、已有项目和已经上传到 Gitee 的项目。
 
-## 1. 接入目标
+## 1. 接入后的项目结构
 
-接入后，每个项目都应该拥有：
+接入完成后，目标项目根目录应该包含：
 
 ```text
 PROJECT_CONTEXT.md
 STATE.md
 DECISIONS.md
-docs/AI_CHANGELOG.md
-docs/HANDOVER.md
+docs/
+  AI_CHANGELOG.md
+  HANDOVER.md
 AGENTS.md
 .cursorrules
 ```
 
-这些文件共同构成项目记忆。AI 和新人应该先读取这些文件，再理解或修改代码。
-
-## 2. 新项目接入
-
-推荐把插件放在项目内：
+如果选择把插件源码也放进项目，推荐结构是：
 
 ```text
-your-project/
-  plugins/project-guardian/
+plugins/
+  project-guardian/
+    .codex-plugin/
+    skills/
+    scripts/
+    assets/
+    docs/
 ```
 
-然后在项目根目录运行：
+## 2. init 初始化是什么
+
+`init` 是 Project Guardian 的初始化命令，用来在项目根目录创建标准项目记忆文件。
+
+命令：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js init
+```
+
+它会做四件事：
+
+1. 创建 `PROJECT_CONTEXT.md`。
+2. 创建 `STATE.md`。
+3. 创建 `DECISIONS.md`。
+4. 创建 `docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`AGENTS.md`、`.cursorrules`。
+
+如果项目有 `package.json`，还会自动加入 `guardian:*` npm scripts。
+
+重要说明：
+
+- 必须在项目根目录运行。
+- 已存在的同名文件不会被覆盖。
+- `init` 只创建模板，不会自动补齐业务内容。
+- 初始化后必须补齐项目背景、运行方式、当前状态和关键决策。
+
+## 3. 新项目接入步骤
+
+### 3.1 放入插件
+
+把插件目录放到项目：
+
+```text
+your-project/plugins/project-guardian/
+```
+
+### 3.2 进入项目根目录
+
+```bash
+cd your-project
+```
+
+### 3.3 运行初始化
+
+Windows PowerShell：
+
+```powershell
+node .\plugins\project-guardian\scripts\guardian.js init
+```
+
+macOS 或 Linux：
+
+```bash
+node ./plugins/project-guardian/scripts/guardian.js init
+```
+
+### 3.4 运行体检
+
+```bash
+node plugins/project-guardian/scripts/guardian.js doctor
+```
+
+看到 `Core memory files: ok` 表示核心记忆文件齐全。
+
+### 3.5 补齐第一版项目记忆
+
+推荐让 AI 先读代码后补齐：
+
+```text
+请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 PROJECT_CONTEXT.md、STATE.md 和 DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
+```
+
+然后由项目负责人复核。
+
+## 4. 已上传到 Gitee 的项目如何接入
+
+如果源码已经在 Gitee，推荐流程如下。
+
+### 4.1 拉取项目
+
+```bash
+git clone <Gitee 仓库地址>
+cd <项目目录>
+```
+
+### 4.2 创建接入分支
+
+```bash
+git checkout -b docs/project-guardian
+```
+
+### 4.3 放入插件并初始化
+
+把 `project-guardian` 放到：
+
+```text
+plugins/project-guardian/
+```
+
+然后运行：
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js init
 node plugins/project-guardian/scripts/guardian.js doctor
 ```
 
-接着填写：
+### 4.4 补齐记忆文件
 
-- `PROJECT_CONTEXT.md`：项目目标、业务流程、技术栈、运行方式。
-- `STATE.md`：当前完成情况、下一步、已知问题。
-- `DECISIONS.md`：已经确定的重要技术或业务决策。
+至少补齐：
 
-如果项目使用 npm，`init` 会自动写入：
+- `PROJECT_CONTEXT.md`
+- `STATE.md`
+- `DECISIONS.md`
 
-```json
-{
-  "scripts": {
-    "guardian:init": "node \"plugins/project-guardian/scripts/guardian.js\" init",
-    "guardian:update": "node \"plugins/project-guardian/scripts/guardian.js\" update",
-    "guardian:handover": "node \"plugins/project-guardian/scripts/guardian.js\" handover",
-    "guardian:check": "node \"plugins/project-guardian/scripts/guardian.js\" check",
-    "guardian:doctor": "node \"plugins/project-guardian/scripts/guardian.js\" doctor",
-    "guardian:query": "node \"plugins/project-guardian/scripts/guardian.js\" query"
-  }
-}
+然后生成交接文档：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js handover
 ```
 
-## 3. 已有项目接入
+### 4.5 提交并推送到 Gitee
 
-已有项目不要一次性让 AI 重写所有文档，按以下步骤接入：
-
-1. 复制插件到项目：
-
-   ```text
-   your-project/plugins/project-guardian/
-   ```
-
-2. 运行初始化：
-
-   ```bash
-   node plugins/project-guardian/scripts/guardian.js init
-   ```
-
-   `init` 不会覆盖已存在的同名记忆文件。
-
-3. 运行体检：
-
-   ```bash
-   node plugins/project-guardian/scripts/guardian.js doctor
-   ```
-
-4. 让 AI 读取当前代码后补齐基础上下文：
-
-   ```text
-   请阅读当前项目代码，并按 Project Guardian 标准补齐 PROJECT_CONTEXT.md、STATE.md 和 DECISIONS.md。不要改业务代码。
-   ```
-
-5. 生成交接文档：
-
-   ```bash
-   node plugins/project-guardian/scripts/guardian.js handover
-   ```
-
-6. 人工复核 `docs/HANDOVER.md`，补充真实运行方式、账号、环境变量和历史坑点。
-
-## 4. 团队模板接入
-
-如果公司有小项目脚手架，建议把插件直接放进模板：
-
-```text
-template-project/
-  plugins/project-guardian/
-  PROJECT_CONTEXT.md
-  STATE.md
-  DECISIONS.md
-  docs/AI_CHANGELOG.md
-  docs/HANDOVER.md
-  AGENTS.md
-  .cursorrules
+```bash
+git add .
+node plugins/project-guardian/scripts/guardian.js check
+git commit -m "docs: add project guardian memory"
+git push -u origin docs/project-guardian
 ```
 
-模板中可以预填：
+然后在 Gitee 上发起 Pull Request 或合并请求。
 
-- 通用技术栈。
-- 运行命令。
-- 标准环境变量。
-- 公司通用接口约定。
-- 常见错误处理方式。
+## 5. 已有项目接入注意事项
 
-新项目从模板创建后，只需要改项目名称、业务流程和状态。
+已有项目不要一次性让 AI 重写所有文档。
 
-## 5. Git Hook 接入
+推荐分三轮：
+
+1. 第一轮只补项目事实：技术栈、运行命令、目录结构。
+2. 第二轮补业务流程：核心功能、数据流、接口依赖。
+3. 第三轮补历史原因：已知坑点、重要决策、风险区域。
+
+每轮补完都提交一次，避免一次性大改文档没人敢审。
+
+## 6. Git Hook 接入
 
 安装提交前检查：
 
@@ -127,69 +180,35 @@ template-project/
 node plugins/project-guardian/scripts/guardian.js install-hooks
 ```
 
-它会在 `.git/hooks/pre-commit` 中追加 Project Guardian 检查块，不会覆盖已有 hook。
+作用：
 
-检查规则：
+- 如果 staged 代码变更没有对应 staged 记忆文件变更，提交会失败。
+- 如果已有 pre-commit hook，插件会追加检查块，不会覆盖原内容。
 
-- 如果 staged 代码有变更，但 staged 记忆文件没有变更，提交会失败。
-- 如果没有 staged 变更，`check` 会检查工作区和未跟踪文件。
-- 纯记忆文件变更可以通过。
-
-## 6. 日常开发流程
-
-一次标准 AI 辅助开发应该这样结束：
+团队也可以先不安装 hook，只要求提交前手动运行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js update "实现登录验证码"
-```
-
-然后人工补全 `docs/AI_CHANGELOG.md` 中的 TODO：
-
-- AI summary
-- Business reason
-- Verification
-- Risks
-- Next step
-
-再提交：
-
-```bash
-git add .
 node plugins/project-guardian/scripts/guardian.js check
-git commit -m "feat: add login captcha"
 ```
 
-## 7. 新人接手流程
-
-新人第一天按这个顺序：
-
-1. 阅读 `docs/HANDOVER.md`。
-2. 阅读 `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`。
-3. 运行项目。
-4. 运行：
-
-   ```bash
-   node plugins/project-guardian/scripts/guardian.js query
-   ```
-
-5. 连续询问模块、历史原因、风险点和下一步任务。
-
-推荐提问：
-
-```text
-这个项目现在做到哪了？
-登录模块的入口和风险点是什么？
-最近一次 AI 修改改了什么，为什么改？
-新人今天最适合接哪个任务？
-```
-
-## 8. 接入验收标准
+## 7. 接入验收标准
 
 接入完成必须满足：
 
-- `doctor` 通过，没有缺失核心记忆文件。
-- `PROJECT_CONTEXT.md` 至少说明项目目标、技术栈、运行方式、核心流程。
-- `STATE.md` 至少说明当前状态、下一步、已知问题。
-- `DECISIONS.md` 至少记录已有关键决策，或明确暂无关键决策。
-- `docs/HANDOVER.md` 可以让新人独立启动项目。
+- `doctor` 通过。
+- `PROJECT_CONTEXT.md` 写清楚项目目标、技术栈、运行方式、核心流程。
+- `STATE.md` 写清楚当前状态、下一步、已知问题。
+- `DECISIONS.md` 写清楚关键决策，或明确“暂无关键决策”。
+- `docs/HANDOVER.md` 能让新人独立启动项目。
 - `check` 能在代码变更但记忆未更新时失败。
+
+## 8. 接入完成后的第一条团队规则
+
+从接入完成的下一次提交开始，所有 AI 辅助代码变更都必须同时更新项目记忆。
+
+最低要求：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js update "本次任务说明"
+git add STATE.md docs/AI_CHANGELOG.md
+```
