@@ -15,7 +15,6 @@ Project Guardian 是一个面向 AI 辅助编程团队的项目记忆插件。�
 
 ```text
 project-guardian/
-  .codex-plugin/plugin.json
   skills/project-guardian/SKILL.md
   scripts/guardian.js
   assets/templates/
@@ -24,7 +23,6 @@ project-guardian/
   docs/WORKFLOW.md
 ```
 
-- `plugin.json`：Codex 插件元信息。
 - `SKILL.md`：Codex 使用本插件时遵守的项目记忆规则。
 - `guardian.js`：本地 CLI，负责初始化、更新、交接、检查和查询。
 - `assets/templates/`：标准记忆文件模板。
