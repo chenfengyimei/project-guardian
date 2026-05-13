@@ -113,5 +113,5 @@ guardian> exit
 
 ## 更多文档
 
-- 接入指南：[docs/INTEGRATION.md](docs/INTEGRATION.md)
-- 使用规范：[docs/STANDARD.md](docs/STANDARD.md)
+- 接入指南：[docs/INTEGRATION.md](plugins/docs/INTEGRATION.md)
+- 使用规范：[docs/STANDARD.md](plugins/docs/STANDARD.md)
