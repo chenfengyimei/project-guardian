@@ -4,6 +4,13 @@ Project Guardian 是一个面向 AI 辅助编程团队的项目记忆插件。�
 
 这个插件适合小项目多、人员流动快、开发者大量依赖 AI IDE 的团队。它的原则是：新人和 AI 在改代码前先读项目记忆，改完代码后必须更新项目记忆。
 
+## 适用场景
+
+- 项目已经上传到 Gitee、GitHub、GitLab 等代码平台。
+- 团队有较多实习生或流动开发者。
+- 代码大量由 AI 生成，但历史对话和修改原因容易丢失。
+- 希望形成“开发、记录、提交、交接、接手”的固定工作循环。
+
 ## 插件包含什么
 
 ```text
@@ -14,7 +21,7 @@ project-guardian/
   assets/templates/
   docs/INTEGRATION.md
   docs/STANDARD.md
-  README.md
+  docs/WORKFLOW.md
 ```
 
 - `plugin.json`：Codex 插件元信息。
@@ -23,6 +30,18 @@ project-guardian/
 - `assets/templates/`：标准记忆文件模板。
 - `docs/INTEGRATION.md`：如何把插件接入新项目或已有项目。
 - `docs/STANDARD.md`：团队使用规范、目录标准和记录标准。
+
+## 推荐阅读顺序
+
+第一次使用请按顺序阅读：
+
+1. [接入文档](plugins/project-guardian/docs/INTEGRATION.md)
+2. [工作流文档](plugins/project-guardian/docs/WORKFLOW.md)
+3. [规范文档](plugins/project-guardian/docs/STANDARD.md)
+
+## 一句话工作循环
+
+新项目先 `init` 建立记忆文件；每天开发前读 `STATE.md`；AI 改完代码后运行 `update`；提交前运行 `check`；换人或阶段结束运行 `handover`；新人接手先读 `HANDOVER.md`，再用 `query` 多轮提问。
 
 ## 快速使用
 
@@ -110,8 +129,3 @@ guardian> exit
 4. 每次提交前运行 `check`，或安装 `install-hooks` 自动检查。
 5. 换人、离职、暂停超过一周或版本交付前运行 `handover`。
 6. 新人接手时先读 `docs/HANDOVER.md`，再用 `query` 连续提问。
-
-## 更多文档
-
-- 接入指南：[docs/INTEGRATION.md](plugins/project-guardian/docs/INTEGRATION.md)
-- 使用规范：[docs/STANDARD.md](plugins/project-guardian/docs/STANDARD.md)
