@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Project Guardian">
+  <rect width="256" height="256" rx="48" fill="#2563EB"/>
+  <path d="M128 35 55 64v57c0 47 29 82 73 101 44-19 73-54 73-101V64l-73-29Z" fill="#DBEAFE"/>
+  <path d="M93 94h70v12H93zm0 30h70v12H93zm0 30h45v12H93z" fill="#1D4ED8"/>
+  <circle cx="169" cy="160" r="17" fill="#10B981"/>
+</svg>

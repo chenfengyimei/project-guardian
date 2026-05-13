@@ -1,0 +1,47 @@
+{
+  "name": "project-guardian",
+  "version": "0.2.0",
+  "description": "A lightweight project memory guardian for AI-assisted coding handover, onboarding, and self-service knowledge lookup.",
+  "author": {
+    "name": "Internal AI Engineering",
+    "email": "ai-engineering@example.com",
+    "url": "https://example.com"
+  },
+  "homepage": "https://example.com/project-guardian",
+  "repository": "https://example.com/project-guardian.git",
+  "license": "MIT",
+  "keywords": [
+    "ai-coding",
+    "project-memory",
+    "handover",
+    "onboarding",
+    "knowledge-base"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Guardian",
+    "shortDescription": "Keep durable project memory for AI-assisted coding teams.",
+    "longDescription": "Project Guardian creates and maintains standard project memory files, AI behavior rules, handover guides, pre-commit checks, project audits, and a local multi-turn knowledge query loop so new developers and AI agents can understand why the project works the way it does.",
+    "developerName": "Internal AI Engineering",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write",
+      "Search",
+      "Handover",
+      "Audit"
+    ],
+    "websiteURL": "https://example.com/project-guardian",
+    "privacyPolicyURL": "https://example.com/privacy",
+    "termsOfServiceURL": "https://example.com/terms",
+    "defaultPrompt": [
+      "初始化项目记忆文件",
+      "查询这个项目的历史上下文",
+      "生成新人交接文档"
+    ],
+    "brandColor": "#2563EB",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "screenshots": []
+  }
+}
