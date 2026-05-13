@@ -1,0 +1,21 @@
+name: project-guardian
+displayName: Project Guardian Memory Check
+triggers:
+  push:
+    - matchType: PRECISE
+      branch: master
+commitMessage: ""
+stages:
+  - stage:
+      name: project_guardian
+      displayName: Project Guardian
+      failFast: false
+      steps:
+        - step: npmbuild@1
+          name: guardian_check
+          displayName: Check project memory
+          inputs:
+            nodeVersion: 14.15
+            goals: |
+              node plugins/project-guardian/scripts/guardian.js check
+              node plugins/project-guardian/scripts/guardian.js validate-docs

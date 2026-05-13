@@ -268,6 +268,7 @@ docs/AI_CHANGELOG.md
 ```bash
 git add .
 node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js validate-docs
 ```
 
 如果检查失败，通常说明你改了业务代码，但没有把记忆文件一起加入提交。
@@ -426,6 +427,7 @@ PR 合并前检查：
 - 是否需要更新 `DECISIONS.md`。
 - 是否运行过项目验证。
 - 是否说明风险点。
+- 是否通过 `validate-docs`。
 
 ## 10. 每周项目记忆维护
 
@@ -508,3 +510,18 @@ node plugins/project-guardian/scripts/guardian.js query
 5. 新人接手先读 `docs/HANDOVER.md`。
 
 只要这五件事稳定执行，项目上下文就不会随着人员流动彻底断掉。
+
+## 13. 自动化检查循环
+
+团队稳定执行后，建议开启 Gitee Go 自动检查：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js install-ci
+git add .workflow/project-guardian.yml
+git commit -m "ci: add project guardian checks"
+git push
+```
+
+之后每次 push 时，流水线会运行 `check` 和 `validate-docs`。其中 `check` 负责确认代码变更是否带上记忆更新，`validate-docs` 负责确认记忆文档没有停留在模板状态。
+
+详细命令说明、失败处理和 Gitee Go 分支配置见 `plugins/project-guardian/docs/CLI_AND_CI.md`。

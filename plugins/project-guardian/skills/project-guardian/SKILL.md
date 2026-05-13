@@ -28,6 +28,7 @@ After code changes, update project memory unless the user explicitly asks not to
 - Update `DECISIONS.md` when the change introduces a meaningful architecture, business logic, dependency, data model, or compatibility decision.
 - Refresh `docs/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
 - Preserve existing human-written memory. Append, summarize, or amend the relevant section instead of deleting historical context.
+- Run or recommend `guardian validate-docs` when memory quality matters before handover, PR, or release.
 
 ## Self-Service Knowledge Loop
 

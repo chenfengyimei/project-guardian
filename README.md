@@ -38,6 +38,7 @@ project-guardian/
 1. [接入文档](plugins/project-guardian/docs/INTEGRATION.md)
 2. [工作流文档](plugins/project-guardian/docs/WORKFLOW.md)
 3. [规范文档](plugins/project-guardian/docs/STANDARD.md)
+4. [CI 与命令行操作文档](plugins/project-guardian/docs/CLI_AND_CI.md)
 
 ## 一句话工作循环
 
@@ -129,3 +130,20 @@ guardian> exit
 4. 每次提交前运行 `check`，或安装 `install-hooks` 自动检查。
 5. 换人、离职、暂停超过一周或版本交付前运行 `handover`。
 6. 新人接手时先读 `docs/HANDOVER.md`，再用 `query` 连续提问。
+
+## 新增质量检查命令
+
+```bash
+# 检查记忆文档是否还有过多 TODO 或空字段
+node plugins/project-guardian/scripts/guardian.js validate-docs
+
+# 安装 Gitee Go 流水线模板
+node plugins/project-guardian/scripts/guardian.js install-ci
+```
+
+推荐提交前至少运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js validate-docs
+```

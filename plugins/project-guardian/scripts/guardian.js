@@ -38,6 +38,33 @@ const SOURCE_EXTENSIONS = new Set([
   ".yaml",
   ".yml",
 ]);
+const DOC_RULES = [
+  {
+    file: "PROJECT_CONTEXT.md",
+    sections: ["## Project Summary", "## Tech Stack", "## Core Business Flows", "## How To Run"],
+    maxPlaceholders: 8,
+  },
+  {
+    file: "STATE.md",
+    sections: ["## Current Status", "## Next Steps", "## Known Issues", "## Latest AI-Assisted Change"],
+    maxPlaceholders: 6,
+  },
+  {
+    file: "DECISIONS.md",
+    sections: ["# Decisions"],
+    maxPlaceholders: 4,
+  },
+  {
+    file: path.join("docs", "AI_CHANGELOG.md"),
+    sections: ["# AI Changelog"],
+    maxPlaceholders: 8,
+  },
+  {
+    file: path.join("docs", "HANDOVER.md"),
+    sections: ["## First Read", "## How To Run", "## Project Map", "## New Developer First Day"],
+    maxPlaceholders: 8,
+  },
+];
 
 function main() {
   const [command, ...args] = process.argv.slice(2);
@@ -59,11 +86,17 @@ function main() {
     case "doctor":
       doctor(root);
       break;
+    case "validate-docs":
+      validateDocs(root);
+      break;
     case "query":
       query(root).catch((error) => fail(error.message));
       break;
     case "install-hooks":
       installHooks(root);
+      break;
+    case "install-ci":
+      installCi(root);
       break;
     case "help":
     case "--help":
@@ -260,6 +293,31 @@ function doctor(root) {
   console.log("Doctor completed.");
 }
 
+function validateDocs(root) {
+  ensureInitialized(root);
+  const reports = DOC_RULES.map((rule) => inspectDoc(root, rule));
+  const failed = reports.filter((report) => report.issues.length > 0);
+
+  console.log("Project Guardian document validation");
+  console.log("");
+  for (const report of reports) {
+    const status = report.issues.length === 0 ? "ok" : "needs work";
+    console.log(`${report.file}: ${status} (${report.placeholders} placeholders)`);
+    for (const issue of report.issues) {
+      console.log(`  - ${issue}`);
+    }
+  }
+
+  if (failed.length > 0) {
+    console.log("");
+    console.log("Document validation failed. Fill placeholders, remove TODO entries, and add missing sections.");
+    process.exit(1);
+  }
+
+  console.log("");
+  console.log("Document validation passed.");
+}
+
 async function query(root) {
   ensureInitialized(root);
   const index = buildIndex(root);
@@ -330,6 +388,12 @@ function installHooks(root) {
   console.log("Installed .git/hooks/pre-commit.");
 }
 
+function installCi(root) {
+  copyTemplate(root, "gitee-go-project-guardian.yml", path.join(".workflow", "project-guardian.yml"));
+  console.log("Installed .workflow/project-guardian.yml.");
+  console.log("Review branch triggers before enabling it in Gitee Go.");
+}
+
 function ensureInitialized(root) {
   const missing = CORE_MEMORY_FILES.filter((file) => !fs.existsSync(path.join(root, file)));
   if (missing.length > 0) {
@@ -358,7 +422,9 @@ function addPackageScripts(packagePath) {
     pkg.scripts["guardian:handover"] = pkg.scripts["guardian:handover"] || `node "${relScript}" handover`;
     pkg.scripts["guardian:check"] = pkg.scripts["guardian:check"] || `node "${relScript}" check`;
     pkg.scripts["guardian:doctor"] = pkg.scripts["guardian:doctor"] || `node "${relScript}" doctor`;
+    pkg.scripts["guardian:validate-docs"] = pkg.scripts["guardian:validate-docs"] || `node "${relScript}" validate-docs`;
     pkg.scripts["guardian:query"] = pkg.scripts["guardian:query"] || `node "${relScript}" query`;
+    pkg.scripts["guardian:install-ci"] = pkg.scripts["guardian:install-ci"] || `node "${relScript}" install-ci`;
     fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
     console.log("Added package.json guardian scripts.");
   } catch (error) {
@@ -398,6 +464,7 @@ function buildIndex(root) {
       docs.push(...chunks(file, fs.readFileSync(full, "utf8"), 900, 160));
     }
   }
+  docs.push(...buildGitHistoryDocs(root));
   for (const file of collectFiles(root, 300)) {
     if (isMemoryFile(file) || file.includes("node_modules")) continue;
     const full = path.join(root, file);
@@ -405,6 +472,54 @@ function buildIndex(root) {
     if (text) docs.push(...chunks(file, text, 700, 120));
   }
   return docs;
+}
+
+function buildGitHistoryDocs(root) {
+  const history = git(root, [
+    "log",
+    "-n",
+    "80",
+    "--date=short",
+    "--pretty=format:%h %ad %an %s",
+    "--name-only",
+  ]);
+  if (!history) return [];
+  return chunks("git-history", history, 1200, 200);
+}
+
+function inspectDoc(root, rule) {
+  const filePath = path.join(root, rule.file);
+  const text = readMaybe(filePath);
+  const placeholders = countPlaceholders(text);
+  const issues = [];
+
+  if (!text.trim()) {
+    issues.push("file is empty");
+  }
+  for (const section of rule.sections) {
+    if (!text.includes(section)) {
+      issues.push(`missing section: ${section}`);
+    }
+  }
+  if (placeholders > rule.maxPlaceholders) {
+    issues.push(`too many placeholders: ${placeholders}/${rule.maxPlaceholders}`);
+  }
+
+  return { file: rule.file, placeholders, issues };
+}
+
+function countPlaceholders(text) {
+  let count = 0;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (/\bTODO\b/i.test(line)) count += 1;
+    if (/^-\s*$/.test(line)) count += 1;
+    if (/^-\s*[^:]+:\s*$/.test(line)) count += 1;
+    if (/^Last (updated|generated):\s*$/.test(line)) count += 1;
+    if (/^\|\s*(\|\s*)+$/.test(line)) count += 1;
+  }
+  return count;
 }
 
 function searchIndex(index, question, limit) {
@@ -657,8 +772,10 @@ Usage:
   node scripts/guardian.js handover
   node scripts/guardian.js check
   node scripts/guardian.js doctor
+  node scripts/guardian.js validate-docs
   node scripts/guardian.js query
   node scripts/guardian.js install-hooks
+  node scripts/guardian.js install-ci
 
 Commands:
   init           Create standard project memory files and AI rules.
@@ -666,8 +783,10 @@ Commands:
   handover      Generate docs/HANDOVER.md from current memory and project files.
   check         Fail when code changed but memory was not updated.
   doctor        Audit memory files, AI rules, and git change state.
+  validate-docs Fail when memory docs still contain too many placeholders.
   query         Start a local multi-turn project knowledge query loop.
   install-hooks Install a pre-commit hook that runs guardian check.
+  install-ci    Install a Gitee Go workflow template.
 `);
 }
 

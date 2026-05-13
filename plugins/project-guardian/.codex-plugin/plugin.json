@@ -1,6 +1,6 @@
 {
   "name": "project-guardian",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A lightweight project memory guardian for AI-assisted coding handover, onboarding, and self-service knowledge lookup.",
   "author": {
     "name": "Internal AI Engineering",
@@ -9,7 +9,7 @@
   },
   "homepage": "https://example.com/project-guardian",
   "repository": "https://example.com/project-guardian.git",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ai-coding",
     "project-memory",

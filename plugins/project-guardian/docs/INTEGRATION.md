@@ -212,3 +212,38 @@ node plugins/project-guardian/scripts/guardian.js check
 node plugins/project-guardian/scripts/guardian.js update "本次任务说明"
 git add STATE.md docs/AI_CHANGELOG.md
 ```
+
+## 9. 文档质量检查
+
+接入完成后建议运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js validate-docs
+```
+
+它会检查标准记忆文件是否缺少关键章节，以及是否还保留了过多 `TODO`、空字段、空表格行。新项目刚 `init` 后通常会失败，这是正常的，说明还没有填充真实项目记忆。
+
+## 10. Gitee Go 流水线接入
+
+如果希望 Gitee 自动检查项目记忆，运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js install-ci
+```
+
+该命令会创建：
+
+```text
+.workflow/project-guardian.yml
+```
+
+流水线会执行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js validate-docs
+```
+
+启用前请在 Gitee Go 中确认分支触发规则是否符合团队流程。
+
+更完整的命令行、Git Hook 和 CI 操作说明见 `plugins/project-guardian/docs/CLI_AND_CI.md`。

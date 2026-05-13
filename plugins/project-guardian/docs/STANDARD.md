@@ -25,10 +25,12 @@ project-guardian/
       HANDOVER.md
       AGENTS.md
       cursorrules
+      gitee-go-project-guardian.yml
   docs/
+    CLI_AND_CI.md
     INTEGRATION.md
     STANDARD.md
-  README.md
+    WORKFLOW.md
 ```
 
 不得删除：
@@ -37,6 +39,8 @@ project-guardian/
 - `skills/project-guardian/SKILL.md`
 - `scripts/guardian.js`
 - `assets/templates/`
+
+仓库根目录必须保留 `README.md` 作为第一次使用者的入口文档；README 不放在插件目录内。
 
 ## 2. 项目接入后标准目录
 
@@ -228,7 +232,9 @@ node plugins/project-guardian/scripts/guardian.js query
 - `guardian.js` 通过 `node --check`。
 - `init` 不覆盖已有记忆文件。
 - `check` 能检查 staged 代码变更。
+- `validate-docs` 能发现过多 TODO、空字段和缺失章节。
 - `install-hooks` 不覆盖已有 hook。
+- `install-ci` 能生成 Gitee Go 流水线模板。
 - 文档和模板能让第一次使用者独立接入。
 
 建议每次修改插件后运行：
@@ -237,3 +243,14 @@ node plugins/project-guardian/scripts/guardian.js query
 node --check plugins/project-guardian/scripts/guardian.js
 node plugins/project-guardian/scripts/guardian.js help
 ```
+
+## 10. 自动化标准
+
+推荐目标项目安装：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js install-hooks
+node plugins/project-guardian/scripts/guardian.js install-ci
+```
+
+`install-hooks` 用于本地提交前检查，`install-ci` 用于 Gitee Go 远端流水线检查。两者都不替代人工复核，但可以防止“代码改了、记忆没更新”的常见漏项。
