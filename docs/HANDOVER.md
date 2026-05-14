@@ -16,15 +16,20 @@ Read these files before editing code:
 
 ## How To Run
 
+Preferred CLI after global install is `guardian`. If the package is not installed globally, use the vendored path `node plugins/project-guardian/scripts/guardian.js <command>`.
+
 ```bash
 # check CLI syntax
 node --check plugins/project-guardian/scripts/guardian.js
 
 # show available commands
-node plugins/project-guardian/scripts/guardian.js help
+guardian help
+
+# install AI tool adapters
+guardian install-adapters --adapter cursor,copilot
 
 # run the full local quality gate
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 
 # run tests
 npm.cmd test
@@ -36,15 +41,15 @@ npm.cmd test
 | --- | --- | --- |
 | Plugin metadata | `plugins/project-guardian/.codex-plugin/plugin.json`, `.agents/plugins/marketplace.json` | Allows Codex to discover and install the local plugin |
 | Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | Tells Codex how to use project memory before answering or editing |
-| CLI | `plugins/project-guardian/scripts/guardian.js` | Implements init, update, handover, check, validation, query, hooks, CI, decisions, conflicts, verify, and security scanning |
-| Templates | `plugins/project-guardian/assets/templates/*` | Seed files copied into target projects during `guardian init` |
+| CLI | `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/scripts/lib/adapters.js` | Implements init, update, handover, check, validation, query, hooks, CI, decisions, conflicts, verify, security scanning, and AI tool adapter resolution |
+| Templates | `plugins/project-guardian/assets/templates/*` | Seed memory files and AI tool adapter rules copied into target projects during `guardian init` or `guardian install-adapters` |
 | Documentation | `README.md`, `plugins/project-guardian/docs/*`, `零基础超简单入门.md` | Explains adoption, workflow, standards, CLI, CI, and beginner usage |
 | Tests | `package.json`, `tests/guardian.test.js` | Runs syntax checks and command behavior tests with temporary repositories |
 | Memory | `PROJECT_CONTEXT.md`, `STATE.md`, `DECISIONS.md`, `docs/AI_CHANGELOG.md`, `docs/HANDOVER.md` | Durable context for this repository |
 
 ## Core Flows
 
-- New project adoption: copy or reference the plugin, run `guardian init`, fill memory, run `guardian verify`, then commit.
+- New project adoption: install the CLI globally or copy the plugin source, run `guardian init`, optionally run `guardian install-adapters --adapter cursor,copilot`, fill memory, run `guardian verify`, then commit.
 - Daily work: read memory, make the smallest safe change, run project tests, run `guardian update`, fill changelog fields, run `guardian verify`.
 - Conflict work: run `guardian conflicts`, resolve code and memory conflicts, preserve useful history from both sides, then rerun `guardian verify`.
 - Handover: run `guardian update`, run `guardian handover`, review the generated guide, run `guardian verify`, then push.
@@ -69,8 +74,8 @@ npm.cmd test
 ## New Developer First Day
 
 1. Read project memory and the root README.
-2. Run `node plugins/project-guardian/scripts/guardian.js doctor`.
+2. Run `guardian doctor`.
 3. Run `node --check plugins/project-guardian/scripts/guardian.js`.
 4. Run `npm.cmd test`.
 5. Pick one small issue from `STATE.md`.
-6. After the change, update memory and run `node plugins/project-guardian/scripts/guardian.js verify`.
+6. After the change, update memory and run `guardian verify`.

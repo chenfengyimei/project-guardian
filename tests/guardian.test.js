@@ -71,6 +71,7 @@ function defaultConfig(overrides = {}) {
       scanSecrets: true,
       ...(overrides.security || {}),
     },
+    adapters: overrides.adapters || ["generic", "cursor"],
     ignore: overrides.ignore || [],
   };
 }
@@ -316,6 +317,108 @@ test("init creates standard files and preserves existing memory", () => {
     assert.equal(fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8"), "custom context\n");
     assert.ok(fs.existsSync(path.join(root, "project-guardian.config.json")));
     assert.ok(fs.existsSync(path.join(root, "docs", "AI_CHANGELOG.md")));
+    assert.ok(fs.existsSync(path.join(root, "AGENTS.md")));
+    assert.ok(fs.existsSync(path.join(root, ".cursor", "rules", "project-guardian.mdc")));
+    assert.ok(fs.existsSync(path.join(root, ".cursorrules")));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("package exposes guardian CLI bin entries", () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  assert.equal(pkg.bin.guardian, "plugins/project-guardian/scripts/guardian.js");
+  assert.equal(pkg.bin["project-guardian"], "plugins/project-guardian/scripts/guardian.js");
+  assert.equal(pkg.engines.node, ">=18");
+  assert.ok(pkg.files.includes("plugins/project-guardian"));
+});
+
+test("version command reads plugin manifest version", () => {
+  const root = tempDir("version");
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "plugins", "project-guardian", ".codex-plugin", "plugin.json"), "utf8"));
+    const result = run(root, ["--version"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(result.stdout.trim(), manifest.version);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("init --adapter all creates Codex, Cursor, Copilot, and generic rule files", () => {
+  const root = tempDir("adapter-all");
+  try {
+    const result = run(root, ["init", "--adapter", "all"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.ok(fs.existsSync(path.join(root, "AGENTS.md")));
+    assert.ok(fs.existsSync(path.join(root, ".cursor", "rules", "project-guardian.mdc")));
+    assert.ok(fs.existsSync(path.join(root, ".cursorrules")));
+    assert.ok(fs.existsSync(path.join(root, ".github", "copilot-instructions.md")));
+    assert.ok(fs.existsSync(path.join(root, ".github", "instructions", "project-guardian.instructions.md")));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("init persists adapter flags into fresh config", () => {
+  const root = tempDir("adapter-flag-config");
+  try {
+    const result = run(root, ["init", "--adapter", "copilot"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.ok(fs.existsSync(path.join(root, ".github", "copilot-instructions.md")));
+    assert.equal(fs.existsSync(path.join(root, ".cursor", "rules", "project-guardian.mdc")), false);
+
+    const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
+    assert.deepEqual(config.adapters, ["copilot"]);
+
+    const doctor = run(root, ["doctor"]);
+    assert.equal(doctor.status, 0, `${doctor.stdout}\n${doctor.stderr}`);
+    assert.match(doctor.stdout, /AI rule files: ok/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("install-adapters preserves existing adapter files", () => {
+  const root = tempDir("adapter-preserve");
+  try {
+    writeFile(path.join(root, ".github", "copilot-instructions.md"), "custom copilot rules\n");
+    const result = run(root, ["install-adapters", "--adapter", "copilot"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(fs.readFileSync(path.join(root, ".github", "copilot-instructions.md"), "utf8"), "custom copilot rules\n");
+    assert.ok(fs.existsSync(path.join(root, ".github", "instructions", "project-guardian.instructions.md")));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("config adapters control init adapter output", () => {
+  const root = tempDir("adapter-config");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ adapters: ["copilot"] }));
+    const result = run(root, ["init"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.ok(fs.existsSync(path.join(root, ".github", "copilot-instructions.md")));
+    assert.equal(fs.existsSync(path.join(root, ".cursor", "rules", "project-guardian.mdc")), false);
+    assert.equal(fs.existsSync(path.join(root, "AGENTS.md")), false);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("doctor validates string adapter config values", () => {
+  const root = tempDir("adapter-config-string");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ adapters: "cursor,copilot" }));
+    const initResult = run(root, ["init"]);
+    assert.equal(initResult.status, 0, `${initResult.stdout}\n${initResult.stderr}`);
+    const result = run(root, ["doctor"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ adapters: "cursor,unknown-ai" }));
+    const failed = run(root, ["doctor"]);
+    assert.notEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
+    assert.match(`${failed.stdout}\n${failed.stderr}`, /unknown adapter: unknown-ai/);
   } finally {
     cleanup(root);
   }

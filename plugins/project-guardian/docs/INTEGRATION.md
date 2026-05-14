@@ -16,6 +16,13 @@ docs/
   HANDOVER.md
 AGENTS.md
 .cursorrules
+.cursor/
+  rules/
+    project-guardian.mdc
+.github/                         # 安装 Copilot 适配器时生成
+  copilot-instructions.md
+  instructions/
+    project-guardian.instructions.md
 .guardianignore
 ```
 
@@ -52,7 +59,7 @@ node plugins/project-guardian/scripts/guardian.js init
 1. 创建 `PROJECT_CONTEXT.md`。
 2. 创建 `STATE.md`。
 3. 创建 `DECISIONS.md`。
-4. 创建 `docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`AGENTS.md`、`.cursorrules`。
+4. 创建 `docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`AGENTS.md`、`.cursorrules` 和默认 Cursor 规则。
 5. 如果没有配置文件，创建 `project-guardian.config.json`。
 
 如果项目有 `package.json`，还会自动加入 `guardian:*` npm scripts。
@@ -64,6 +71,8 @@ node plugins/project-guardian/scripts/guardian.js init
 - 已存在的同名文件不会被覆盖。
 - `init` 只创建模板，不会自动补齐业务内容。
 - 初始化后必须补齐项目背景、运行方式、当前状态和关键决策。
+- 需要 Cursor、Copilot 或通用 AI 工具规则时，可以运行 `guardian install-adapters --adapter cursor,copilot`；需要一次生成全部规则时使用 `guardian init --adapter all`。
+- 新项目第一次使用 `guardian init --adapter ...` 时，所选适配器会写入 `project-guardian.config.json`，避免后续 `doctor` 按默认适配器误报。
 
 ## 3. 新项目接入步骤
 
@@ -74,6 +83,18 @@ node plugins/project-guardian/scripts/guardian.js init
 ```text
 your-project/plugins/project-guardian/
 ```
+
+如果 Project Guardian 已经发布成 npm 包，或者公司允许从 Gitee 工具仓库安装，可以不复制插件源码，直接全局安装 CLI：
+
+```bash
+npm install -g project-guardian
+# 或
+npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
+
+guardian --version
+```
+
+全局安装适合多项目共用一份工具；把插件源码放进 `plugins/project-guardian/` 适合希望每个项目都固定同一版本、离线也能运行的团队。
 
 ### 3.2 进入项目根目录
 
@@ -89,10 +110,22 @@ Windows PowerShell：
 node .\plugins\project-guardian\scripts\guardian.js init
 ```
 
+如果已经全局安装 CLI，可以直接运行：
+
+```powershell
+guardian init
+```
+
 macOS 或 Linux：
 
 ```bash
 node ./plugins/project-guardian/scripts/guardian.js init
+```
+
+如果已经全局安装 CLI，可以直接运行：
+
+```bash
+guardian init
 ```
 
 ### 3.4 运行体检
@@ -272,3 +305,28 @@ node plugins/project-guardian/scripts/guardian.js scan-secrets
 启用前请在 Gitee Go 中确认分支触发规则是否符合团队流程。
 
 更完整的命令行、Git Hook 和 CI 操作说明见 `plugins/project-guardian/docs/CLI_AND_CI.md`。
+
+## 11. 配置 AI 工具适配器
+
+默认配置会生成通用规则和 Cursor 规则：
+
+```json
+{
+  "adapters": ["generic", "cursor"]
+}
+```
+
+可选值：
+
+- `generic` 或 `codex`：生成 `AGENTS.md`。
+- `cursor`：生成 `.cursor/rules/project-guardian.mdc` 和 `.cursorrules`。
+- `copilot`：生成 `.github/copilot-instructions.md` 和 `.github/instructions/project-guardian.instructions.md`。
+- `all`：一次生成所有适配规则。
+
+已有项目想补装 Copilot 规则时，不需要重新初始化核心记忆，直接运行：
+
+```bash
+guardian install-adapters --adapter copilot
+```
+
+该命令不会覆盖已有同名文件，因此团队已经手工调整过的 AI 规则会被保留。

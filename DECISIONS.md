@@ -28,6 +28,18 @@ This file records decisions that future developers and AI agents must understand
 - Review after: 2026-06-14.
 - Follow-up: Keep beginner docs practical and add tests that distinguish empty templates from real memory.
 
+### 2026-05-14 - Expose a portable CLI and AI tool adapter layer
+
+- Context: Calling the CLI through `node plugins/project-guardian/scripts/guardian.js` made adoption feel like a raw script, and Codex-only rules limited usefulness for teams using Cursor, Copilot, or mixed AI tooling.
+- Decision: Add package `bin` entries for `guardian` and `project-guardian`, keep the vendored script path as a fallback, and introduce adapter templates for generic/Codex, Cursor, and Copilot rule files.
+- Alternatives considered: Keep only Codex plugin metadata, require every project to vendor the plugin, or create separate plugins for each AI tool.
+- Affected files/modules: `package.json`, `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/scripts/lib/adapters.js`, `plugins/project-guardian/assets/templates/*`, `README.md`, and `plugins/project-guardian/docs/*`.
+- Related change: `guardian init --adapter all` and `guardian install-adapters --adapter cursor,copilot` can create tool-specific rule files without changing core memory files. Adapter parsing and template mapping live in `scripts/lib/adapters.js` so new AI tool rules do not have to be wired through the main CLI body.
+- Verification: CLI syntax checks, Node test suite, version/help smoke tests, and package dry-run verification.
+- Risks: The global CLI still needs an actual npm or Git installation source in each company environment; Copilot and Cursor rule formats may evolve and need periodic review.
+- Review after: 2026-06-14.
+- Follow-up: Official Git install source is `git+https://gitee.com/chenfengloveyuri/project-guardian.git`; revisit npm registry publishing only if the team needs npm-native releases later.
+
 ### 2026-05-14 - Use per-decision files
 
 - Context: Multiple maintainers may edit decision history during handover or review.

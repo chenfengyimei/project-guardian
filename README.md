@@ -20,8 +20,12 @@ project-guardian/
   .codex-plugin/plugin.json
   skills/project-guardian/SKILL.md
   scripts/guardian.js
+  scripts/lib/adapters.js
   assets/icon.svg
   assets/templates/
+    cursor-rules.mdc
+    copilot-instructions.md
+    copilot-project-guardian.instructions.md
   docs/CLI_AND_CI.md
   docs/INTEGRATION.md
   docs/STANDARD.md
@@ -56,6 +60,21 @@ project-guardian/
 
 ## 快速使用
 
+推荐先把 CLI 安装成全局命令，这样任何项目里都可以直接运行 `guardian`：
+
+```bash
+# 从 npm 包安装时
+npm install -g project-guardian
+
+# 从当前 Gitee 仓库安装
+npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
+
+guardian init
+guardian verify
+```
+
+如果还没有发布 npm 包，或者团队选择把插件源码随项目提交，也可以继续使用脚本路径。
+
 在目标项目根目录运行：
 
 ```bash
@@ -78,37 +97,47 @@ docs/AI_CHANGELOG.md
 docs/HANDOVER.md
 AGENTS.md
 .cursorrules
+.cursor/rules/project-guardian.mdc
 ```
+
+如果需要一次生成所有 AI 工具适配规则：
+
+```bash
+guardian init --adapter all
+guardian install-adapters --adapter cursor,copilot
+```
+
+适配层只生成规则文件，不改变核心记忆文件。已有同名规则文件会被保留，不会被覆盖。
 
 ## 常用命令
 
 ```bash
 # 检查项目是否已经正确接入
-node plugins/project-guardian/scripts/guardian.js doctor
+guardian doctor
 
 # 记录一次 AI 辅助开发
-node plugins/project-guardian/scripts/guardian.js update "修复登录验证码校验失败"
+guardian update "修复登录验证码校验失败"
 
 # 生成或刷新新人交接文档
-node plugins/project-guardian/scripts/guardian.js handover
+guardian handover
 
 # 提交前检查代码变更是否包含记忆更新
-node plugins/project-guardian/scripts/guardian.js check
+guardian check
 
 # 一次运行全部质量检查
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 
 # 记录一条结构化决策
-node plugins/project-guardian/scripts/guardian.js decision add --title "采用配置文件" --context "需要跨项目适配" --decision "使用 project-guardian.config.json"
+guardian decision add --title "采用配置文件" --context "需要跨项目适配" --decision "使用 project-guardian.config.json"
 
 # 查看 Git 冲突，尤其是记忆文件冲突
-node plugins/project-guardian/scripts/guardian.js conflicts
+guardian conflicts
 
 # 进入多轮项目知识查询
-node plugins/project-guardian/scripts/guardian.js query
+guardian query
 
 # 安装 pre-commit hook
-node plugins/project-guardian/scripts/guardian.js install-hooks
+guardian install-hooks
 ```
 
 如果目标项目有 `package.json`，`init` 会自动补充这些 npm scripts：
@@ -126,7 +155,7 @@ npm run guardian:query
 当前版本推荐提交前优先运行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 ```
 
 `verify` 会按顺序运行：
@@ -145,7 +174,7 @@ scan-secrets
 运行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js query
+guardian query
 ```
 
 示例问题：
@@ -173,20 +202,20 @@ guardian> exit
 
 ```bash
 # 检查记忆文档是否还有过多 TODO 或空字段
-node plugins/project-guardian/scripts/guardian.js validate-docs
+guardian validate-docs
 
 # 扫描记忆文件中的疑似密钥
-node plugins/project-guardian/scripts/guardian.js scan-secrets
+guardian scan-secrets
 
 # 一次运行全部质量检查
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 
 # 安装 Gitee Go 流水线模板
-node plugins/project-guardian/scripts/guardian.js install-ci
+guardian install-ci
 ```
 
 推荐提交前至少运行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 ```

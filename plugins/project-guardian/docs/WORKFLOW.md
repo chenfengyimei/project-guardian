@@ -94,6 +94,19 @@ plugins/project-guardian/
 
 这样新人拉下 Gitee 仓库后不需要再找工具。
 
+如果团队已经把 Project Guardian 安装成全局 CLI，也可以直接运行 `guardian` 命令，不需要写完整脚本路径：
+
+```bash
+npm install -g project-guardian
+# 或从公司 Gitee 工具仓库安装
+npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
+
+guardian doctor
+guardian init
+```
+
+两种方式可以并存：项目内保存插件源码更利于版本固定；全局 CLI 更适合多个项目统一使用。
+
 ### 3.3 运行初始化体检
 
 先运行：
@@ -106,6 +119,12 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js init
+```
+
+全局 CLI 写法：
+
+```bash
+guardian init
 ```
 
 然后再次运行：
@@ -152,7 +171,17 @@ docs/AI_CHANGELOG.md
 docs/HANDOVER.md
 AGENTS.md
 .cursorrules
+.cursor/rules/project-guardian.mdc
 ```
+
+如果团队使用 Cursor、Copilot 或其他 AI 工具，可以补装适配规则：
+
+```bash
+guardian install-adapters --adapter cursor,copilot
+guardian init --adapter all
+```
+
+这些适配规则只告诉不同 AI 工具如何读取 Project Guardian 记忆，不会覆盖已有项目记忆文件。
 
 ### 4.1 init 不会覆盖已有记忆
 

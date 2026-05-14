@@ -15,6 +15,8 @@ project-guardian/
       SKILL.md
   scripts/
     guardian.js
+    lib/
+      adapters.js
   assets/
     icon.svg
     templates/
@@ -25,6 +27,9 @@ project-guardian/
       HANDOVER.md
       AGENTS.md
       cursorrules
+      cursor-rules.mdc
+      copilot-instructions.md
+      copilot-project-guardian.instructions.md
       gitee-go-project-guardian.yml
   docs/
     CLI_AND_CI.md
@@ -56,6 +61,13 @@ docs/
   HANDOVER.md
 AGENTS.md
 .cursorrules
+.cursor/
+  rules/
+    project-guardian.mdc
+.github/                         # 安装 Copilot 适配器时生成
+  copilot-instructions.md
+  instructions/
+    project-guardian.instructions.md
 .guardianignore
 ```
 
@@ -139,9 +151,9 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 - 哪些地方最容易出错。
 - 第一天应该做什么。
 
-### AGENTS.md 和 .cursorrules
+### AI 工具适配规则
 
-AI 行为规则。要求 AI 修改前先读记忆，修改后更新记忆。
+`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md` 和 `.github/instructions/project-guardian.instructions.md` 都属于 AI 工具适配规则。它们要求 AI 修改前先读记忆，修改后更新记忆。
 
 不得写成泛泛而谈的口号，必须明确列出要读取和更新的文件。
 
@@ -251,6 +263,7 @@ node plugins/project-guardian/scripts/guardian.js query
 node --check plugins/project-guardian/scripts/guardian.js
 npm.cmd test
 node plugins/project-guardian/scripts/guardian.js verify
+npm.cmd pack --dry-run
 ```
 
 ## 10. 自动化标准
@@ -275,6 +288,7 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 - `quality.taskIdPattern`：要求 changelog 或 decision 中出现任务编号。
 - `quality.requireChangedLines`：要求 changelog 记录变更行范围。
 - `security.scanSecrets`：控制 `verify` 是否运行安全扫描。
+- `adapters`：控制 `init` 默认生成哪些 AI 工具规则，支持 `generic`、`codex`、`cursor`、`copilot` 或 `all`。
 - `ignore`：排除不参与扫描或索引的路径片段。
 
 默认配置应保持零门槛可用。只有团队确实需要不同目录、任务编号或 CI 分支时才修改配置。

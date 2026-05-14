@@ -6,6 +6,10 @@ Last updated: 2026-05-14
 
 - Project Guardian is a local Codex plugin plus Node.js CLI that creates and maintains durable project memory for AI-assisted coding projects.
 - The current development pass has hardened the tool from a template helper into a reusable workflow guard with config, validation, security scanning, unified verification, conflict guidance, decision files, and tests.
+- The CLI now has package `bin` entries so teams can install it as `guardian`, while the old vendored script path remains available for projects that keep the plugin source in-repo.
+- The official Git install source has been confirmed as `git+https://gitee.com/chenfengloveyuri/project-guardian.git`.
+- The tool now includes an AI adapter layer for generic/Codex rules, Cursor rules, and GitHub Copilot instruction files.
+- Adapter resolution has been split out of the main CLI into `plugins/project-guardian/scripts/lib/adapters.js`, reducing coupling in `guardian.js`.
 - The repository now self-hosts its own Project Guardian memory files so future changes can be reviewed through the same workflow it recommends to other teams.
 
 ## Completed
@@ -16,15 +20,17 @@ Last updated: 2026-05-14
 - Ran self-init for this repository and filled real memory content instead of leaving empty generated templates.
 - Added `package.json` and a Node test suite under `tests/` covering init, validation, check failures, hooks, CI generation, decision records, secret scanning, query, and merge conflict reporting.
 - Updated user-facing docs so `guardian verify` is the recommended default command before commit and CI.
+- Added `guardian` / `project-guardian` package binaries, `guardian --version`, configurable adapter generation, and templates for Cursor and GitHub Copilot.
+- Added a focused adapter module and regression coverage for `guardian init --adapter ...` persisting selected adapters into fresh config.
 
 ## In Progress
 
-- Reviewing final diffs and repeating the verification loop before summarizing the Gitee-ready change set.
+- Final verification loop is being rerun after the CLI adapter decoupling pass.
 
 ## Next Steps
 
 1. Review the final `git diff` and confirm no unrelated files were formatted or rewritten.
-2. Run `npm.cmd run lint`, `npm.cmd test`, and `node plugins/project-guardian/scripts/guardian.js verify` one more time.
+2. Review the verification output from `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, command smoke tests, and package dry-run.
 3. Summarize files changed, tests run, and remaining risks for Gitee submission.
 
 ## Known Issues
@@ -45,7 +51,7 @@ Last updated: 2026-05-14
 ## Latest AI-Assisted Change
 
 - Task: Harden Project Guardian according to the staged P0-P6 improvement roadmap.
-- Summary: Added self-memory, strengthened CLI quality gates, restored plugin marketplace files to Git visibility, added tests, documented verify-first usage, added conflict/decision-file support, and fixed final documentation consistency issues found during multi-round testing.
-- Files: `plugins/project-guardian/scripts/guardian.js`, templates under `plugins/project-guardian/assets/templates/`, root memory files, root docs, and test files.
-- Verification: `npm.cmd run verify`, direct command smoke tests, `git diff --check`, JSON parsing checks, and documentation consistency scans passed during this development pass.
-- Follow-up: Consider future RAG/vector retrieval, issue tracker integration, and package publishing after the local quality gate remains stable.
+- Summary: Added self-memory, strengthened CLI quality gates, restored plugin marketplace files to Git visibility, added tests, documented verify-first usage, added conflict/decision-file support, added package CLI binaries, introduced Cursor/Copilot/generic adapter rules, and split adapter resolution into a focused module.
+- Files: `package.json`, `project-guardian.config.json`, `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/scripts/lib/adapters.js`, templates under `plugins/project-guardian/assets/templates/`, root memory files, root and plugin docs, and test files.
+- Verification: `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, help/version smoke tests, and package dry-run are run for this CLI and adapter pass before handoff.
+- Follow-up: After this change is pushed to Gitee, test `npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git` on a clean machine, then consider future RAG/vector retrieval and issue tracker integration.

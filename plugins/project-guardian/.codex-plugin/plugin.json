@@ -3,12 +3,11 @@
   "version": "0.3.0",
   "description": "A lightweight project memory guardian for AI-assisted coding handover, onboarding, and self-service knowledge lookup.",
   "author": {
-    "name": "Internal AI Engineering",
-    "email": "ai-engineering@example.com",
-    "url": "https://example.com"
+    "name": "Project Guardian Maintainers",
+    "url": "https://gitee.com/chenfengloveyuri/project-guardian"
   },
-  "homepage": "https://example.com/project-guardian",
-  "repository": "https://example.com/project-guardian.git",
+  "homepage": "https://gitee.com/chenfengloveyuri/project-guardian",
+  "repository": "https://gitee.com/chenfengloveyuri/project-guardian.git",
   "license": "Apache-2.0",
   "keywords": [
     "ai-coding",
@@ -31,9 +30,9 @@
       "Handover",
       "Audit"
     ],
-    "websiteURL": "https://example.com/project-guardian",
-    "privacyPolicyURL": "https://example.com/privacy",
-    "termsOfServiceURL": "https://example.com/terms",
+    "websiteURL": "https://gitee.com/chenfengloveyuri/project-guardian",
+    "privacyPolicyURL": "https://gitee.com/chenfengloveyuri/project-guardian",
+    "termsOfServiceURL": "https://gitee.com/chenfengloveyuri/project-guardian",
     "defaultPrompt": [
       "初始化项目记忆文件",
       "查询这个项目的历史上下文",

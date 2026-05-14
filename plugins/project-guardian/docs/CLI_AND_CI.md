@@ -4,22 +4,42 @@
 
 ## 1. 命令总览
 
-所有命令都在目标项目根目录运行。
+所有命令都在目标项目根目录运行。推荐把 Project Guardian 安装成全局 CLI 后使用 `guardian`，这样不用再写 `node plugins/project-guardian/scripts/guardian.js` 这一长串相对路径。
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js init
-node plugins/project-guardian/scripts/guardian.js doctor
-node plugins/project-guardian/scripts/guardian.js update "任务说明"
-node plugins/project-guardian/scripts/guardian.js handover
-node plugins/project-guardian/scripts/guardian.js check
-node plugins/project-guardian/scripts/guardian.js validate-docs
-node plugins/project-guardian/scripts/guardian.js scan-secrets
-node plugins/project-guardian/scripts/guardian.js verify
-node plugins/project-guardian/scripts/guardian.js decision add --title "决策标题" --context "背景" --decision "决定"
-node plugins/project-guardian/scripts/guardian.js conflicts
-node plugins/project-guardian/scripts/guardian.js query
-node plugins/project-guardian/scripts/guardian.js install-hooks
-node plugins/project-guardian/scripts/guardian.js install-ci
+# 已发布到 npm 后
+npm install -g project-guardian
+
+# 从当前 Gitee 仓库安装
+npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
+
+guardian --version
+guardian help
+```
+
+如果团队把插件源码直接放在项目的 `plugins/project-guardian/` 目录，也可以继续用脚本路径：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js help
+```
+
+下文优先使用推荐的 `guardian` 写法；保留脚本路径的示例表示未全局安装时的兼容用法。
+
+```bash
+guardian init
+guardian doctor
+guardian update "任务说明"
+guardian handover
+guardian check
+guardian validate-docs
+guardian scan-secrets
+guardian verify
+guardian decision add --title "决策标题" --context "背景" --decision "决定"
+guardian conflicts
+guardian query
+guardian install-adapters --adapter cursor,copilot
+guardian install-hooks
+guardian install-ci
 ```
 
 如果项目通过 `init` 写入了 npm scripts，也可以使用：
@@ -45,7 +65,7 @@ node plugins/project-guardian/scripts/guardian.js verify
 ## 2. 初始化命令
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js init
+guardian init
 ```
 
 作用：
@@ -58,13 +78,32 @@ node plugins/project-guardian/scripts/guardian.js init
 运行后建议立即执行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js doctor
+guardian doctor
 ```
+
+### 2.1 AI 工具适配层
+
+`init` 默认会按照配置生成通用规则和 Cursor 规则。需要更多工具时可以指定适配器：
+
+```bash
+guardian init --adapter all
+guardian install-adapters --adapter codex,cursor,copilot,generic
+```
+
+适配器含义：
+
+- `generic`：生成 `AGENTS.md`，适合 Codex、通用 AI Agent 或自定义工具读取。
+- `codex`：同样生成 `AGENTS.md`，强调 Codex 项目规则入口。
+- `cursor`：生成 `.cursor/rules/project-guardian.mdc` 和兼容旧版本 Cursor 的 `.cursorrules`。
+- `copilot`：生成 `.github/copilot-instructions.md` 和 `.github/instructions/project-guardian.instructions.md`。
+
+适配器文件和核心记忆文件分开管理。再次运行 `install-adapters` 时，已有同名规则文件会被保留，不会覆盖团队已经调整过的规则。
+新项目第一次 `init --adapter copilot` 或 `init --adapter all` 时，CLI 会把本次选择写入 `project-guardian.config.json`，后续 `doctor` 会按同一套适配器规则检查。
 
 ## 3. 体检命令
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js doctor
+guardian doctor
 ```
 
 作用：
@@ -79,7 +118,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 ## 4. 更新记忆命令
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js update "实现登录验证码"
+guardian update "实现登录验证码"
 ```
 
 作用：
@@ -302,9 +341,9 @@ node plugins/project-guardian/scripts/guardian.js scan-secrets
 普通开发：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js update "任务说明"
+guardian update "任务说明"
 git add .
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 git commit -m "feat: describe change"
 git push
 ```
@@ -312,10 +351,10 @@ git push
 交接前：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js update "阶段交接前整理"
-node plugins/project-guardian/scripts/guardian.js handover
+guardian update "阶段交接前整理"
+guardian handover
 git add .
-node plugins/project-guardian/scripts/guardian.js verify
+guardian verify
 git commit -m "docs: update project handover"
 git push
 ```
@@ -323,7 +362,7 @@ git push
 第一次启用 CI：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js install-ci
+guardian install-ci
 git add .workflow/project-guardian.yml
 git commit -m "ci: add project guardian checks"
 git push

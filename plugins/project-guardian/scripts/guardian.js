@@ -5,6 +5,7 @@ const os = require("os");
 const path = require("path");
 const readline = require("readline");
 const { execFileSync } = require("child_process");
+const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, resolveAdapters, validateAdapters } = require("./lib/adapters");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -56,6 +57,7 @@ const DEFAULT_CONFIG = {
   security: {
     scanSecrets: true,
   },
+  adapters: DEFAULT_ADAPTERS,
   ignore: [],
 };
 
@@ -65,7 +67,7 @@ async function main() {
 
   switch (command) {
     case "init":
-      init(root);
+      init(root, args);
       break;
     case "update":
       update(root, args.join(" ").trim());
@@ -108,6 +110,9 @@ async function main() {
     case "conflicts":
       conflicts(root);
       break;
+    case "install-adapters":
+      installAdapters(root, args);
+      break;
     case "install-hooks":
       installHooks(root);
       break;
@@ -120,21 +125,27 @@ async function main() {
     case undefined:
       help();
       break;
+    case "version":
+    case "--version":
+    case "-v":
+      console.log(readPluginVersion());
+      break;
     default:
       fail(`Unknown command: ${command}\nRun: node ${relative(root, __filename)} help`);
   }
 }
 
-function init(root) {
+function init(root, args = []) {
   const config = loadConfig(root);
+  const flags = parseFlags(args);
+  const adapters = resolveAdaptersOrFail(flags, config);
   copyTemplate(root, "PROJECT_CONTEXT.md", config.memoryFiles.context);
   copyTemplate(root, "STATE.md", config.memoryFiles.state);
   copyTemplate(root, "DECISIONS.md", config.memoryFiles.decisions);
   copyTemplate(root, "AI_CHANGELOG.md", config.memoryFiles.changelog);
   copyTemplate(root, "HANDOVER.md", config.memoryFiles.handover);
-  copyTemplate(root, "AGENTS.md", "AGENTS.md");
-  copyTemplate(root, "cursorrules", ".cursorrules");
-  writeDefaultConfig(root);
+  installAdapters(root, args, { adapters, fromInit: true });
+  writeDefaultConfig(root, { adapters });
 
   const packagePath = path.join(root, "package.json");
   if (fs.existsSync(packagePath)) {
@@ -459,6 +470,21 @@ function installCi(root) {
   console.log("Review branch triggers before enabling it in Gitee Go.");
 }
 
+function installAdapters(root, args = [], options = {}) {
+  const config = loadConfig(root);
+  const flags = parseFlags(args);
+  const adapters = options.adapters || resolveAdaptersOrFail(flags, config);
+  const files = adapterFiles(adapters);
+
+  for (const file of files) {
+    copyTemplate(root, file.template, file.target);
+  }
+
+  if (!options.fromInit) {
+    console.log(`Installed Project Guardian adapters: ${adapters.join(", ")}`);
+  }
+}
+
 function conflicts(root) {
   const config = loadConfig(root);
   const files = lines(git(root, ["diff", "--name-only", "--diff-filter=U"]));
@@ -493,7 +519,8 @@ function conflicts(root) {
 function runDoctor(root, config) {
   const configIssues = validateConfig(config);
   const missingCore = getCoreMemoryFiles(config).filter((file) => !fs.existsSync(path.join(root, file)));
-  const missingRules = AGENT_RULE_FILES.filter((file) => !fs.existsSync(path.join(root, file)));
+  const expectedRules = configIssues.length === 0 ? adapterFiles(resolveAdapters({}, config)).map((file) => file.target) : AGENT_RULE_FILES;
+  const missingRules = expectedRules.filter((file) => !fs.existsSync(path.join(root, file)));
   const changes = getChangeSets(root);
   const configuredMissing = getCoreMemoryFiles(config).filter((file) => !fs.existsSync(path.join(root, file)));
   const issues = [...configIssues];
@@ -642,13 +669,14 @@ function copyTemplate(root, templateName, target) {
   console.log(`Created ${target}`);
 }
 
-function writeDefaultConfig(root) {
+function writeDefaultConfig(root, overrides = {}) {
   const configPath = path.join(root, CONFIG_FILE);
   if (fs.existsSync(configPath)) {
     console.log(`Kept existing ${CONFIG_FILE}`);
     return;
   }
-  writeFile(configPath, `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`);
+  const config = mergeConfig(clone(DEFAULT_CONFIG), overrides);
+  writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
   console.log(`Created ${CONFIG_FILE}`);
 }
 
@@ -1095,6 +1123,7 @@ function validateConfig(config) {
       issues.push(`quality.taskIdPattern is not a valid regex: ${error.message}`);
     }
   }
+  issues.push(...validateAdapters(config.adapters));
   return issues;
 }
 
@@ -1131,6 +1160,14 @@ function parseFlags(args) {
     }
   }
   return result;
+}
+
+function resolveAdaptersOrFail(flags, config) {
+  try {
+    return resolveAdapters(flags, config);
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
 async function requiredValue(value, label) {
@@ -1243,24 +1280,34 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function readPluginVersion() {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(PLUGIN_ROOT, ".codex-plugin", "plugin.json"), "utf8"));
+    return manifest.version || "0.0.0";
+  } catch (_) {
+    return "0.0.0";
+  }
+}
+
 function help() {
   console.log(`Project Guardian
 
 Usage:
-  node scripts/guardian.js init
-  node scripts/guardian.js update "task summary"
-  node scripts/guardian.js decision-add --title "Decision title" --context "Why" --decision "What"
-  node scripts/guardian.js decision add --title "Decision title" --context "Why" --decision "What"
-  node scripts/guardian.js handover
-  node scripts/guardian.js check
-  node scripts/guardian.js doctor
-  node scripts/guardian.js validate-docs
-  node scripts/guardian.js scan-secrets
-  node scripts/guardian.js verify
-  node scripts/guardian.js query "question"
-  node scripts/guardian.js conflicts
-  node scripts/guardian.js install-hooks
-  node scripts/guardian.js install-ci
+  guardian init
+  guardian init --adapter all
+  guardian update "task summary"
+  guardian decision add --title "Decision title" --context "Why" --decision "What"
+  guardian handover
+  guardian check
+  guardian doctor
+  guardian validate-docs
+  guardian scan-secrets
+  guardian verify
+  guardian query "question"
+  guardian conflicts
+  guardian install-adapters --adapter cursor,copilot
+  guardian install-hooks
+  guardian install-ci
 
 Commands:
   init           Create standard project memory files, AI rules, and config.
@@ -1274,6 +1321,7 @@ Commands:
   verify        Run doctor, check, validate-docs, and configured security scans.
   query         Search project memory, source files, and git history.
   conflicts     Show Git merge conflicts and memory conflict resolution advice.
+  install-adapters Install AI-tool rule adapters: ${SUPPORTED_ADAPTERS.join(", ")}, or all.
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
 `);
