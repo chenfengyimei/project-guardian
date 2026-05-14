@@ -1,0 +1,12 @@
+{
+  "name": "project-guardian",
+  "version": "0.3.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Lightweight project memory guard for AI-assisted coding handover and onboarding.",
+  "scripts": {
+    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check tests/guardian.test.js",
+    "test": "node --test tests/guardian.test.js",
+    "verify": "npm run lint && npm test && node plugins/project-guardian/scripts/guardian.js verify"
+  }
+}

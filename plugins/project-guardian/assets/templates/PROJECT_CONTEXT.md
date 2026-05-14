@@ -59,3 +59,4 @@
 
 - AI agents must read this file before modifying project code.
 - Long-term business and technical context belongs here.
+- Do not store production passwords, real tokens, customer private data, or other secrets in project memory.

@@ -1,0 +1,2 @@
+# Ignore temporary test workspaces created by the local test suite.
+tests/.tmp-

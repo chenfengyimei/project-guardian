@@ -4,5 +4,6 @@ build/
 coverage/
 .DS_Store
 Thumbs.db
-/plugins/project-guardian/.codex-plugin
-/.agents
+tests/.tmp-*/
+.env
+.env.*

@@ -13,4 +13,5 @@ This file records AI-assisted development context that should survive beyond a c
 - Technical notes:
 - Verification:
 - Risks:
+- Sensitive data checked:
 - Next step:

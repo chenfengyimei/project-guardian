@@ -50,20 +50,24 @@ project-guardian/
 PROJECT_CONTEXT.md
 STATE.md
 DECISIONS.md
+project-guardian.config.json
 docs/
   AI_CHANGELOG.md
   HANDOVER.md
 AGENTS.md
 .cursorrules
+.guardianignore
 ```
 
 建议但不强制：
 
 ```text
 plugins/project-guardian/
+docs/decisions/
 ```
 
 如果团队不希望每个项目保存插件源码，可以把插件放到统一工具仓库，但项目内仍必须保留标准记忆文件。
+`docs/decisions/` 是推荐目录，使用 `guardian decision add` 后会自动创建，用于一条决策一个文件。
 
 ## 3. 标准记忆文件职责
 
@@ -97,6 +101,7 @@ plugins/project-guardian/
 ### DECISIONS.md
 
 历史决策。记录为什么这样做，而不是只记录做了什么。
+团队协作时推荐同时使用 `docs/decisions/*.md`，一条重要决策一个文件，`DECISIONS.md` 保留主要索引和关键决策摘要。
 
 以下情况必须记录：
 
@@ -119,6 +124,7 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 - Technical notes
 - Verification
 - Risks
+- Sensitive data checked
 - Next step
 
 ### docs/HANDOVER.md
@@ -181,7 +187,7 @@ AI 行为规则。要求 AI 修改前先读记忆，修改后更新记忆。
 - 提交前运行：
 
   ```bash
-  node plugins/project-guardian/scripts/guardian.js check
+  node plugins/project-guardian/scripts/guardian.js verify
   ```
 
 推荐 commit message：
@@ -235,13 +241,16 @@ node plugins/project-guardian/scripts/guardian.js query
 - `validate-docs` 能发现过多 TODO、空字段和缺失章节。
 - `install-hooks` 不覆盖已有 hook。
 - `install-ci` 能生成 Gitee Go 流水线模板。
+- `decision add` 能创建结构化决策并生成 `docs/decisions/*.md`。
+- `conflicts` 能识别 Git merge 冲突并提示记忆文件冲突处理方式。
 - 文档和模板能让第一次使用者独立接入。
 
 建议每次修改插件后运行：
 
 ```bash
 node --check plugins/project-guardian/scripts/guardian.js
-node plugins/project-guardian/scripts/guardian.js help
+npm.cmd test
+node plugins/project-guardian/scripts/guardian.js verify
 ```
 
 ## 10. 自动化标准
@@ -254,3 +263,18 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 ```
 
 `install-hooks` 用于本地提交前检查，`install-ci` 用于 Gitee Go 远端流水线检查。两者都不替代人工复核，但可以防止“代码改了、记忆没更新”的常见漏项。
+
+## 11. 配置文件标准
+
+`project-guardian.config.json` 用来让不同项目在不改 CLI 源码的情况下调整规则。默认支持：
+
+- `memoryFiles`：调整记忆文件路径。
+- `hooks.runValidateDocs`：控制本地 hook 是否运行文档质量检查。
+- `ci.defaultBranch`：设置 Gitee Go 默认触发分支。
+- `ci.nodeVersion`：设置 CI 使用的 Node 版本。
+- `quality.taskIdPattern`：要求 changelog 或 decision 中出现任务编号。
+- `quality.requireChangedLines`：要求 changelog 记录变更行范围。
+- `security.scanSecrets`：控制 `verify` 是否运行安全扫描。
+- `ignore`：排除不参与扫描或索引的路径片段。
+
+默认配置应保持零门槛可用。只有团队确实需要不同目录、任务编号或 CI 分支时才修改配置。

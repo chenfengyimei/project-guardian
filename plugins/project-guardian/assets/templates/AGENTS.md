@@ -16,5 +16,7 @@ After code changes:
 - Append an entry to `docs/AI_CHANGELOG.md`.
 - Update `DECISIONS.md` for meaningful business, architecture, dependency, or data-model decisions.
 - Refresh `docs/HANDOVER.md` when preparing handoff or onboarding.
+- Run `guardian verify` before committing when the CLI is available.
 
 Every AI-assisted change must record what changed, why it changed, what was verified, and what the next developer should know.
+Never write production passwords, real tokens, customer private data, or other secrets into project memory.

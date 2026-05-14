@@ -1,0 +1,20 @@
+{
+  "name": "internal-ai-plugins",
+  "interface": {
+    "displayName": "Internal AI Plugins"
+  },
+  "plugins": [
+    {
+      "name": "project-guardian",
+      "source": {
+        "source": "local",
+        "path": "./plugins/project-guardian"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

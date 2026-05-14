@@ -10,5 +10,8 @@ Use this file to record decisions that future developers and AI agents must unde
 - Decision:
 - Alternatives considered:
 - Affected files/modules:
-- Consequences:
+- Related change:
+- Verification:
+- Risks:
+- Review after:
 - Follow-up:

@@ -116,6 +116,22 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 `doctor` 通过后，说明基础文件已经齐全。
 
+补齐项目记忆内容后，继续运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js verify
+```
+
+`verify` 通过后，说明项目记忆、变更关联、文档质量和安全扫描都达到提交前标准。
+
+如果当前仓库处在合并冲突状态，可以先运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js conflicts
+```
+
+它会列出冲突文件，并对 `STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md` 和 `docs/decisions/*.md` 的冲突给出处理建议。
+
 ## 4. init 初始化到底做了什么
 
 `init` 是 Project Guardian 的初始化命令。
@@ -262,13 +278,17 @@ docs/AI_CHANGELOG.md
 - `Next step`：下一个人要注意什么。
 
 如果这次引入了重要规则，还要更新 `DECISIONS.md`。
+推荐使用命令生成结构化决策：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js decision add --title "决策标题" --context "背景" --decision "决定"
+```
 
 ### 6.5 提交前检查
 
 ```bash
 git add .
-node plugins/project-guardian/scripts/guardian.js check
-node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js verify
 ```
 
 如果检查失败，通常说明你改了业务代码，但没有把记忆文件一起加入提交。
@@ -278,7 +298,7 @@ node plugins/project-guardian/scripts/guardian.js validate-docs
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "补充本次任务记忆"
 git add STATE.md docs/AI_CHANGELOG.md
-node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js verify
 ```
 
 ### 6.6 提交到 Gitee
@@ -333,7 +353,7 @@ node plugins/project-guardian/scripts/guardian.js handover
 
 ```bash
 git add .
-node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js verify
 git commit -m "docs: update project handover"
 git push
 ```
@@ -506,8 +526,10 @@ node plugins/project-guardian/scripts/guardian.js query
 1. 每个项目运行一次 `init`。
 2. 每次 AI 改代码后运行 `update`。
 3. 每次换人前运行 `handover`。
-4. 每次提交前运行 `check`。
+4. 每次提交前运行 `verify`。
 5. 新人接手先读 `docs/HANDOVER.md`。
+
+`verify` 会同时覆盖体检、变更关联、文档质量和安全扫描。
 
 只要这五件事稳定执行，项目上下文就不会随着人员流动彻底断掉。
 
@@ -522,6 +544,6 @@ git commit -m "ci: add project guardian checks"
 git push
 ```
 
-之后每次 push 时，流水线会运行 `check` 和 `validate-docs`。其中 `check` 负责确认代码变更是否带上记忆更新，`validate-docs` 负责确认记忆文档没有停留在模板状态。
+之后每次 push 时，流水线推荐运行 `verify`，或者至少运行 `check`、`validate-docs` 和 `scan-secrets`。其中 `check` 负责确认代码变更是否带上记忆更新，`validate-docs` 负责确认记忆文档没有停留在模板状态，`scan-secrets` 负责避免把真实密码或 token 写入记忆。
 
 详细命令说明、失败处理和 Gitee Go 分支配置见 `plugins/project-guardian/docs/CLI_AND_CI.md`。

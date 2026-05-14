@@ -1,0 +1,25 @@
+{
+  "memoryFiles": {
+    "context": "PROJECT_CONTEXT.md",
+    "state": "STATE.md",
+    "decisions": "DECISIONS.md",
+    "changelog": "docs/AI_CHANGELOG.md",
+    "handover": "docs/HANDOVER.md",
+    "decisionsDirectory": "docs/decisions"
+  },
+  "quality": {
+    "requireChangedLines": false,
+    "taskIdPattern": null
+  },
+  "hooks": {
+    "runValidateDocs": true
+  },
+  "ci": {
+    "defaultBranch": "master",
+    "nodeVersion": "18"
+  },
+  "security": {
+    "scanSecrets": true
+  },
+  "ignore": []
+}

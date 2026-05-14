@@ -28,7 +28,8 @@ After code changes, update project memory unless the user explicitly asks not to
 - Update `DECISIONS.md` when the change introduces a meaningful architecture, business logic, dependency, data model, or compatibility decision.
 - Refresh `docs/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
 - Preserve existing human-written memory. Append, summarize, or amend the relevant section instead of deleting historical context.
-- Run or recommend `guardian validate-docs` when memory quality matters before handover, PR, or release.
+- Run or recommend `guardian verify` when memory quality matters before handover, PR, or release.
+- Never write production passwords, real tokens, private keys, customer private data, or other secrets into project memory.
 
 ## Self-Service Knowledge Loop
 
@@ -53,6 +54,7 @@ When users ask how to adopt or standardize the plugin, reference:
 
 - `plugins/project-guardian/docs/INTEGRATION.md`
 - `plugins/project-guardian/docs/STANDARD.md`
+- `plugins/project-guardian/docs/CLI_AND_CI.md`
 
 ## Recording Standard
 
@@ -62,6 +64,7 @@ Every durable memory entry should capture:
 - Why it changed.
 - Which files or modules are affected.
 - What was verified.
+- Whether sensitive data was checked.
 - What the next developer should avoid or do next.
 
 Prefer clear, short Markdown over long essays. Preserve practical details such as commands, environment variables, edge cases, and error messages.

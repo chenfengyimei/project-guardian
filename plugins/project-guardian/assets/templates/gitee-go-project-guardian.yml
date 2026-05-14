@@ -15,7 +15,6 @@ stages:
           name: guardian_check
           displayName: Check project memory
           inputs:
-            nodeVersion: 14.15
+            nodeVersion: 18
             goals: |
-              node plugins/project-guardian/scripts/guardian.js check
-              node plugins/project-guardian/scripts/guardian.js validate-docs
+              node plugins/project-guardian/scripts/guardian.js verify

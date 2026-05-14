@@ -10,11 +10,19 @@
 PROJECT_CONTEXT.md
 STATE.md
 DECISIONS.md
+project-guardian.config.json
 docs/
   AI_CHANGELOG.md
   HANDOVER.md
 AGENTS.md
 .cursorrules
+.guardianignore
+```
+
+当使用 `guardian decision add` 后，还会自动创建可选目录：
+
+```text
+docs/decisions/
 ```
 
 如果选择把插件源码也放进项目，推荐结构是：
@@ -45,8 +53,10 @@ node plugins/project-guardian/scripts/guardian.js init
 2. 创建 `STATE.md`。
 3. 创建 `DECISIONS.md`。
 4. 创建 `docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`AGENTS.md`、`.cursorrules`。
+5. 如果没有配置文件，创建 `project-guardian.config.json`。
 
 如果项目有 `package.json`，还会自动加入 `guardian:*` npm scripts。
+默认配置会保留标准记忆文件路径，hook 会运行文档质量检查，CI 默认分支为 `master`，Node 版本为 `18`，安全扫描默认开启。
 
 重要说明：
 
@@ -103,6 +113,14 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 然后由项目负责人复核。
 
+补齐内容后继续运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js verify
+```
+
+`verify` 通过后再提交到 Gitee。
+
 ## 4. 已上传到 Gitee 的项目如何接入
 
 如果源码已经在 Gitee，推荐流程如下。
@@ -153,7 +171,7 @@ node plugins/project-guardian/scripts/guardian.js handover
 
 ```bash
 git add .
-node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js verify
 git commit -m "docs: add project guardian memory"
 git push -u origin docs/project-guardian
 ```
@@ -189,6 +207,12 @@ node plugins/project-guardian/scripts/guardian.js install-hooks
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js check
+```
+
+更推荐统一运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js verify
 ```
 
 ## 7. 接入验收标准
@@ -242,6 +266,7 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 ```bash
 node plugins/project-guardian/scripts/guardian.js check
 node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js scan-secrets
 ```
 
 启用前请在 Gitee Go 中确认分支触发规则是否符合团队流程。

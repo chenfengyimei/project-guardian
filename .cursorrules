@@ -1,4 +1,4 @@
-This project uses Project Guardian memory.
+This repository uses Project Guardian memory.
 
 Before editing code or answering project-specific questions, read:
 - PROJECT_CONTEXT.md
@@ -10,8 +10,8 @@ Before editing code or answering project-specific questions, read:
 After AI-assisted code changes:
 - Update STATE.md with current status, known issues, next steps, and latest change.
 - Append a concise entry to docs/AI_CHANGELOG.md.
-- Update DECISIONS.md for important architecture, business-rule, dependency, data-model, or compatibility decisions.
-- Run guardian verify before committing when the CLI is available.
+- Update DECISIONS.md for important architecture, business-rule, dependency, data-model, security, workflow, or compatibility decisions.
+- Run node plugins/project-guardian/scripts/guardian.js verify before committing when the CLI is available.
 
 Answers should explain not only what to change, but also why the project currently works this way.
 Do not write production passwords, real tokens, customer private data, or other secrets into project memory.

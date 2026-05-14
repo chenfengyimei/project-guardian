@@ -13,6 +13,10 @@ node plugins/project-guardian/scripts/guardian.js update "任务说明"
 node plugins/project-guardian/scripts/guardian.js handover
 node plugins/project-guardian/scripts/guardian.js check
 node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js scan-secrets
+node plugins/project-guardian/scripts/guardian.js verify
+node plugins/project-guardian/scripts/guardian.js decision add --title "决策标题" --context "背景" --decision "决定"
+node plugins/project-guardian/scripts/guardian.js conflicts
 node plugins/project-guardian/scripts/guardian.js query
 node plugins/project-guardian/scripts/guardian.js install-hooks
 node plugins/project-guardian/scripts/guardian.js install-ci
@@ -29,6 +33,14 @@ npm run guardian:validate-docs
 npm run guardian:query
 npm run guardian:install-ci
 ```
+
+当前版本推荐把提交前命令统一为：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js verify
+```
+
+`verify` 会依次运行 `doctor`、`check`、`validate-docs`，并在配置开启时运行 `scan-secrets`。
 
 ## 2. 初始化命令
 
@@ -149,9 +161,48 @@ node plugins/project-guardian/scripts/guardian.js validate-docs
 推荐组合：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js check
-node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js verify
 ```
+
+## 7.1 安全扫描命令
+
+```bash
+node plugins/project-guardian/scripts/guardian.js scan-secrets
+```
+
+作用：
+
+- 扫描项目记忆文件中疑似 `password`、`secret`、`token`、`api_key`、private key 和高熵字符串。
+- 输出文件和行号，但不会打印完整疑似密钥。
+- 支持通过 `.guardianignore` 或 `project-guardian.config.json` 的 `ignore` 字段排除测试样例。
+
+不要把客户隐私、生产密码、真实 token、真实私钥写入任何项目记忆文件。公开仓库尤其要在提交前运行 `verify`。
+
+## 7.2 决策记录命令
+
+```bash
+node plugins/project-guardian/scripts/guardian.js decision add --title "采用配置文件" --context "需要跨项目适配" --decision "使用 project-guardian.config.json"
+```
+
+作用：
+
+- 向 `DECISIONS.md` 追加结构化决策。
+- 同时在 `docs/decisions/` 下生成一份单独决策文件，降低多人同时改同一个决策文件的冲突概率。
+- 可选字段包括 `--alternatives`、`--files`、`--related-change`、`--verification`、`--risks`、`--review-after`、`--follow-up`。
+
+建议在这些情况下记录决策：框架或库选型、重要业务规则、兼容性处理、数据模型变化、安全策略、部署方式、CI 或工作流变化。
+
+## 7.3 冲突检查命令
+
+```bash
+node plugins/project-guardian/scripts/guardian.js conflicts
+```
+
+作用：
+
+- 检测当前 Git merge 冲突文件。
+- 如果冲突涉及项目记忆文件，会给出保留历史、处理 `STATE.md` 更新时间、合并决策字段、重新运行验证的建议。
+- 有冲突时命令会返回失败状态，适合在手动排查时使用。
 
 ## 8. 多轮知识查询
 
@@ -194,6 +245,8 @@ node plugins/project-guardian/scripts/guardian.js install-hooks
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js check
+node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js scan-secrets
 ```
 
 ## 10. 安装 Gitee Go CI
@@ -239,7 +292,10 @@ branch: develop
 ```bash
 node plugins/project-guardian/scripts/guardian.js check
 node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js scan-secrets
 ```
+
+如果使用当前 CLI 生成配置，也可以通过 `project-guardian.config.json` 修改默认分支和 Node 版本。
 
 ## 11. 推荐提交流程
 
@@ -248,8 +304,7 @@ node plugins/project-guardian/scripts/guardian.js validate-docs
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "任务说明"
 git add .
-node plugins/project-guardian/scripts/guardian.js check
-node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js verify
 git commit -m "feat: describe change"
 git push
 ```
@@ -260,8 +315,7 @@ git push
 node plugins/project-guardian/scripts/guardian.js update "阶段交接前整理"
 node plugins/project-guardian/scripts/guardian.js handover
 git add .
-node plugins/project-guardian/scripts/guardian.js check
-node plugins/project-guardian/scripts/guardian.js validate-docs
+node plugins/project-guardian/scripts/guardian.js verify
 git commit -m "docs: update project handover"
 git push
 ```
