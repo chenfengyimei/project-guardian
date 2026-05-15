@@ -4,8 +4,8 @@
 
 当前统计口径：
 
-- 仓库文件总数：50 个。
-- 文档、规则、模板、说明类文件：40 个。
+- 仓库文件总数：63 个。
+- 文档、规则、模板、说明类文件：53 个。
 - 代码、配置、资源、测试和忽略规则等其它文件：10 个。
 - 统计不包含 `.git/` 和 `node_modules/`。
 
@@ -27,6 +27,7 @@ project_ai/
     STATE.md
     decisions/
       2026-05-14-use-per-decision-files.md
+      2026-05-15-ai-ide.md
       2026-05-15-memory.md
   explaiw/
     PROJECT_FILES_EXPLANATION.md
@@ -39,7 +40,11 @@ project_ai/
         templates/
           AGENTS.md
           AI_CHANGELOG.md
+          CLAUDE.md
+          cline-rule.md
+          continue-rule.md
           DECISIONS.md
+          GEMINI.md
           HANDOVER.md
           PROJECT_CONTEXT.md
           STATE.md
@@ -48,10 +53,16 @@ project_ai/
           cursor-rules.mdc
           cursorrules
           gitee-go-project-guardian.yml
+          vscode-tasks.json
+          windsurf-rule.md
           zh-CN/
             AGENTS.md
             AI_CHANGELOG.md
+            CLAUDE.md
+            cline-rule.md
+            continue-rule.md
             DECISIONS.md
+            GEMINI.md
             HANDOVER.md
             PROJECT_CONTEXT.md
             STATE.md
@@ -59,6 +70,8 @@ project_ai/
             copilot-project-guardian.instructions.md
             cursor-rules.mdc
             cursorrules
+            vscode-tasks.json
+            windsurf-rule.md
       docs/
         CLI_AND_CI.md
         INTEGRATION.md
@@ -100,6 +113,7 @@ project_ai/
 | `memory/AI_CHANGELOG.md` | AI 协助变更日志 | 保存聊天窗口之外的 AI 修改上下文 | 用户需求、AI 总结、变更文件、业务原因、技术说明、验证、风险、敏感信息检查、下一步 | 每次 AI 协助修改代码或重要文档后 |
 | `memory/HANDOVER.md` | 交接指南 | 新人或下一位开发者需要第一天就能上手 | 优先阅读、如何运行、项目地图、核心流程、常见问题、风险和新人第一天步骤 | 交接、阶段结束、发布前、项目结构或运行方式变化时 |
 | `memory/decisions/2026-05-14-use-per-decision-files.md` | 单条决策文件 | 降低多人同时修改 `memory/DECISIONS.md` 的冲突概率 | “使用单独决策文件”的决策详情 | 每次通过 `guardian decision add` 记录重要决策时可新增类似文件 |
+| `memory/decisions/2026-05-15-ai-ide.md` | 单条决策文件 | 记录扩展 AI IDE 适配器的原因和范围 | 支持矩阵、CLI 通用层、适配器扩展、验证方式、风险和后续动作 | AI IDE 兼容策略调整或新增适配器时复审 |
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
@@ -117,6 +131,12 @@ project_ai/
 | `plugins/project-guardian/assets/templates/cursorrules` | 英文 Cursor 旧规则模板 | 英文项目生成 `.cursorrules` 用 | 旧版 Cursor 可读的英文项目记忆规则 | 旧版 Cursor 兼容要求变化时 |
 | `plugins/project-guardian/assets/templates/copilot-instructions.md` | 英文 Copilot 指令模板 | 英文项目生成 `.github/copilot-instructions.md` 用 | GitHub Copilot 的英文项目记忆指令 | Copilot 指令格式变化时 |
 | `plugins/project-guardian/assets/templates/copilot-project-guardian.instructions.md` | 英文 Copilot 局部指令模板 | 英文项目生成 `.github/instructions/project-guardian.instructions.md` 用 | Project Guardian 专用 Copilot 英文规则 | Copilot 项目级 instructions 变化时 |
+| `plugins/project-guardian/assets/templates/windsurf-rule.md` | 英文 Windsurf 规则模板 | 英文项目生成 `.windsurf/rules/project-guardian.md` 用 | Windsurf 工作区英文项目记忆规则 | Windsurf 规则格式或项目规则变化时 |
+| `plugins/project-guardian/assets/templates/cline-rule.md` | 英文 Cline 规则模板 | 英文项目生成 `.clinerules/project-guardian.md` 用 | Cline 英文项目记忆规则 | Cline 规则格式或项目规则变化时 |
+| `plugins/project-guardian/assets/templates/continue-rule.md` | 英文 Continue 规则模板 | 英文项目生成 `.continue/rules/project-guardian.md` 用 | Continue 英文项目记忆规则 | Continue 规则格式或项目规则变化时 |
+| `plugins/project-guardian/assets/templates/CLAUDE.md` | 英文 Claude Code 规则模板 | 英文项目生成 `CLAUDE.md` 用 | Claude Code 英文项目记忆指令 | Claude Code 记忆文件约定变化时 |
+| `plugins/project-guardian/assets/templates/GEMINI.md` | 英文 Gemini CLI 规则模板 | 英文项目生成 `GEMINI.md` 用 | Gemini CLI 英文项目记忆指令 | Gemini CLI 记忆文件约定变化时 |
+| `plugins/project-guardian/assets/templates/vscode-tasks.json` | 英文 VS Code tasks 模板 | 英文项目生成 `.vscode/tasks.json` 用 | Verify、Update Memory、Query、Handover 任务 | VS Code task 命令或字段变化时 |
 | `plugins/project-guardian/assets/templates/gitee-go-project-guardian.yml` | Gitee Go CI 模板 | `guardian install-ci` 生成流水线用 | Gitee Go 中运行 Project Guardian 检查的 YAML 模板 | CI 命令、默认分支、Node 版本或流水线结构变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/PROJECT_CONTEXT.md` | 中文项目上下文模板 | 默认 `guardian init` 生成项目上下文 | 中文项目概览、技术栈、核心业务流程模板 | 中文上下文字段标准变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/STATE.md` | 中文状态模板 | 默认初始化 `memory/STATE.md` | 中文当前状态、下一步、已知问题模板 | 中文状态记录标准变化时 |
@@ -128,6 +148,12 @@ project_ai/
 | `plugins/project-guardian/assets/templates/zh-CN/cursorrules` | 中文 Cursor 旧规则模板 | 默认生成 `.cursorrules` | 旧版 Cursor 中文项目记忆规则 | 旧版 Cursor 中文兼容规则变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/copilot-instructions.md` | 中文 Copilot 指令模板 | 默认生成 `.github/copilot-instructions.md` | Copilot 中文项目记忆指令 | Copilot 中文指令变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/copilot-project-guardian.instructions.md` | 中文 Copilot 局部指令模板 | 默认生成 `.github/instructions/project-guardian.instructions.md` | Project Guardian 专用 Copilot 中文规则 | Copilot 项目级中文规则变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/windsurf-rule.md` | 中文 Windsurf 规则模板 | 默认生成 `.windsurf/rules/project-guardian.md` | Windsurf 中文项目记忆规则 | Windsurf 中文适配变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/cline-rule.md` | 中文 Cline 规则模板 | 默认生成 `.clinerules/project-guardian.md` | Cline 中文项目记忆规则 | Cline 中文适配变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/continue-rule.md` | 中文 Continue 规则模板 | 默认生成 `.continue/rules/project-guardian.md` | Continue 中文项目记忆规则 | Continue 中文适配变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/CLAUDE.md` | 中文 Claude Code 规则模板 | 默认生成 `CLAUDE.md` | Claude Code 中文项目记忆指令 | Claude Code 中文适配变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/GEMINI.md` | 中文 Gemini CLI 规则模板 | 默认生成 `GEMINI.md` | Gemini CLI 中文项目记忆指令 | Gemini CLI 中文适配变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/vscode-tasks.json` | 中文 VS Code tasks 模板 | 默认生成 `.vscode/tasks.json` | 中文输入提示的 Verify、Update Memory、Query、Handover 任务 | VS Code 中文任务模板变化时 |
 
 ## 代码、配置、资源和测试文件
 

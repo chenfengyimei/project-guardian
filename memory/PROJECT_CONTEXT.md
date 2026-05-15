@@ -25,10 +25,10 @@
    - 已知边界情况：已有项目可能已经存在部分记忆文件，因此 CLI 必须保留现有内容并提示哪些文件被跳过。`guardian init --language en` 还必须把语言配置传给 AI 适配器模板，避免英文项目收到中文规则文件。
 
 2. 安装 AI 工具适配规则。
-   - 入口：`guardian install-adapters --adapter cursor,copilot` 或 `guardian init --adapter all`。
-   - 重要文件：`plugins/project-guardian/scripts/lib/adapters.js`、`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md`。
-   - 规则：适配器文件告诉 Codex、Cursor、Copilot 和通用 AI Agent 先读取并维护 Project Guardian 记忆；已有适配器文件必须保留。
-   - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。
+   - 入口：`guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`、`guardian init --adapter all` 和 `guardian adapters doctor`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/adapters.js`、`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md`、`.windsurf/rules/project-guardian.md`、`.clinerules/project-guardian.md`、`.continue/rules/project-guardian.md`、`CLAUDE.md`、`GEMINI.md`、`.vscode/tasks.json`。
+   - 规则：适配器文件告诉 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 和通用 AI Agent 先读取并维护 Project Guardian 记忆；已有适配器文件必须保留。
+   - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。VS Code 当前通过 tasks 和 Copilot instructions 适配，不是原生 VS Code 扩展。
 
 3. 在提交前执行记忆质量闸门。
    - 入口：`guardian check`、`guardian validate-docs` 和 `guardian verify`。
@@ -62,7 +62,7 @@
 | npm | 提供可选的全局 CLI 安装和仓库测试脚本 | 项目维护者 | `package.json` 暴露 `guardian` / `project-guardian` bin；Git 安装源为 `git+https://gitee.com/chenfengloveyuri/project-guardian.git` |
 | Git | 读取 staged、working、untracked 文件和最近历史 | 项目维护者 | `check`、`update`、hooks 和 CI 工作流需要 Git |
 | Gitee Go | 可选的远程 CI 执行环境 | 仓库负责人 | 团队使用 Gitee 流水线时由 `guardian install-ci` 生成 |
-| AI 工具规则适配器 | 让同一套记忆流程可用于 Codex、Cursor、Copilot 和通用 AI Agent | 项目维护者 | 安装到 `AGENTS.md`、`.cursorrules`、`.cursor/` 和 `.github/` 规则文件 |
+| AI 工具规则适配器 | 让同一套记忆流程可用于 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 和通用 AI Agent | 项目维护者 | 安装到 `AGENTS.md`、`.cursor/`、`.github/`、`.windsurf/`、`.clinerules/`、`.continue/`、`CLAUDE.md`、`GEMINI.md` 和 `.vscode/tasks.json` |
 | Codex 插件元数据 | 让插件可被 Codex 发现 | 项目维护者 | 存放在 `plugins/project-guardian/.codex-plugin/plugin.json` 和 `.agents/plugins/marketplace.json` |
 
 ## 数据模型
@@ -72,6 +72,7 @@
 | 项目记忆 | 上下文、状态、决策、变更日志、交接指南 | 以 Markdown 文件保存，方便人和 AI 直接阅读 |
 | 记忆目录 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | CLI 默认生成和维护的位置，用于避免根目录被项目记忆文件占满 |
 | Guardian 配置 | 记忆路径、质量规则、hook 行为、CI 默认值、安全扫描开关、默认适配器、忽略路径 | 存放在 `project-guardian.config.json`，默认零配置可用 |
+| AI IDE 适配器 | adapter 名称、目标文件、模板文件、安装状态 | 由 `scripts/lib/adapters.js` 维护，`guardian adapters doctor` 输出当前状态 |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
 | 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |
 | 决策文件 | 每个重要决策一份 Markdown 文件 | 使用 `guardian decision add` 时存放在 `memory/decisions/` |

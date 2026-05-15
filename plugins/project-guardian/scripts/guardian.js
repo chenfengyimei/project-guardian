@@ -5,7 +5,7 @@ const os = require("os");
 const path = require("path");
 const readline = require("readline");
 const { execFileSync } = require("child_process");
-const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, resolveAdapters, validateAdapters } = require("./lib/adapters");
+const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters, validateAdapters } = require("./lib/adapters");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -114,6 +114,13 @@ async function main() {
       break;
     case "install-adapters":
       installAdapters(root, args);
+      break;
+    case "adapters":
+      if (args[0] === "doctor") {
+        adaptersDoctor(root);
+      } else {
+        fail("Unknown adapters command. Use: guardian adapters doctor");
+      }
       break;
     case "install-hooks":
       installHooks(root);
@@ -552,6 +559,23 @@ function installAdapters(root, args = [], options = {}) {
   }
 }
 
+function adaptersDoctor(root) {
+  const config = loadConfig(root);
+  console.log("Project Guardian adapter doctor");
+  console.log("");
+  for (const adapter of adapterMatrix()) {
+    const missing = adapter.files.filter((file) => !fs.existsSync(path.join(root, file.target)));
+    const status = missing.length === 0 ? "installed" : "missing";
+    console.log(`- ${adapter.adapter} (${adapter.label}): ${status}`);
+    console.log(`  files: ${adapter.files.map((file) => file.target).join(", ")}`);
+    console.log(`  install: guardian install-adapters --adapter ${adapter.adapter}`);
+    console.log(`  note: ${adapter.note}`);
+    if (missing.length > 0) console.log(`  missing: ${missing.map((file) => file.target).join(", ")}`);
+  }
+  console.log("");
+  console.log(`Configured adapters: ${resolveAdaptersOrFail({}, config).join(", ")}`);
+}
+
 function conflicts(root) {
   const config = loadConfig(root);
   const files = lines(git(root, ["diff", "--name-only", "--diff-filter=U"]));
@@ -732,8 +756,24 @@ function copyTemplate(root, templateName, target, config = DEFAULT_CONFIG) {
     return;
   }
   const source = templatePath(templateName, config);
-  writeFile(targetPath, fs.readFileSync(source, "utf8"));
+  writeFile(targetPath, renderTemplate(fs.readFileSync(source, "utf8"), config));
   console.log(`Created ${target}`);
+}
+
+function renderTemplate(content, config = DEFAULT_CONFIG) {
+  const replacements = {
+    "memory/PROJECT_CONTEXT.md": config.memoryFiles.context,
+    "memory/STATE.md": config.memoryFiles.state,
+    "memory/DECISIONS.md": config.memoryFiles.decisions,
+    "memory/AI_CHANGELOG.md": config.memoryFiles.changelog,
+    "memory/HANDOVER.md": config.memoryFiles.handover,
+    "memory/decisions": config.memoryFiles.decisionsDirectory,
+  };
+  let rendered = content;
+  for (const [from, to] of Object.entries(replacements)) {
+    rendered = rendered.replaceAll(from, to);
+  }
+  return rendered;
 }
 
 function templatePath(templateName, config = DEFAULT_CONFIG) {
@@ -759,19 +799,21 @@ function addPackageScripts(packagePath) {
   try {
     const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
     pkg.scripts = pkg.scripts || {};
-    const relScript = normalizeForHook(path.relative(path.dirname(packagePath), __filename));
+    const runner = packageScriptRunner(packagePath);
     const scripts = {
-      "guardian:init": `node "${relScript}" init`,
-      "guardian:update": `node "${relScript}" update`,
-      "guardian:handover": `node "${relScript}" handover`,
-      "guardian:check": `node "${relScript}" check`,
-      "guardian:doctor": `node "${relScript}" doctor`,
-      "guardian:validate-docs": `node "${relScript}" validate-docs`,
-      "guardian:scan-secrets": `node "${relScript}" scan-secrets`,
-      "guardian:verify": `node "${relScript}" verify`,
-      "guardian:query": `node "${relScript}" query`,
-      "guardian:conflicts": `node "${relScript}" conflicts`,
-      "guardian:install-ci": `node "${relScript}" install-ci`,
+      "guardian:init": `${runner} init`,
+      "guardian:update": `${runner} update`,
+      "guardian:handover": `${runner} handover`,
+      "guardian:check": `${runner} check`,
+      "guardian:doctor": `${runner} doctor`,
+      "guardian:validate-docs": `${runner} validate-docs`,
+      "guardian:scan-secrets": `${runner} scan-secrets`,
+      "guardian:verify": `${runner} verify`,
+      "guardian:query": `${runner} query`,
+      "guardian:conflicts": `${runner} conflicts`,
+      "guardian:adapters-doctor": `${runner} adapters doctor`,
+      "guardian:install-adapters": `${runner} install-adapters`,
+      "guardian:install-ci": `${runner} install-ci`,
     };
     for (const [name, command] of Object.entries(scripts)) {
       pkg.scripts[name] = pkg.scripts[name] || command;
@@ -781,6 +823,14 @@ function addPackageScripts(packagePath) {
   } catch (error) {
     console.warn(`Could not update package.json: ${error.message}`);
   }
+}
+
+function packageScriptRunner(packagePath) {
+  const relScript = normalizeForHook(path.relative(path.dirname(packagePath), __filename));
+  if (!relScript.startsWith("../") && relScript !== ".." && !path.isAbsolute(relScript)) {
+    return `node "${relScript}"`;
+  }
+  return "guardian";
 }
 
 function buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat) {
@@ -1496,6 +1546,7 @@ Usage:
   guardian query "question"
   guardian conflicts
   guardian install-adapters --adapter cursor,copilot
+  guardian adapters doctor
   guardian install-hooks
   guardian install-ci
 
@@ -1512,6 +1563,7 @@ Commands:
   query         Search project memory, source files, and git history.
   conflicts     Show Git merge conflicts and memory conflict resolution advice.
   install-adapters Install AI-tool rule adapters: ${SUPPORTED_ADAPTERS.join(", ")}, or all.
+  adapters doctor Show which AI IDE adapters are installed or missing.
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
 `);

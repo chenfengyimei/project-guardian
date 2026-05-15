@@ -23,6 +23,18 @@ AGENTS.md
   copilot-instructions.md
   instructions/
     project-guardian.instructions.md
+.vscode/                         # 安装 VS Code 适配器时生成
+  tasks.json
+.windsurf/                       # 安装 Windsurf 适配器时生成
+  rules/
+    project-guardian.md
+.clinerules/                     # 安装 Cline 适配器时生成
+  project-guardian.md
+.continue/                       # 安装 Continue 适配器时生成
+  rules/
+    project-guardian.md
+CLAUDE.md                        # 安装 Claude Code 适配器时生成
+GEMINI.md                        # 安装 Gemini CLI 适配器时生成
 .guardianignore
 ```
 
@@ -72,10 +84,17 @@ node plugins/project-guardian/scripts/guardian.js init
 - `init` 只创建模板，不会自动补齐业务内容。
 - 初始化后必须补齐项目背景、运行方式、当前状态和关键决策。
 - 默认生成中文模板；如果团队要用英文模板，请第一次初始化时运行 `guardian init --language en`。
-- 需要 Cursor、Copilot 或通用 AI 工具规则时，可以运行 `guardian install-adapters --adapter cursor,copilot`；需要一次生成全部规则时使用 `guardian init --adapter all`。
+- 需要 Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 或 VS Code 规则时，可以运行 `guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`；需要一次生成全部规则时使用 `guardian init --adapter all`。
 - 新项目第一次使用 `guardian init --adapter ...` 时，所选适配器会写入 `project-guardian.config.json`，避免后续 `doctor` 按默认适配器误报。
 
 ## 3. 新项目接入步骤
+
+### 3.0 环境要求
+
+- Node.js 18 或更新版本。
+- Git。正式项目建议先 `git init` 或使用已有代码仓库；`check`、`update`、`verify`、hooks 和 CI 都依赖 Git 状态。
+- npm。只有全局安装 CLI、运行测试或发布包时需要；业务项目本身不必须是 Node 项目。
+- 不需要数据库、后端服务、OpenAI API Key 或向量库。当前版本的 `query` 是本地关键词检索，后续才考虑 RAG/MCP。
 
 ### 3.1 放入插件
 
@@ -137,7 +156,37 @@ guardian init
 
 中文团队不用额外传参；默认就是 `zh-CN`。不要在同一个项目里反复切换语言，否则 `update`、`handover` 和 `decision add` 生成的记录会中英混杂。
 
-### 3.4 运行体检
+### 3.4 AI IDE 适配方式
+
+Project Guardian 的最稳定调用方式是 CLI：任何能打开终端并运行 Node.js 的 IDE 都能执行 `guardian init`、`guardian update`、`guardian verify` 和 `guardian query`。
+
+规则文件适配器用于让不同 AI IDE 在回答或修改代码前自动读取项目记忆：
+
+| 适配器 | 面向工具 | 生成文件 |
+| --- | --- | --- |
+| `generic` | 通用 AI Agent | `AGENTS.md` |
+| `codex` | OpenAI Codex | `AGENTS.md` |
+| `cursor` | Cursor | `.cursor/rules/project-guardian.mdc`、`.cursorrules` |
+| `copilot` | GitHub Copilot | `.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` |
+| `vscode` / `vscode-copilot` | VS Code + Copilot | Copilot instructions、`.vscode/tasks.json` |
+| `windsurf` | Windsurf | `AGENTS.md`、`.windsurf/rules/project-guardian.md` |
+| `cline` | Cline | `.clinerules/project-guardian.md` |
+| `continue` | Continue | `.continue/rules/project-guardian.md` |
+| `claude` | Claude Code | `CLAUDE.md` |
+| `gemini` | Gemini CLI | `GEMINI.md` |
+
+安装更多适配器：
+
+```bash
+guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
+guardian adapters doctor
+```
+
+不建议默认生成所有 IDE 文件，否则小项目根目录会被太多工具配置占满。团队应按实际使用的 IDE 安装适配器。
+
+VS Code tasks 默认调用 `guardian`，所以在 VS Code 里运行任务前要先确认终端能执行 `guardian --version`。如果你的团队没有全局安装 CLI，而是把插件源码复制到项目内，请使用终端里的本地脚本路径，或把 `.vscode/tasks.json` 中的命令改成 `node plugins/project-guardian/scripts/guardian.js ...`。
+
+### 3.5 运行体检
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js doctor
@@ -145,7 +194,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 看到 `Core memory files: ok` 表示核心记忆文件齐全。
 
-### 3.5 补齐第一版项目记忆
+### 3.6 补齐第一版项目记忆
 
 推荐让 AI 先读代码后补齐：
 

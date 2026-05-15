@@ -39,7 +39,8 @@ guardian verify
 guardian decision add --title "决策标题" --context "背景" --decision "决定"
 guardian conflicts
 guardian query
-guardian install-adapters --adapter cursor,copilot
+guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
+guardian adapters doctor
 guardian install-hooks
 guardian install-ci
 ```
@@ -53,10 +54,17 @@ npm run guardian:handover
 npm run guardian:check
 npm run guardian:validate-docs
 npm run guardian:query
+npm run guardian:adapters-doctor
 npm run guardian:install-ci
 ```
 
 当前版本推荐把提交前命令统一为：
+
+```bash
+guardian verify
+```
+
+如果没有全局安装 CLI，等价命令是：
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js verify
@@ -84,7 +92,7 @@ guardian init --language en
 
 - 创建标准项目记忆文件。
 - 创建 `AGENTS.md` 和 `.cursorrules`。
-- 如果存在 `package.json`，自动加入 `guardian:*` scripts。
+- 如果存在 `package.json`，自动加入 `guardian:*` scripts。全局 CLI 初始化的项目会写入 `guardian ...`；插件源码随项目提交时会写入本地脚本路径。
 - 不覆盖已有同名文件。
 
 运行后建议立即执行：
@@ -99,7 +107,8 @@ guardian doctor
 
 ```bash
 guardian init --adapter all
-guardian install-adapters --adapter codex,cursor,copilot,generic
+guardian install-adapters --adapter codex,cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
+guardian adapters doctor
 ```
 
 适配器含义：
@@ -108,9 +117,32 @@ guardian install-adapters --adapter codex,cursor,copilot,generic
 - `codex`：同样生成 `AGENTS.md`，强调 Codex 项目规则入口。
 - `cursor`：生成 `.cursor/rules/project-guardian.mdc` 和兼容旧版本 Cursor 的 `.cursorrules`。
 - `copilot`：生成 `.github/copilot-instructions.md` 和 `.github/instructions/project-guardian.instructions.md`。
+- `windsurf`：生成 `AGENTS.md` 和 `.windsurf/rules/project-guardian.md`。
+- `cline`：生成 `.clinerules/project-guardian.md`。
+- `continue`：生成 `.continue/rules/project-guardian.md`。
+- `claude`：生成 `CLAUDE.md`。
+- `gemini`：生成 `GEMINI.md`。
+- `vscode` / `vscode-copilot`：生成 Copilot instructions，并生成 `.vscode/tasks.json`，提供 Verify、Update Memory、Query、Handover 任务。
 
 适配器文件和核心记忆文件分开管理。再次运行 `install-adapters` 时，已有同名规则文件会被保留，不会覆盖团队已经调整过的规则。
 新项目第一次 `init --adapter copilot` 或 `init --adapter all` 时，CLI 会把本次选择写入 `project-guardian.config.json`，后续 `doctor` 会按同一套适配器规则检查。
+
+如果团队改过 `project-guardian.config.json` 中的 `memoryFiles` 路径，适配器模板会在生成时注入真实路径，不会继续写死默认的 `memory/...`。
+
+VS Code tasks 默认执行 `guardian` 命令。使用 VS Code 任务前，请先确认 `guardian --version` 在当前终端能运行；如果团队只复制了插件源码、没有全局安装 CLI，则继续使用 `node plugins/project-guardian/scripts/guardian.js ...`，或把任务命令改成本地脚本路径。
+
+### 2.2 适配器体检
+
+```bash
+guardian adapters doctor
+```
+
+作用：
+
+- 列出 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 和 VS Code 的适配状态。
+- 显示每个适配器需要的规则文件。
+- 给出缺失适配器的安装命令。
+- 提醒 VS Code 当前是 tasks + Copilot instructions，不是原生 VS Code 扩展。
 
 ## 3. 体检命令
 

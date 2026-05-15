@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-05-15 00:00 - 扩展 AI IDE 适配器
+
+- 用户需求：核实 Project Guardian 可以被哪些 AI IDE 调用，做更多兼容和适配，并全面审查是否有遗漏。
+- AI 总结：新增 `windsurf`、`cline`、`continue`、`claude`、`gemini`、`vscode` 适配器和 `vscode-copilot` 别名；新增 `guardian adapters doctor`；VS Code 生成 `.vscode/tasks.json`；适配器模板按 `project-guardian.config.json` 注入真实记忆路径；README 和插件文档新增 AI IDE 支持矩阵。
+- 变更文件：`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`plugins/project-guardian/docs/INTEGRATION.md`、`plugins/project-guardian/docs/STANDARD.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/DECISIONS.md`。
+- 业务原因：Project Guardian 应作为跨 IDE 的项目记忆工作流，而不是只绑定 Codex；团队需要知道当前项目到底安装了哪些 AI 工具规则。
+- 技术说明：CLI 仍是最稳定通用层。规则文件适配器只生成提示和任务文件，不默认生成所有 IDE 配置；已有同名文件仍会保留。`renderTemplate` 会把模板里的默认 `memory/...` 替换为项目配置中的真实路径。
+- 验证方式：运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js adapters doctor`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd pack --dry-run` 和临时目录适配器冒烟测试。
+- 风险：各 IDE 的规则文件格式可能演进；VS Code 当前是 tasks + Copilot instructions，不是原生扩展；MCP Server 尚未实现。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：后续优先评估 `guardian mcp`，再考虑原生 VS Code 或 JetBrains 插件。
+
 ### 2026-05-15 00:00 - 迁移项目记忆到 memory 目录
 
 - 用户需求：在根目录创建 `memory` 文件夹，把所有项目记忆迁移进去，避免根目录文件越来越多；同时修改 CLI 和相关代码，确保以后执行初始化不会再把核心记忆创建到根目录。

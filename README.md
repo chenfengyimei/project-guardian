@@ -1,6 +1,6 @@
 # Project Guardian
 
-Project Guardian 是一个专为 AI 辅助编程团队设计的项目记忆插件，它通过将项目背景、技术决策、开发状态和交接文档硬编码进代码仓库，来解决 AI 协作中 “上下文只留在一个人聊天窗口里” 的团队知识流失痛点
+Project Guardian 是一个专为 AI 辅助编程团队设计的项目记忆插件，它通过将项目背景、技术决策、开发状态和交接文档固化到代码仓库里的 Markdown 记忆文件中，来解决 AI 协作中 “上下文只留在一个人聊天窗口里” 的团队知识流失痛点。
 
 这个插件适合小项目多、人员流动快、开发者大量依赖 AI IDE 的团队。
 
@@ -32,6 +32,12 @@ project-guardian/
     cursor-rules.mdc
     copilot-instructions.md
     copilot-project-guardian.instructions.md
+    windsurf-rule.md
+    cline-rule.md
+    continue-rule.md
+    CLAUDE.md
+    GEMINI.md
+    vscode-tasks.json
     zh-CN/
       PROJECT_CONTEXT.md
       STATE.md
@@ -39,6 +45,12 @@ project-guardian/
       AI_CHANGELOG.md
       HANDOVER.md
       AGENTS.md
+      windsurf-rule.md
+      cline-rule.md
+      continue-rule.md
+      CLAUDE.md
+      GEMINI.md
+      vscode-tasks.json
   docs/CLI_AND_CI.md
   docs/INTEGRATION.md
   docs/STANDARD.md
@@ -73,6 +85,13 @@ project-guardian/
 新项目先 `init` 建立记忆文件；每天开发前读 `memory/STATE.md`；AI 改完代码后运行 `update`；提交前运行 `check`；换人或阶段结束运行 `handover`；新人接手先读 `memory/HANDOVER.md`，再用 `query` 多轮提问。
 
 ## 快速使用
+
+### 环境要求
+
+- Node.js 18 或更新版本。
+- Git。`check`、`update`、`verify`、hooks 和 CI 会读取 Git 状态；纯初始化可以在非 Git 目录运行，但正式项目建议放在 Git 仓库里。
+- npm 只在全局安装、运行测试或发布包时需要。目标业务项目不强制使用 npm。
+- 不需要数据库、后端服务、OpenAI API Key 或向量库；当前查询是本地关键词检索，不是 RAG。
 
 推荐先把 CLI 安装成全局命令，这样任何项目里都可以直接运行 `guardian`：
 
@@ -131,10 +150,37 @@ AGENTS.md
 
 ```bash
 guardian init --adapter all
-guardian install-adapters --adapter cursor,copilot
+guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
+guardian adapters doctor
 ```
 
 适配层只生成规则文件，不改变核心记忆文件。已有同名规则文件会被保留，不会被覆盖。
+
+如果项目里有 `package.json`，`guardian init` 会补充 `guardian:*` scripts。用全局 CLI 初始化的项目会写入 `guardian verify` 这类可移植命令；如果插件源码就放在项目内，则会写入本地 `node plugins/project-guardian/scripts/guardian.js ...` 路径。
+
+## AI IDE 支持矩阵
+
+| 工具 | 当前支持方式 | 生成文件 | 使用建议 |
+| --- | --- | --- | --- |
+| 任意 IDE 终端 | CLI | 无额外文件 | 只要能运行 Node.js，就能运行 `guardian init/update/verify/query` |
+| Codex | 插件元数据 + AGENTS | `.codex-plugin/plugin.json`、`AGENTS.md`、`SKILL.md` | 当前支持度最高 |
+| Cursor | Project Rules | `.cursor/rules/project-guardian.mdc`、`.cursorrules` | 推荐安装 `cursor` 适配器 |
+| VS Code | Tasks + Copilot instructions | `.vscode/tasks.json`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` | 使用 `vscode` 或 `vscode-copilot` 适配器 |
+| GitHub Copilot | Repository instructions | `.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` | 适用于 VS Code Copilot 和 GitHub 侧 Copilot 场景 |
+| Windsurf | AGENTS + workspace rule | `AGENTS.md`、`.windsurf/rules/project-guardian.md` | 使用 `windsurf` 适配器 |
+| Cline | Project rules | `.clinerules/project-guardian.md` | 使用 `cline` 适配器 |
+| Continue | Repository rules | `.continue/rules/project-guardian.md` | 使用 `continue` 适配器 |
+| Claude Code | Project memory file | `CLAUDE.md` | 使用 `claude` 适配器 |
+| Gemini CLI | Project context file | `GEMINI.md` | 使用 `gemini` 适配器 |
+| Roo Code | 不优先支持 | 无 | 暂不内置专用适配；如团队仍使用，可先走 CLI 或 generic 规则 |
+
+检查当前项目适配状态：
+
+```bash
+guardian adapters doctor
+```
+
+VS Code tasks 默认调用 `guardian` 命令，因此使用前要保证 CLI 已全局安装，或项目已把 Project Guardian 作为依赖安装到可执行路径中。如果团队选择把插件源码直接复制进项目，也可以继续在终端使用 `node plugins/project-guardian/scripts/guardian.js ...`。
 
 ## 常用命令
 

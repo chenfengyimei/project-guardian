@@ -30,6 +30,12 @@ project-guardian/
       cursor-rules.mdc
       copilot-instructions.md
       copilot-project-guardian.instructions.md
+      windsurf-rule.md
+      cline-rule.md
+      continue-rule.md
+      CLAUDE.md
+      GEMINI.md
+      vscode-tasks.json
       gitee-go-project-guardian.yml
       zh-CN/
         PROJECT_CONTEXT.md
@@ -42,6 +48,12 @@ project-guardian/
         cursor-rules.mdc
         copilot-instructions.md
         copilot-project-guardian.instructions.md
+        windsurf-rule.md
+        cline-rule.md
+        continue-rule.md
+        CLAUDE.md
+        GEMINI.md
+        vscode-tasks.json
   docs/
     CLI_AND_CI.md
     INTEGRATION.md
@@ -79,6 +91,18 @@ AGENTS.md
   copilot-instructions.md
   instructions/
     project-guardian.instructions.md
+.vscode/                         # 安装 VS Code 适配器时生成
+  tasks.json
+.windsurf/                       # 安装 Windsurf 适配器时生成
+  rules/
+    project-guardian.md
+.clinerules/                     # 安装 Cline 适配器时生成
+  project-guardian.md
+.continue/                       # 安装 Continue 适配器时生成
+  rules/
+    project-guardian.md
+CLAUDE.md                        # 安装 Claude Code 适配器时生成
+GEMINI.md                        # 安装 Gemini CLI 适配器时生成
 .guardianignore
 ```
 
@@ -174,7 +198,7 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 
 ### AI 工具适配规则
 
-`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md` 和 `.github/instructions/project-guardian.instructions.md` 都属于 AI 工具适配规则。它们要求 AI 修改前先读记忆，修改后更新记忆。
+`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md`、`.windsurf/rules/project-guardian.md`、`.clinerules/project-guardian.md`、`.continue/rules/project-guardian.md`、`CLAUDE.md`、`GEMINI.md` 和 `.vscode/tasks.json` 都属于 AI 工具适配规则或 IDE 任务入口。它们要求 AI 修改前先读记忆，修改后更新记忆。
 
 不得写成泛泛而谈的口号，必须明确列出要读取和更新的文件。
 
@@ -310,7 +334,16 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 - `quality.requireChangedLines`：要求 changelog 记录变更行范围。
 - `security.scanSecrets`：控制 `verify` 是否运行安全扫描。
 - `language`：控制初始化模板和后续生成内容语言，支持 `zh-CN` 和 `en`。
-- `adapters`：控制 `init` 默认生成哪些 AI 工具规则，支持 `generic`、`codex`、`cursor`、`copilot` 或 `all`。
+- `adapters`：控制 `init` 默认生成哪些 AI 工具规则，支持 `generic`、`codex`、`cursor`、`copilot`、`windsurf`、`cline`、`continue`、`claude`、`gemini`、`vscode`、`vscode-copilot` 或 `all`。
 - `ignore`：排除不参与扫描或索引的路径片段。
 
 默认配置应保持零门槛可用。只有团队确实需要不同目录、任务编号或 CI 分支时才修改配置。
+
+## 12. 当前限制和风险
+
+- CLI 需要 Node.js 18 或更新版本；`check`、`update`、`verify`、hooks 和 CI 需要 Git。
+- Project Guardian 不依赖 Codex 才能使用；Codex 只是支持度最高的插件形态。其它 IDE 主要通过 CLI 和规则文件适配。
+- VS Code 当前是 `.vscode/tasks.json` 加 Copilot instructions，不是原生 VS Code 扩展。任务默认调用 `guardian`，使用前要保证 CLI 在 PATH 中。
+- `query` 是本地关键词检索，不是语义向量检索；表达差异大时可能搜不到，需要换关键词或查看来源文件。
+- 各 AI IDE 的规则文件约定可能变化，新增或升级 IDE 后要运行 `guardian adapters doctor` 并复核官方文档。
+- 记忆文件不能写入生产密码、真实 token、客户隐私或私钥；提交前运行 `guardian verify`，并保留人工复核。

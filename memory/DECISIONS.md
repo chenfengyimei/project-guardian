@@ -77,3 +77,16 @@
 - 复审时间：2026-06-15
 - 后续动作：观察真实项目接入反馈，必要时增加显式 migrate-memory 命令。
 - 决策文件：`memory/decisions/2026-05-15-memory.md`
+
+### 2026-05-15 - 扩展 AI IDE 规则适配器
+
+- 背景：Project Guardian 需要明确支持 Codex、Cursor、VS Code、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 等主流 AI 编程环境，避免用户以为插件只绑定 Codex。
+- 决策：保持 CLI 作为所有 IDE 的通用调用层，同时扩展规则文件适配器，新增 windsurf、cline、continue、claude、gemini、vscode 和 vscode-copilot 别名，并新增 guardian adapters doctor 显示每个 IDE 适配状态。
+- 备选方案：暂无记录。
+- 影响文件/模块：plugins/project-guardian/scripts/lib/adapters.js, plugins/project-guardian/scripts/guardian.js, plugins/project-guardian/assets/templates/*, tests/guardian.test.js, README.md, plugins/project-guardian/docs/*
+- 关联变更：未指定。
+- 验证方式：运行 npm.cmd run lint、npm.cmd test、guardian adapters doctor、guardian verify 和 npm.cmd pack --dry-run。
+- 风险：规则文件适配依赖各 IDE 当前约定；VS Code 目前是 tasks + Copilot instructions，不是原生扩展；后续如 IDE 规则格式变化，需要更新模板。
+- 复审时间：2026-06-15
+- 后续动作：后续评估 guardian mcp，再考虑 VS Code 扩展或 JetBrains 插件。
+- 决策文件：`memory/decisions/2026-05-15-ai-ide.md`

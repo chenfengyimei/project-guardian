@@ -9,7 +9,7 @@
 - CLI 已经提供 package `bin` 入口，团队可以安装为 `guardian`；仍然保留旧的随项目提交脚本路径，方便把插件源码放在项目内的团队使用。
 - 官方 Git 安装源已经确认为 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`。
 - 工具已经包含 AI 适配层，支持通用/Codex 规则、Cursor 规则和 GitHub Copilot 指令文件。
-- 适配器解析已经拆分到 `plugins/project-guardian/scripts/lib/adapters.js`，降低 `guardian.js` 中的耦合。
+- 适配器解析已经拆分到 `plugins/project-guardian/scripts/lib/adapters.js`，并扩展到 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 和 VS Code。
 - CLI 现在默认生成中文项目记忆模板，也可以通过 `guardian init --language en` 生成英文模板。
 - CLI 默认项目记忆路径已经集中到根目录 `memory/`，新项目运行 `guardian init` 会创建 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 和 `memory/HANDOVER.md`。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
@@ -26,16 +26,20 @@
 - 新增独立适配器模块，并补充 `guardian init --adapter ...` 会把所选适配器写入新配置的回归测试。
 - 新增 `explaiw/PROJECT_FILES_EXPLANATION.md`，集中说明当前所有文档、代码、配置、资源和测试文件的职责。
 - 已将本仓库自举项目记忆从根目录和 `docs/` 迁移到 `memory/`，并同步默认配置、CLI、AI 规则、插件文档和测试。
+- 新增 `guardian adapters doctor`，可以查看各 AI IDE 适配器是否已安装，并给出缺失文件和安装命令。
+- 新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配模板，VS Code 还包含 `.vscode/tasks.json` 任务入口。
+- 已修复全局 CLI 初始化业务项目时 `package.json` scripts 可能写入本机相对安装路径的问题；现在外部 CLI 使用 `guardian ...`，项目内源码模式使用本地脚本路径。
+- Continue 规则模板已经补充规则头，VS Code tasks 和跨 IDE 适配限制已经在 README、CLI/CI、接入和标准文档中说明。
 
 ## 进行中
 
-- 正在验证 `memory/` 目录迁移后的 CLI 初始化、检查、查询、交接、决策和安全扫描流程。
+- 正在进行最终发布前完整验证，包括 lint、测试、`guardian verify`、适配器冒烟测试、旧路径扫描和 package dry-run。
 
 ## 下一步
 
-1. 运行 `npm.cmd run lint`、`npm.cmd test` 和 `node plugins/project-guardian/scripts/guardian.js verify`。
-2. 在临时目录运行 `guardian init` 冒烟测试，确认新项目不再把核心记忆创建到根目录。
-3. 提交到 Gitee 前，复查是否仍有旧的根目录或 `docs/` 记忆路径引用。
+1. 运行 `npm.cmd run verify`、`git diff --check` 和 `npm.cmd pack --dry-run`。
+2. 在临时目录运行 `guardian init --adapter all`、`guardian adapters doctor` 和带 `package.json` 的初始化冒烟测试。
+3. 提交到 Gitee 前，复查文档中的启动方式、环境要求、AI IDE 支持矩阵和实际适配器列表是否一致。
 
 ## 已知问题
 
@@ -45,6 +49,7 @@
 | 决策记录会同时写入索引和单独决策文件 | 文档输出略多 | 维护者 | 这是为了兼容现有 `memory/DECISIONS.md`，同时降低未来协作冲突 |
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
 | 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 本次保持尊重显式配置；旧项目迁移时应同步更新 `project-guardian.config.json` |
+| AI IDE 规则格式会变化 | 某些适配器模板未来可能失效 | 维护者 | 已新增 `adapters doctor` 帮助发现缺失文件；仍需定期复核官方规则格式 |
 
 ## 风险区域
 
@@ -55,8 +60,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：将 Project Guardian 项目记忆集中迁移到根目录 `memory/`。
-- 总结：移动本仓库自举记忆，修改 CLI 默认配置和项目配置，让新项目 `guardian init` 默认创建 `memory/` 下的记忆文件，并同步 AI 规则、模板说明、文档和测试。
-- 文件：`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`、`memory/decisions/*`、`project-guardian.config.json`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、AI 规则模板和 Project Guardian 文档。
-- 验证：运行 `doctor`、`validate-docs`、`lint`、`test`、`verify` 和临时目录 `init` 冒烟测试。
-- 后续：如旧项目需要自动迁移，可在后续增加显式 `guardian migrate-memory` 命令。
+- 任务：扩展 AI IDE 适配能力并新增适配器体检。
+- 总结：新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配器和 `vscode-copilot` 别名；新增 `guardian adapters doctor`；适配模板会按配置注入真实记忆路径；全局 CLI 初始化时的 npm scripts 改为可移植命令；文档补充启动方式、环境要求、AI IDE 支持矩阵和当前限制。
+- 文件：`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test` 和 `guardian adapters doctor`；最终还需运行 `npm.cmd run verify`、`git diff --check`、`npm.cmd pack --dry-run` 和适配器临时目录冒烟测试。
+- 后续：优先评估 `guardian mcp`，再考虑 VS Code 扩展或 JetBrains 插件。

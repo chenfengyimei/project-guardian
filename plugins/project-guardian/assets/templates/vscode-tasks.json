@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "guardianTask",
+      "type": "promptString",
+      "description": "Project Guardian task summary"
+    },
+    {
+      "id": "guardianQuestion",
+      "type": "promptString",
+      "description": "Question for Project Guardian"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Project Guardian: Verify",
+      "type": "shell",
+      "command": "guardian verify",
+      "problemMatcher": []
+    },
+    {
+      "label": "Project Guardian: Update Memory",
+      "type": "shell",
+      "command": "guardian update \"${input:guardianTask}\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Project Guardian: Query",
+      "type": "shell",
+      "command": "guardian query \"${input:guardianQuestion}\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Project Guardian: Handover",
+      "type": "shell",
+      "command": "guardian handover",
+      "problemMatcher": []
+    }
+  ]
+}
