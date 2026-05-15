@@ -4,9 +4,9 @@
 
 当前统计口径：
 
-- 仓库文件总数：63 个。
+- 仓库文件总数：64 个。
 - 文档、规则、模板、说明类文件：53 个。
-- 代码、配置、资源、测试和忽略规则等其它文件：10 个。
+- 代码、配置、资源、测试和忽略规则等其它文件：11 个。
 - 统计不包含 `.git/` 和 `node_modules/`。
 
 ## 目录结构
@@ -92,6 +92,7 @@ project_ai/
   AGENTS.md
   LICENSE
   README.md
+  package-lock.json
   package.json
   project-guardian.config.json
   零基础超简单入门.md
@@ -160,12 +161,13 @@ project_ai/
 | 文件 | 干嘛的 | 为什么会有它 | 内容是什么 | 什么时候新增或修改 |
 | --- | --- | --- | --- | --- |
 | `package.json` | npm 包和脚本配置 | 让项目能作为 CLI package 使用并运行测试 | 包名、版本、license、bin、files、engines、scripts | CLI 入口、版本、发布范围、测试脚本变化时 |
+| `package-lock.json` | npm 锁定文件 | 让 `npm audit` 和安装元数据可重复验证 | 当前 package 的锁定元数据；本项目暂无第三方依赖 | package 元数据、依赖或 npm 审计流程变化时 |
 | `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、language、adapters、ignore | 记忆路径、语言、适配器、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
-| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、query、decision、conflicts、hooks、CI、安全扫描等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
+| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、query、decision、conflicts、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、query、scan-secrets、conflicts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、query、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |

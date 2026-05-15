@@ -28,18 +28,19 @@
 - 已将本仓库自举项目记忆从根目录和 `docs/` 迁移到 `memory/`，并同步默认配置、CLI、AI 规则、插件文档和测试。
 - 新增 `guardian adapters doctor`，可以查看各 AI IDE 适配器是否已安装，并给出缺失文件和安装命令。
 - 新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配模板，VS Code 还包含 `.vscode/tasks.json` 任务入口。
-- 已修复全局 CLI 初始化业务项目时 `package.json` scripts 可能写入本机相对安装路径的问题；现在外部 CLI 使用 `guardian ...`，项目内源码模式使用本地脚本路径。
+- 已复核全局 CLI 初始化业务项目时的 `package.json` scripts 生成逻辑；外部 CLI 使用 `guardian ...`，项目内源码模式使用本地脚本路径。
 - Continue 规则模板已经补充规则头，VS Code tasks 和跨 IDE 适配限制已经在 README、CLI/CI、接入和标准文档中说明。
+- 新增 `package-lock.json`，让 `npm audit` 可以稳定运行；当前项目没有第三方运行依赖，审计结果为 0 个漏洞。
 
 ## 进行中
 
-- 正在进行最终发布前完整验证，包括 lint、测试、`guardian verify`、适配器冒烟测试、旧路径扫描和 package dry-run。
+- 当前本轮审查和修复已经完成，等待提交到 Gitee。
 
 ## 下一步
 
-1. 运行 `npm.cmd run verify`、`git diff --check` 和 `npm.cmd pack --dry-run`。
-2. 在临时目录运行 `guardian init --adapter all`、`guardian adapters doctor` 和带 `package.json` 的初始化冒烟测试。
-3. 提交到 Gitee 前，复查文档中的启动方式、环境要求、AI IDE 支持矩阵和实际适配器列表是否一致。
+1. 提交到 Gitee 前复查 `git status`，确认 `package-lock.json`、记忆文件和教程更新一起提交。
+2. 后续优先评估 `guardian mcp`，再考虑 VS Code 原生扩展或 JetBrains 插件。
+3. 定期复核 Cursor、Copilot、Windsurf、Cline、Continue、Claude Code 和 Gemini CLI 的官方规则文件约定。
 
 ## 已知问题
 
@@ -61,7 +62,7 @@
 ## 最新 AI 协助变更
 
 - 任务：扩展 AI IDE 适配能力并新增适配器体检。
-- 总结：新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配器和 `vscode-copilot` 别名；新增 `guardian adapters doctor`；适配模板会按配置注入真实记忆路径；全局 CLI 初始化时的 npm scripts 改为可移植命令；文档补充启动方式、环境要求、AI IDE 支持矩阵和当前限制。
-- 文件：`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test` 和 `guardian adapters doctor`；最终还需运行 `npm.cmd run verify`、`git diff --check`、`npm.cmd pack --dry-run` 和适配器临时目录冒烟测试。
+- 总结：新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配器和 `vscode-copilot` 别名；新增 `guardian adapters doctor`；适配模板会按配置注入真实记忆路径；全局 CLI 初始化时的 npm scripts 已复核为可移植命令；文档补充启动方式、环境要求、AI IDE 支持矩阵和当前限制。
+- 文件：`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`、`package-lock.json`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
+- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run`、旧路径/过期表述扫描和适配器临时目录冒烟测试。
 - 后续：优先评估 `guardian mcp`，再考虑 VS Code 扩展或 JetBrains 插件。

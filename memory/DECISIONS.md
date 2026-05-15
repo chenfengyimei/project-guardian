@@ -31,11 +31,11 @@
 ### 2026-05-14 - 暴露可移植 CLI 和 AI 工具适配层
 
 - 背景：通过 `node plugins/project-guardian/scripts/guardian.js` 调用 CLI 看起来像原始脚本；只支持 Codex 规则会限制 Cursor、Copilot 或混合 AI 工具团队的价值。
-- 决策：为 `guardian` 和 `project-guardian` 增加 package `bin` 入口，保留随项目提交脚本路径作为 fallback，并引入通用/Codex、Cursor 和 Copilot 规则模板。
+- 决策：为 `guardian` 和 `project-guardian` 增加 package `bin` 入口，保留随项目提交脚本路径作为 fallback，并引入通用/Codex、Cursor 和 Copilot 规则模板。`package.json` scripts 必须避免写入某台机器的全局安装相对路径；外部 CLI 场景写入 `guardian ...`，项目内源码场景才写入本地脚本路径。
 - 备选方案：只保留 Codex 插件元数据、要求每个项目都内置插件源码，或为每个 AI 工具创建单独插件。
 - 影响文件/模块：`package.json`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/assets/templates/*`、`README.md` 和 `plugins/project-guardian/docs/*`。
-- 关联变更：`guardian init --adapter all` 和 `guardian install-adapters --adapter cursor,copilot` 可以创建工具专用规则文件，不改变核心记忆文件。适配器解析和模板映射放在 `scripts/lib/adapters.js`，新增 AI 工具规则时不必继续塞进 CLI 主体。
-- 验证方式：CLI 语法检查、Node 测试套件、version/help 冒烟测试和 package dry-run。
+- 关联变更：`guardian init --adapter all` 和 `guardian install-adapters --adapter cursor,copilot` 可以创建工具专用规则文件，不改变核心记忆文件。适配器解析和模板映射放在 `scripts/lib/adapters.js`，新增 AI 工具规则时不必继续塞进 CLI 主体。2026-05-15 审查中新增回归测试，确保全局 CLI 初始化目标项目时 scripts 使用可移植 `guardian ...` 命令。
+- 验证方式：CLI 语法检查、Node 测试套件、version/help 冒烟测试、package scripts 回归测试和 package dry-run。
 - 风险：全局 CLI 仍需要公司环境中存在实际 npm 或 Git 安装源；Copilot 和 Cursor 的规则格式可能演进，需要定期复核。
 - 复审时间：2026-06-14。
 - 后续动作：官方 Git 安装源是 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`；只有团队需要 npm 原生发布时再评估 npm registry 发布。
@@ -44,7 +44,7 @@
 
 - 背景：多人在交接或评审期间可能同时编辑决策历史。
 - 决策：新增结构化决策时同步写入 `memory/decisions/`，同时保持 `memory/DECISIONS.md` 兼容。
-- 备选方案：未记录。
+- 备选方案：继续只维护单个 `memory/DECISIONS.md`；或只使用单独决策文件但移除总索引。
 - 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`memory/decisions`。
 - 关联变更：P4 协作冲突处理和新的 `guardian decision add` 命令。
 - 验证方式：`npm.cmd test` 和 `guardian verify`。

@@ -15,6 +15,7 @@
 - 包管理器：目标项目不强制使用 npm，但本仓库已经通过 `guardian` 和 `project-guardian` 暴露 package CLI。
 - 部署位置：全局 CLI 安装、本地仓库插件目录、AI 工具适配规则、Codex 插件市场元数据、Git hooks 和 Gitee Go 工作流模板。
 - 默认语言：`zh-CN`。英文团队可以使用 `guardian init --language en` 初始化。
+- 环境要求：Node.js 18+；正式项目建议使用 Git；npm 只在安装 CLI、运行测试或发布包时需要；不需要数据库、后端服务、OpenAI API Key 或向量库。
 
 ## 核心业务流程
 
@@ -22,13 +23,13 @@
    - 入口：全局安装后使用 `guardian init`；如果插件源码随项目提交，则使用 `node plugins/project-guardian/scripts/guardian.js init`。
    - 重要文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`。
    - 规则：创建标准记忆文件，不覆盖项目已经写好的同名记忆文件。
-   - 已知边界情况：已有项目可能已经存在部分记忆文件，因此 CLI 必须保留现有内容并提示哪些文件被跳过。`guardian init --language en` 还必须把语言配置传给 AI 适配器模板，避免英文项目收到中文规则文件。
+   - 已知边界情况：已有项目可能已经存在部分记忆文件，因此 CLI 必须保留现有内容并提示哪些文件被跳过。`guardian init --language en` 还必须把语言配置传给 AI 适配器模板，避免英文项目收到中文规则文件。全局 CLI 初始化带 `package.json` 的业务项目时，npm scripts 必须使用可移植的 `guardian ...` 命令，不能写入本机安装路径。
 
 2. 安装 AI 工具适配规则。
    - 入口：`guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`、`guardian init --adapter all` 和 `guardian adapters doctor`。
    - 重要文件：`plugins/project-guardian/scripts/lib/adapters.js`、`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md`、`.windsurf/rules/project-guardian.md`、`.clinerules/project-guardian.md`、`.continue/rules/project-guardian.md`、`CLAUDE.md`、`GEMINI.md`、`.vscode/tasks.json`。
    - 规则：适配器文件告诉 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 和通用 AI Agent 先读取并维护 Project Guardian 记忆；已有适配器文件必须保留。
-   - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。VS Code 当前通过 tasks 和 Copilot instructions 适配，不是原生 VS Code 扩展。
+   - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。VS Code 当前通过 tasks 和 Copilot instructions 适配，不是原生 VS Code 扩展，tasks 默认要求 `guardian` 命令可用。
 
 3. 在提交前执行记忆质量闸门。
    - 入口：`guardian check`、`guardian validate-docs` 和 `guardian verify`。

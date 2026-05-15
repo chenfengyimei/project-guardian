@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-05-15 00:00 - 完整审查启动、适配和环境说明
+
+- 用户需求：全面检测代码是否正确、文档是否更新最新内容、用户如何启动和适配、是否有大变化、环境要求，以及是否存在漏洞、缺点或小风险，并一并修复。
+- AI 总结：复核全局 CLI 初始化业务项目时的 `package.json` scripts 已使用可移植命令；优化结构化决策缺省文案，避免被误解为未完成项；新增 `package-lock.json` 让 `npm audit` 可重复运行；零基础教程、文件说明和项目记忆补充环境要求、启动方式、VS Code tasks 前提、当前限制和风险说明。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/continue-rule.md`、`plugins/project-guardian/assets/templates/zh-CN/continue-rule.md`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`plugins/project-guardian/docs/INTEGRATION.md`、`plugins/project-guardian/docs/STANDARD.md`、`package-lock.json`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：Project Guardian 需要在全局 CLI、源码内置和多 IDE 适配场景下都能被新人正确启动，不能把某台机器的安装路径写进可提交配置。
+- 技术说明：`addPackageScripts` 会判断 CLI 脚本是否在目标项目内部；在项目内部时保留本地脚本路径，在外部安装场景下写入 `guardian ...`。结构化决策缺少可选字段时使用“暂无记录”，避免被误解为未完成项。
+- 验证方式：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run`、旧路径/过期表述扫描和临时目录冒烟测试。
+- 风险：VS Code tasks 仍默认依赖 `guardian` 已在 PATH 中；如果团队只复制插件源码，需要使用本地脚本路径或调整 tasks 命令。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：提交到 Gitee 前复查 `git status`，确认 `package-lock.json` 和本次记忆更新一并提交。
+
 ### 2026-05-15 00:00 - 扩展 AI IDE 适配器
 
 - 用户需求：核实 Project Guardian 可以被哪些 AI IDE 调用，做更多兼容和适配，并全面审查是否有遗漏。

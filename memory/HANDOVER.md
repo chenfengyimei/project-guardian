@@ -1,6 +1,6 @@
 # 交接指南
 
-最后生成：2026-05-14
+最后生成：2026-05-15
 
 ## 优先阅读
 
@@ -16,7 +16,7 @@
 
 ## 如何运行
 
-全局安装后的推荐 CLI 是 `guardian`。如果没有全局安装 package，则使用随项目提交路径 `node plugins/project-guardian/scripts/guardian.js <command>`。
+全局安装后的推荐 CLI 是 `guardian`。如果没有全局安装 package，则使用随项目提交路径 `node plugins/project-guardian/scripts/guardian.js <command>`。`guardian init` 在业务项目中补充 `package.json` scripts 时，会根据 CLI 是否位于项目内选择 `guardian ...` 或本地脚本路径。
 
 ```bash
 # 检查 CLI 语法
@@ -66,6 +66,7 @@ npm.cmd test
 | CI 中 hook 不执行 | Git hooks 只在本地运行 | 使用 `guardian install-ci` 生成 Gitee Go 流水线，或手动加入等价 CI 命令 |
 | Query 回答不完整 | 当前 query 是关键词检索 | 使用文件名或业务关键词提问，然后查看列出的来源路径 |
 | 英文 init 生成中文 AI 规则 | 旧版语言处理没有把 init 参数传给适配器生成 | 使用当前 CLI，并运行覆盖 `guardian init --language en` 的回归测试 |
+| VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian`，但 CLI 没在 PATH 中 | 先运行 `guardian --version` 确认可用；源码内置模式可改用本地 `node plugins/project-guardian/scripts/guardian.js ...` |
 
 ## 风险区域
 
