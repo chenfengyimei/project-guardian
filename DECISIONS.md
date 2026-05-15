@@ -1,57 +1,57 @@
-# Decisions
+# 决策记录
 
-This file records decisions that future developers and AI agents must understand.
+本文件记录未来开发者和 AI Agent 必须理解的重要决策。
 
-## Active Decisions
+## 有效决策
 
-### 2026-05-14 - Keep Project Guardian as a zero-service Node.js CLI
+### 2026-05-14 - Project Guardian 保持零服务 Node.js CLI 形态
 
-- Context: The target users are small teams and interns who need a reliable workflow without operating a database, web service, or internal platform.
-- Decision: Keep the default implementation as a local Node.js CLI using only standard library modules, Git metadata, Markdown memory files, and optional Git hook or Gitee CI integration.
-- Alternatives considered: Build a web platform, require a vector database, publish only a Codex skill, or depend on a hosted AI API for every command.
-- Affected files/modules: `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/assets/templates/*`, `plugins/project-guardian/docs/*`.
-- Related change: P0 and P2 roadmap work introduced `guardian verify`, config loading, stronger validation, and security scanning while preserving zero-config local usage.
-- Verification: Run `node --check plugins/project-guardian/scripts/guardian.js`, `npm.cmd test` on Windows PowerShell, and `node plugins/project-guardian/scripts/guardian.js verify`.
-- Risks: A local keyword query is less powerful than RAG; the tool must stay simple while leaving clean extension points for future retrieval integrations.
-- Review after: 2026-06-14.
-- Follow-up: Revisit package publishing and optional vector search after the local workflow is stable and tested.
+- 背景：目标用户是小团队和实习生，需要可靠工作流，但不应要求他们运维数据库、Web 服务或内部平台。
+- 决策：默认实现保持为本地 Node.js CLI，只使用标准库模块、Git 元数据、Markdown 记忆文件，以及可选 Git hook 或 Gitee CI 集成。
+- 备选方案：构建 Web 平台、强制使用向量数据库、只发布 Codex skill，或让每个命令都依赖托管 AI API。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/docs/*`。
+- 关联变更：P0 和 P2 路线图引入 `guardian verify`、配置加载、更强文档校验和安全扫描，同时保留零配置本地使用方式。
+- 验证方式：运行 `node --check plugins/project-guardian/scripts/guardian.js`、Windows PowerShell 下的 `npm.cmd test`，以及 `node plugins/project-guardian/scripts/guardian.js verify`。
+- 风险：本地关键词查询不如 RAG 强大；工具必须保持简单，同时为未来检索集成保留清晰扩展点。
+- 复审时间：2026-06-14。
+- 后续动作：本地工作流稳定并经过测试后，再重新评估 package 发布和可选向量搜索。
 
-### 2026-05-14 - Treat repository memory as the source of handover truth
+### 2026-05-14 - 仓库内项目记忆作为交接事实来源
 
-- Context: AI-assisted coding context disappears when conversations, interns, or local IDE sessions are lost.
-- Decision: Store durable project context in root Markdown files and enforce updates through `check`, `validate-docs`, `scan-secrets`, and the unified `verify` command.
-- Alternatives considered: Rely on chat exports, require developers to manually write external handover docs, or postpone quality gates until a platform exists.
-- Affected files/modules: `PROJECT_CONTEXT.md`, `STATE.md`, `DECISIONS.md`, `docs/AI_CHANGELOG.md`, `docs/HANDOVER.md`, `project-guardian.config.json`.
-- Related change: Self-init was run in this repository so Project Guardian follows the same memory workflow it asks target projects to use.
-- Verification: `guardian validate-docs` must pass on filled memory files, and `guardian check` must fail when code changes omit memory updates.
-- Risks: Overly strict validation can slow adoption if templates are not explained clearly to non-technical users.
-- Review after: 2026-06-14.
-- Follow-up: Keep beginner docs practical and add tests that distinguish empty templates from real memory.
+- 背景：AI 辅助编程上下文会随着聊天记录、实习生或本地 IDE 会话丢失。
+- 决策：把可持续项目上下文保存在根目录 Markdown 文件中，并通过 `check`、`validate-docs`、`scan-secrets` 和统一的 `verify` 命令强制维护。
+- 备选方案：依赖聊天导出、要求开发者手写外部交接文档，或等平台化以后再做质量闸门。
+- 影响文件/模块：`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`project-guardian.config.json`。
+- 关联变更：本仓库已经运行 self-init，因此 Project Guardian 遵循它要求目标项目使用的同一套记忆工作流。
+- 验证方式：填好的记忆文件必须通过 `guardian validate-docs`；当代码变更缺少记忆更新时，`guardian check` 必须失败。
+- 风险：如果模板解释不够清楚，过严校验可能拖慢非专业开发者的接入。
+- 复审时间：2026-06-14。
+- 后续动作：保持零基础文档实用，并增加能区分空模板和真实记忆的测试。
 
-### 2026-05-14 - Expose a portable CLI and AI tool adapter layer
+### 2026-05-14 - 暴露可移植 CLI 和 AI 工具适配层
 
-- Context: Calling the CLI through `node plugins/project-guardian/scripts/guardian.js` made adoption feel like a raw script, and Codex-only rules limited usefulness for teams using Cursor, Copilot, or mixed AI tooling.
-- Decision: Add package `bin` entries for `guardian` and `project-guardian`, keep the vendored script path as a fallback, and introduce adapter templates for generic/Codex, Cursor, and Copilot rule files.
-- Alternatives considered: Keep only Codex plugin metadata, require every project to vendor the plugin, or create separate plugins for each AI tool.
-- Affected files/modules: `package.json`, `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/scripts/lib/adapters.js`, `plugins/project-guardian/assets/templates/*`, `README.md`, and `plugins/project-guardian/docs/*`.
-- Related change: `guardian init --adapter all` and `guardian install-adapters --adapter cursor,copilot` can create tool-specific rule files without changing core memory files. Adapter parsing and template mapping live in `scripts/lib/adapters.js` so new AI tool rules do not have to be wired through the main CLI body.
-- Verification: CLI syntax checks, Node test suite, version/help smoke tests, and package dry-run verification.
-- Risks: The global CLI still needs an actual npm or Git installation source in each company environment; Copilot and Cursor rule formats may evolve and need periodic review.
-- Review after: 2026-06-14.
-- Follow-up: Official Git install source is `git+https://gitee.com/chenfengloveyuri/project-guardian.git`; revisit npm registry publishing only if the team needs npm-native releases later.
+- 背景：通过 `node plugins/project-guardian/scripts/guardian.js` 调用 CLI 看起来像原始脚本；只支持 Codex 规则会限制 Cursor、Copilot 或混合 AI 工具团队的价值。
+- 决策：为 `guardian` 和 `project-guardian` 增加 package `bin` 入口，保留随项目提交脚本路径作为 fallback，并引入通用/Codex、Cursor 和 Copilot 规则模板。
+- 备选方案：只保留 Codex 插件元数据、要求每个项目都内置插件源码，或为每个 AI 工具创建单独插件。
+- 影响文件/模块：`package.json`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/assets/templates/*`、`README.md` 和 `plugins/project-guardian/docs/*`。
+- 关联变更：`guardian init --adapter all` 和 `guardian install-adapters --adapter cursor,copilot` 可以创建工具专用规则文件，不改变核心记忆文件。适配器解析和模板映射放在 `scripts/lib/adapters.js`，新增 AI 工具规则时不必继续塞进 CLI 主体。
+- 验证方式：CLI 语法检查、Node 测试套件、version/help 冒烟测试和 package dry-run。
+- 风险：全局 CLI 仍需要公司环境中存在实际 npm 或 Git 安装源；Copilot 和 Cursor 的规则格式可能演进，需要定期复核。
+- 复审时间：2026-06-14。
+- 后续动作：官方 Git 安装源是 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`；只有团队需要 npm 原生发布时再评估 npm registry 发布。
 
-### 2026-05-14 - Use per-decision files
+### 2026-05-14 - 使用单独决策文件
 
-- Context: Multiple maintainers may edit decision history during handover or review.
-- Decision: Mirror new structured decisions into docs/decisions while keeping DECISIONS.md compatible.
-- Alternatives considered: None recorded.
-- Affected files/modules: plugins/project-guardian/scripts/guardian.js, docs/decisions
-- Related change: P4 collaboration conflict handling and the new `guardian decision add` command.
-- Verification: npm.cmd test and guardian verify
-- Risks: Decision content is duplicated for compatibility.
-- Review after: 2026-06-14
-- Follow-up: Consider turning DECISIONS.md into a pure index after teams adopt the directory.
-- Decision file: `docs/decisions/2026-05-14-use-per-decision-files.md`
+- 背景：多人在交接或评审期间可能同时编辑决策历史。
+- 决策：新增结构化决策时同步写入 `docs/decisions/`，同时保持 `DECISIONS.md` 兼容。
+- 备选方案：未记录。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`docs/decisions`。
+- 关联变更：P4 协作冲突处理和新的 `guardian decision add` 命令。
+- 验证方式：`npm.cmd test` 和 `guardian verify`。
+- 风险：为了兼容性，决策内容会有一定重复。
+- 复审时间：2026-06-14。
+- 后续动作：团队接受决策目录后，可以考虑把 `DECISIONS.md` 转成纯索引页。
+- 决策文件：`docs/decisions/2026-05-14-use-per-decision-files.md`
 
 ### 2026-05-15 - 默认使用中文项目记忆
 
