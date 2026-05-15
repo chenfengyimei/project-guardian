@@ -71,13 +71,14 @@ function defaultConfig(overrides = {}) {
       scanSecrets: true,
       ...(overrides.security || {}),
     },
+    language: overrides.language || "zh-CN",
     adapters: overrides.adapters || ["generic", "cursor"],
     ignore: overrides.ignore || [],
   };
 }
 
 function writeValidMemory(root, configOverrides = {}) {
-  writeJson(path.join(root, "project-guardian.config.json"), defaultConfig(configOverrides));
+  writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ language: "en", ...configOverrides }));
   writeFile(
     path.join(root, "PROJECT_CONTEXT.md"),
     `# Project Context
@@ -325,6 +326,39 @@ test("init creates standard files and preserves existing memory", () => {
   }
 });
 
+test("init defaults to Chinese memory templates", () => {
+  const root = tempDir("init-chinese");
+  try {
+    const result = run(root, ["init"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const context = fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8");
+    const agents = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
+    const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
+    assert.match(context, /# 项目上下文/);
+    assert.match(agents, /AI Agent 规则/);
+    assert.equal(config.language, "zh-CN");
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("init --language en keeps English memory templates", () => {
+  const root = tempDir("init-english");
+  try {
+    const result = run(root, ["init", "--language", "en"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const context = fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8");
+    const agents = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
+    const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
+    assert.match(context, /# Project Context/);
+    assert.match(agents, /# AI Agent Rules/);
+    assert.doesNotMatch(agents, /AI Agent 规则/);
+    assert.equal(config.language, "en");
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("package exposes guardian CLI bin entries", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(pkg.bin.guardian, "plugins/project-guardian/scripts/guardian.js");
@@ -436,6 +470,18 @@ test("validate-docs rejects fresh templates", () => {
   }
 });
 
+test("doctor rejects unsupported language config values", () => {
+  const root = tempDir("language-config-invalid");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ language: "fr" }));
+    const result = run(root, ["doctor"]);
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /language must be one of: zh-CN, en/);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("validate-docs accepts filled memory, including CRLF files", () => {
   const root = tempDir("valid-docs");
   try {
@@ -444,6 +490,219 @@ test("validate-docs accepts filled memory, including CRLF files", () => {
       const full = path.join(root, file);
       fs.writeFileSync(full, fs.readFileSync(full, "utf8").replace(/\n/g, os.EOL), "utf8");
     }
+    const result = run(root, ["validate-docs"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("validate-docs accepts filled Chinese memory", () => {
+  const root = tempDir("valid-docs-zh");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ language: "zh-CN" }));
+    writeFile(
+      path.join(root, "PROJECT_CONTEXT.md"),
+      `# 项目上下文
+
+## 项目概览
+
+- 项目名称：中文示例项目。
+- 项目目的：验证 Project Guardian 能正确识别中文项目记忆。
+- 目标用户：维护人员和 AI 助手。
+- 业务负责人：测试套件。
+
+## 技术栈
+
+- 运行环境：Node.js 18 或更新版本。
+- 框架：标准库。
+- 数据库：无。
+- 包管理器：npm。
+- 部署位置：本地测试目录。
+
+## 核心业务流程
+
+1. 校验中文记忆。
+   - 入口：guardian verify。
+   - 重要文件：中文记忆文件。
+   - 业务规则：中文标题和字段必须被校验器识别。
+   - 已知边界情况：空字段和待填写内容必须失败。
+
+## 外部依赖
+
+| 依赖 | 用途 | 负责人 | 备注 |
+| --- | --- | --- | --- |
+| Git | 读取变更状态 | 测试 | 用于 check 行为 |
+
+## 数据模型
+
+| 对象 | 重要字段 | 备注 |
+| --- | --- | --- |
+| 记忆记录 | 总结、原因、验证、风险 | 供后续维护者阅读 |
+
+## 如何运行
+
+\`\`\`bash
+guardian verify
+npm test
+\`\`\`
+
+## 环境变量
+
+| 名称 | 是否必填 | 说明 | 示例 |
+| --- | --- | --- | --- |
+| 无 | 否 | 测试不需要环境变量 | 不写入敏感信息 |
+
+## 重要约束
+
+- 初始化不能覆盖已有记忆。
+- 中文模板必须保持可读。
+- 文档校验要能区分真实中文内容和仍然空着的模板字段。
+- 同一项目初始化后应保持固定语言，避免后续自动生成内容在中英文之间来回切换。
+
+## AI 注意事项
+
+- 修改前阅读记忆文件。
+- 不写入真实密钥。
+- 回答中文问题时优先引用中文记忆文件，并说明信息来自哪个文件。
+`,
+    );
+    writeFile(
+      path.join(root, "STATE.md"),
+      `# 项目状态
+
+最后更新：2026-05-15
+
+## 当前状态
+
+- 中文记忆文件已经填入真实测试内容。
+- 当前测试重点是确认中文标题、中文字段、中文日期和中文最新变更都能被识别。
+- 该状态文件模拟真实团队接入后的第一版说明，而不是初始化后未填写的空模板。
+
+## 已完成
+
+- 中文上下文、状态、决策、变更日志和交接指南已经准备好。
+
+## 进行中
+
+- 运行中文文档校验。
+
+## 下一步
+
+1. 保持中文模板和校验规则一致。
+
+## 已知问题
+
+| 问题 | 影响 | 负责人 | 备注 |
+| --- | --- | --- | --- |
+| 查询仍是关键词 | 语义问题可能漏掉 | 维护者 | 后续可增强 |
+
+## 风险区域
+
+- 中文字段不要被英文校验规则误判为空。
+- 如果未来调整校验阈值，需要继续保证中文内容不会因为标点差异被错误扣减。
+- 如果团队切换到英文模板，应先确认配置和已有记忆语言一致。
+
+## 最新 AI 协助变更
+
+- 任务：准备中文测试记忆。
+- 总结：填充中文内容用于验证。
+- 文件：中文项目记忆文件。
+- 验证：guardian validate-docs。
+- 后续：继续保持测试覆盖。
+`,
+    );
+    writeFile(
+      path.join(root, "DECISIONS.md"),
+      `# 决策记录
+
+## 有效决策
+
+### 2026-05-15 - 支持中文项目记忆
+
+- 背景：目标团队主要使用中文交接和中文 AI 对话。
+- 决策：校验器必须接受中文标题和中文字段。
+- 备选方案：只保留英文模板。
+- 影响文件/模块：中文模板和文档校验。
+- 关联变更：新增中文初始化能力。
+- 验证方式：运行 guardian validate-docs。
+- 风险：中英文混用时需要兼容。
+- 复审时间：2026-06-15。
+- 后续动作：继续补充中文用例。
+`,
+    );
+    writeFile(
+      path.join(root, "docs", "AI_CHANGELOG.md"),
+      `# AI 变更日志
+
+## 2026 记录
+
+### 2026-05-15 10:00 - 准备中文测试记忆
+
+- 用户需求：验证中文文档可以通过校验。
+- AI 总结：创建中文项目记忆内容。
+- 变更文件：中文记忆文件。
+- 业务原因：中文团队需要中文交接。
+- 技术说明：使用中文标题和中文字段。
+- 验证方式：guardian validate-docs。
+- 风险：需要避免空字段。
+- 敏感信息检查：没有加入真实密钥。
+- 下一步：保持测试覆盖。
+`,
+    );
+    writeFile(
+      path.join(root, "docs", "HANDOVER.md"),
+      `# 交接指南
+
+最后生成：2026-05-15
+
+## 优先阅读
+
+1. PROJECT_CONTEXT.md
+2. STATE.md
+3. DECISIONS.md
+4. docs/AI_CHANGELOG.md
+
+## 如何运行
+
+\`\`\`bash
+guardian verify
+\`\`\`
+
+## 项目地图
+
+| 区域 | 文件 | 用途 |
+| --- | --- | --- |
+| 记忆 | PROJECT_CONTEXT.md, STATE.md | 中文上下文 |
+
+## 核心流程
+
+- 读取中文记忆。
+- 运行校验。
+- 根据校验结果补齐项目背景、当前状态、决策原因和交接步骤。
+- 完成修改后再次运行 guardian verify，确认中文内容没有停留在模板状态。
+
+## 常见问题
+
+| 问题 | 可能原因 | 处理方式 |
+| --- | --- | --- |
+| 校验失败 | 字段为空 | 补齐内容 |
+
+## 风险区域
+
+- 注意中英文混用。
+- 如果新人看到英文和中文混在同一个项目里，应先检查 project-guardian.config.json 的 language 配置。
+- 如果交接指南由命令生成，也需要人工确认运行命令和风险提示是否符合真实项目。
+
+## 新人第一天
+
+1. 阅读项目记忆。
+2. 运行 guardian doctor。
+3. 运行 guardian verify。
+4. 选择小任务。
+5. 更新记忆。
+`,
+    );
     const result = run(root, ["validate-docs"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   } finally {
@@ -522,6 +781,33 @@ test("decision add appends a structured decision", () => {
   }
 });
 
+test("decision add uses Chinese fields for Chinese projects", () => {
+  const root = tempDir("decision-add-zh");
+  try {
+    const initResult = run(root, ["init"]);
+    assert.equal(initResult.status, 0, `${initResult.stdout}\n${initResult.stderr}`);
+    const result = run(root, [
+      "decision",
+      "add",
+      "--title",
+      "支持中文模板",
+      "--context",
+      "团队主要使用中文交接。",
+      "--decision",
+      "默认生成中文项目记忆。",
+      "--verification",
+      "运行中文初始化测试。",
+    ]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const decisions = fs.readFileSync(path.join(root, "DECISIONS.md"), "utf8");
+    assert.match(decisions, /- 背景：团队主要使用中文交接。/);
+    assert.match(decisions, /- 决策：默认生成中文项目记忆。/);
+    assert.match(decisions, /- 决策文件：`docs\/decisions\//);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("install-hooks appends checks without removing an existing hook", () => {
   const root = tempDir("hooks");
   try {
@@ -592,6 +878,24 @@ test("query supports non-interactive questions and source output", () => {
     const result = run(root, ["query", "Node.js memory"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /Source:/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("query supports Chinese keywords", () => {
+  const root = tempDir("query-zh");
+  try {
+    const initResult = run(root, ["init"]);
+    assert.equal(initResult.status, 0, `${initResult.stdout}\n${initResult.stderr}`);
+    writeFile(
+      path.join(root, "PROJECT_CONTEXT.md"),
+      "# 项目上下文\n\n## 项目概览\n\n验证码登录模块负责短信验证码校验和登录风控。\n",
+    );
+    const result = run(root, ["query", "验证码登录"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /Source:/);
+    assert.match(result.stdout, /验证码登录模块/);
   } finally {
     cleanup(root);
   }

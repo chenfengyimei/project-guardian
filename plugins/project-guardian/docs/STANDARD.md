@@ -31,6 +31,17 @@ project-guardian/
       copilot-instructions.md
       copilot-project-guardian.instructions.md
       gitee-go-project-guardian.yml
+      zh-CN/
+        PROJECT_CONTEXT.md
+        STATE.md
+        DECISIONS.md
+        AI_CHANGELOG.md
+        HANDOVER.md
+        AGENTS.md
+        cursorrules
+        cursor-rules.mdc
+        copilot-instructions.md
+        copilot-project-guardian.instructions.md
   docs/
     CLI_AND_CI.md
     INTEGRATION.md
@@ -70,6 +81,16 @@ AGENTS.md
     project-guardian.instructions.md
 .guardianignore
 ```
+
+默认接入语言是中文，配置文件中应包含：
+
+```json
+{
+  "language": "zh-CN"
+}
+```
+
+英文团队可以在第一次初始化时使用 `guardian init --language en`，对应配置值为 `"en"`。同一个项目不建议频繁切换语言，避免历史记录和交接文档中英混杂。
 
 建议但不强制：
 
@@ -288,6 +309,7 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 - `quality.taskIdPattern`：要求 changelog 或 decision 中出现任务编号。
 - `quality.requireChangedLines`：要求 changelog 记录变更行范围。
 - `security.scanSecrets`：控制 `verify` 是否运行安全扫描。
+- `language`：控制初始化模板和后续生成内容语言，支持 `zh-CN` 和 `en`。
 - `adapters`：控制 `init` 默认生成哪些 AI 工具规则，支持 `generic`、`codex`、`cursor`、`copilot` 或 `all`。
 - `ignore`：排除不参与扫描或索引的路径片段。
 

@@ -27,6 +27,8 @@ node plugins/project-guardian/scripts/guardian.js help
 
 ```bash
 guardian init
+guardian init --language zh-CN
+guardian init --language en
 guardian doctor
 guardian update "任务说明"
 guardian handover
@@ -67,6 +69,16 @@ node plugins/project-guardian/scripts/guardian.js verify
 ```bash
 guardian init
 ```
+
+默认语言是中文，生成 `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md` 和 AI 规则文件时都会优先使用中文模板。
+
+如果团队希望所有模板保持英文，可以在第一次初始化时指定：
+
+```bash
+guardian init --language en
+```
+
+语言会写入 `project-guardian.config.json` 的 `language` 字段。后续 `guardian update`、`guardian handover`、`guardian decision add` 和 `guardian install-adapters` 会按该配置继续生成中文或英文内容。
 
 作用：
 

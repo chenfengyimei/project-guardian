@@ -63,7 +63,7 @@ node plugins/project-guardian/scripts/guardian.js init
 5. 如果没有配置文件，创建 `project-guardian.config.json`。
 
 如果项目有 `package.json`，还会自动加入 `guardian:*` npm scripts。
-默认配置会保留标准记忆文件路径，hook 会运行文档质量检查，CI 默认分支为 `master`，Node 版本为 `18`，安全扫描默认开启。
+默认配置会保留标准记忆文件路径，语言为 `zh-CN`，hook 会运行文档质量检查，CI 默认分支为 `master`，Node 版本为 `18`，安全扫描默认开启。
 
 重要说明：
 
@@ -71,6 +71,7 @@ node plugins/project-guardian/scripts/guardian.js init
 - 已存在的同名文件不会被覆盖。
 - `init` 只创建模板，不会自动补齐业务内容。
 - 初始化后必须补齐项目背景、运行方式、当前状态和关键决策。
+- 默认生成中文模板；如果团队要用英文模板，请第一次初始化时运行 `guardian init --language en`。
 - 需要 Cursor、Copilot 或通用 AI 工具规则时，可以运行 `guardian install-adapters --adapter cursor,copilot`；需要一次生成全部规则时使用 `guardian init --adapter all`。
 - 新项目第一次使用 `guardian init --adapter ...` 时，所选适配器会写入 `project-guardian.config.json`，避免后续 `doctor` 按默认适配器误报。
 
@@ -116,6 +117,12 @@ node .\plugins\project-guardian\scripts\guardian.js init
 guardian init
 ```
 
+如果项目规范要求英文记忆文件，第一次初始化时使用：
+
+```powershell
+guardian init --language en
+```
+
 macOS 或 Linux：
 
 ```bash
@@ -127,6 +134,8 @@ node ./plugins/project-guardian/scripts/guardian.js init
 ```bash
 guardian init
 ```
+
+中文团队不用额外传参；默认就是 `zh-CN`。不要在同一个项目里反复切换语言，否则 `update`、`handover` 和 `decision add` 生成的记录会中英混杂。
 
 ### 3.4 运行体检
 

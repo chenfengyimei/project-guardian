@@ -1,6 +1,6 @@
 # Project State
 
-Last updated: 2026-05-14
+Last updated: 2026-05-15
 
 ## Current Status
 
@@ -10,6 +10,7 @@ Last updated: 2026-05-14
 - The official Git install source has been confirmed as `git+https://gitee.com/chenfengloveyuri/project-guardian.git`.
 - The tool now includes an AI adapter layer for generic/Codex rules, Cursor rules, and GitHub Copilot instruction files.
 - Adapter resolution has been split out of the main CLI into `plugins/project-guardian/scripts/lib/adapters.js`, reducing coupling in `guardian.js`.
+- The CLI now defaults to Chinese project memory templates and can still generate English templates with `guardian init --language en`.
 - The repository now self-hosts its own Project Guardian memory files so future changes can be reviewed through the same workflow it recommends to other teams.
 
 ## Completed
@@ -25,13 +26,13 @@ Last updated: 2026-05-14
 
 ## In Progress
 
-- Final verification loop is being rerun after the CLI adapter decoupling pass.
+- Final verification loop is being rerun after adding Chinese-first templates, bilingual validation, localized generators, and language regression tests.
 
 ## Next Steps
 
 1. Review the final `git diff` and confirm no unrelated files were formatted or rewritten.
 2. Review the verification output from `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, command smoke tests, and package dry-run.
-3. Summarize files changed, tests run, and remaining risks for Gitee submission.
+3. Summarize the Chinese adaptation, fixed bugs, tests run, and remaining risks for Gitee submission.
 
 ## Known Issues
 
@@ -50,8 +51,8 @@ Last updated: 2026-05-14
 
 ## Latest AI-Assisted Change
 
-- Task: Harden Project Guardian according to the staged P0-P6 improvement roadmap.
-- Summary: Added self-memory, strengthened CLI quality gates, restored plugin marketplace files to Git visibility, added tests, documented verify-first usage, added conflict/decision-file support, added package CLI binaries, introduced Cursor/Copilot/generic adapter rules, and split adapter resolution into a focused module.
-- Files: `package.json`, `project-guardian.config.json`, `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/scripts/lib/adapters.js`, templates under `plugins/project-guardian/assets/templates/`, root memory files, root and plugin docs, and test files.
-- Verification: `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, help/version smoke tests, and package dry-run are run for this CLI and adapter pass before handoff.
-- Follow-up: After this change is pushed to Gitee, test `npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git` on a clean machine, then consider future RAG/vector retrieval and issue tracker integration.
+- Task: Add Chinese-first Project Guardian templates and bilingual CLI behavior.
+- Summary: Added `language` config support, default Chinese templates, English fallback with `--language en`, bilingual validation rules, Chinese query tokenization coverage, localized update/handover/decision output, and regression tests for language-specific init behavior.
+- Files: `plugins/project-guardian/scripts/guardian.js`, `project-guardian.config.json`, `plugins/project-guardian/assets/templates/zh-CN/`, `tests/guardian.test.js`, README, Project Guardian docs, and root memory files.
+- Verification: `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, `git diff --check`, command smoke tests, and package dry-run are run for this language pass before handoff.
+- Follow-up: After pushing to Gitee, test `guardian init` and `guardian init --language en` in two clean temporary projects from the installed package.

@@ -23,9 +23,22 @@ project-guardian/
   scripts/lib/adapters.js
   assets/icon.svg
   assets/templates/
+    PROJECT_CONTEXT.md
+    STATE.md
+    DECISIONS.md
+    AI_CHANGELOG.md
+    HANDOVER.md
+    AGENTS.md
     cursor-rules.mdc
     copilot-instructions.md
     copilot-project-guardian.instructions.md
+    zh-CN/
+      PROJECT_CONTEXT.md
+      STATE.md
+      DECISIONS.md
+      AI_CHANGELOG.md
+      HANDOVER.md
+      AGENTS.md
   docs/CLI_AND_CI.md
   docs/INTEGRATION.md
   docs/STANDARD.md
@@ -37,6 +50,7 @@ project-guardian/
 - `.codex-plugin/plugin.json`：Codex 本地插件入口元数据，必须进入仓库。
 - `assets/icon.svg`：插件图标资源。
 - `assets/templates/`：标准记忆文件模板。
+- `assets/templates/zh-CN/`：中文记忆文件和 AI 工具规则模板，默认初始化使用这一套。
 - `docs/CLI_AND_CI.md`：命令行、Git Hook 和 Gitee CI 操作说明。
 - `docs/INTEGRATION.md`：如何把插件接入新项目或已有项目。
 - `docs/STANDARD.md`：团队使用规范、目录标准和记录标准。
@@ -73,12 +87,25 @@ guardian init
 guardian verify
 ```
 
+默认 `guardian init` 会生成中文模板，适合中文团队直接使用。如果项目团队主要写英文文档，可以这样初始化：
+
+```bash
+guardian init --language en
+```
+
 如果还没有发布 npm 包，或者团队选择把插件源码随项目提交，也可以继续使用脚本路径。
 
 在目标项目根目录运行：
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js init
+```
+
+脚本路径同样支持语言选择：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js init --language zh-CN
+node plugins/project-guardian/scripts/guardian.js init --language en
 ```
 
 如果插件放在项目外部，使用插件实际路径：

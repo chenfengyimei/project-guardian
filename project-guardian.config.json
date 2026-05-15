@@ -21,6 +21,7 @@
   "security": {
     "scanSecrets": true
   },
+  "language": "zh-CN",
   "adapters": [
     "generic",
     "cursor"

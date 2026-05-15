@@ -4,6 +4,18 @@ This file records AI-assisted development context that should survive beyond a c
 
 ## 2026 Entries
 
+### 2026-05-15 00:00 - Add Chinese-first language support
+
+- Human request: Explain why the plugin still felt English-heavy, add a Chinese adaptation, analyze possible bugs, and improve the project accordingly.
+- AI summary: Added `language` config support with `zh-CN` as the default, added Chinese templates for memory files and AI tool adapters, kept English initialization through `guardian init --language en`, made validation rules accept Chinese or English headings and fields, localized generated update/handover/decision content, and added regression tests for Chinese init, English init, Chinese docs, Chinese query, and Chinese decision records.
+- Files changed: `plugins/project-guardian/scripts/guardian.js`, `project-guardian.config.json`, `plugins/project-guardian/assets/templates/zh-CN/`, `tests/guardian.test.js`, README, Project Guardian docs, `PROJECT_CONTEXT.md`, `STATE.md`, `DECISIONS.md`, and `docs/HANDOVER.md`.
+- Business reason: The target teams mainly work in Chinese, and beginner users should not have to understand English templates before they can preserve project memory.
+- Technical notes: `guardian init --language en` now passes the selected config into adapter generation so English projects do not receive Chinese `AGENTS.md` or Cursor/Copilot rules. Query tokenization includes Chinese keyword pairs so local lookup can match Chinese questions.
+- Verification: `npm.cmd run lint`, `npm.cmd test`, `node plugins/project-guardian/scripts/guardian.js verify`, `git diff --check`, language command smoke tests, and package dry-run are run for this pass before handoff.
+- Risks: Existing projects should avoid changing `language` back and forth after adoption, otherwise newly generated memory entries can become mixed-language.
+- Sensitive data checked: No production passwords, real tokens, private keys, or customer private data were added.
+- Next step: After pushing to Gitee, install from the Gitee URL on a clean machine and test both `guardian init` and `guardian init --language en`.
+
 ### 2026-05-14 15:20 - Add portable CLI and AI tool adapters
 
 - Human request: First solve the CLI usability problem, then build an adapter layer for other AI tools, and keep documentation synchronized.

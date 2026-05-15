@@ -1,0 +1,17 @@
+本项目使用 Project Guardian 项目记忆。
+
+修改代码或回答项目相关问题前，先阅读：
+- PROJECT_CONTEXT.md
+- STATE.md
+- DECISIONS.md
+- docs/AI_CHANGELOG.md
+- docs/HANDOVER.md
+
+AI 协助代码修改后：
+- 更新 STATE.md，写清当前状态、已知问题、下一步和最新变更。
+- 向 docs/AI_CHANGELOG.md 追加一条简洁记录。
+- 对重要架构、业务规则、依赖、数据模型、安全、工作流或兼容性决策，更新 DECISIONS.md。
+- CLI 可用时，提交前运行 guardian verify。
+
+回答时不仅说明怎么改，还要说明为什么项目当前这样设计、验证方式和剩余风险。
+不要把生产密码、真实 token、客户隐私或其他敏感信息写入项目记忆。

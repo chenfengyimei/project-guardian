@@ -52,3 +52,15 @@ This file records decisions that future developers and AI agents must understand
 - Review after: 2026-06-14
 - Follow-up: Consider turning DECISIONS.md into a pure index after teams adopt the directory.
 - Decision file: `docs/decisions/2026-05-14-use-per-decision-files.md`
+
+### 2026-05-15 - 默认使用中文项目记忆
+
+- 背景：目标使用者主要是中文团队和没有太多编程经验的实习生，英文模板会增加理解成本，也容易让 AI 生成的交接记录脱离实际工作语言。
+- 决策：Project Guardian 默认使用 `zh-CN` 模板，同时保留 `guardian init --language en` 给英文团队使用。文档校验、更新记录、交接生成、决策记录和 AI 工具适配规则都必须兼容中英文。
+- 备选方案：继续只维护英文模板；或只维护中文模板并移除英文支持。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/zh-CN/`、`project-guardian.config.json`、README、插件文档和测试。
+- 关联变更：新增 `language` 配置、中文模板目录、双语校验规则、中文 query 分词回归测试，并修复 `init --language en` 时适配器规则仍使用中文模板的问题。
+- 验证方式：运行 lint、测试、`guardian verify`、语言初始化冒烟测试和 package dry-run。
+- 风险：已有英文项目如果把配置改成 `zh-CN`，后续 `update` 生成的记录会中英混杂；文档中已要求同一项目不要反复切换语言。
+- 复审时间：2026-06-15。
+- 后续动作：根据真实团队反馈继续补充中文文案和更多 AI 工具适配模板。

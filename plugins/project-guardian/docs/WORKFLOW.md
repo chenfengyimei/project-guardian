@@ -127,6 +127,12 @@ node plugins/project-guardian/scripts/guardian.js init
 guardian init
 ```
 
+默认会生成中文项目记忆和中文 AI 规则。英文项目第一次初始化时改用：
+
+```bash
+guardian init --language en
+```
+
 然后再次运行：
 
 ```bash

@@ -11,6 +11,7 @@ const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
 const CONFIG_FILE = "project-guardian.config.json";
 const AGENT_RULE_FILES = ["AGENTS.md", ".cursorrules"];
+const SUPPORTED_LANGUAGES = ["zh-CN", "en"];
 const SOURCE_EXTENSIONS = new Set([
   ".js",
   ".jsx",
@@ -57,6 +58,7 @@ const DEFAULT_CONFIG = {
   security: {
     scanSecrets: true,
   },
+  language: "zh-CN",
   adapters: DEFAULT_ADAPTERS,
   ignore: [],
 };
@@ -136,24 +138,25 @@ async function main() {
 }
 
 function init(root, args = []) {
-  const config = loadConfig(root);
   const flags = parseFlags(args);
+  const config = applyInitFlags(loadConfig(root), flags);
+  validateLanguageOrFail(config.language);
   const adapters = resolveAdaptersOrFail(flags, config);
-  copyTemplate(root, "PROJECT_CONTEXT.md", config.memoryFiles.context);
-  copyTemplate(root, "STATE.md", config.memoryFiles.state);
-  copyTemplate(root, "DECISIONS.md", config.memoryFiles.decisions);
-  copyTemplate(root, "AI_CHANGELOG.md", config.memoryFiles.changelog);
-  copyTemplate(root, "HANDOVER.md", config.memoryFiles.handover);
-  installAdapters(root, args, { adapters, fromInit: true });
-  writeDefaultConfig(root, { adapters });
+  copyTemplate(root, "PROJECT_CONTEXT.md", config.memoryFiles.context, config);
+  copyTemplate(root, "STATE.md", config.memoryFiles.state, config);
+  copyTemplate(root, "DECISIONS.md", config.memoryFiles.decisions, config);
+  copyTemplate(root, "AI_CHANGELOG.md", config.memoryFiles.changelog, config);
+  copyTemplate(root, "HANDOVER.md", config.memoryFiles.handover, config);
+  installAdapters(root, args, { adapters, config, fromInit: true });
+  writeDefaultConfig(root, { adapters, language: config.language });
 
   const packagePath = path.join(root, "package.json");
   if (fs.existsSync(packagePath)) {
     addPackageScripts(packagePath);
   }
 
-  console.log("Project Guardian memory initialized.");
-  console.log("Next: fill PROJECT_CONTEXT.md and run `guardian verify` before committing.");
+  console.log(isChinese(config) ? "Project Guardian 项目记忆已初始化。" : "Project Guardian memory initialized.");
+  console.log(isChinese(config) ? "下一步：补齐项目记忆文件，然后在提交前运行 `guardian verify`。" : "Next: fill PROJECT_CONTEXT.md and run `guardian verify` before committing.");
 }
 
 function update(root, task) {
@@ -164,47 +167,75 @@ function update(root, task) {
   const changedFiles = changedFilesForUpdate(root);
   const diffStat = gitChangeSummary(root) || "No git diff stat available.";
   const changedLines = changedLineRanges(root);
-  const entry = [
-    "",
-    `### ${timestamp()} - ${title}`,
-    "",
-    `- Human request: ${task || "TODO: describe the request."}`,
-    "- AI summary: TODO: summarize what changed and why.",
-    "- Files changed:",
-    indentList(changedFiles.join("\n") || "No changed files detected."),
-    "- Changed lines:",
-    indentList(changedLines.join("\n") || "N/A"),
-    "- Business reason: TODO: record the business rule, bug, or requirement behind this change.",
-    "- Technical notes:",
-    "  ```text",
-    diffStat
-      .split(/\r?\n/)
-      .map((line) => `  ${line}`)
-      .join("\n"),
-    "  ```",
-    "- Verification: TODO: record commands or manual checks.",
-    "- Risks: TODO: record compatibility, data, UI, or deployment risks.",
-    "- Sensitive data checked: TODO: yes/no and notes.",
-    "- Next step: TODO: record what the next developer should do.",
-    "",
-  ].join("\n");
+  const entry = buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat);
 
   fs.appendFileSync(path.join(root, config.memoryFiles.changelog), entry, "utf8");
   refreshStateLatestChange(root, config, title, changedFiles);
   console.log(`Updated ${config.memoryFiles.changelog} and ${config.memoryFiles.state}.`);
-  console.log("Please replace TODO fields before committing.");
+  console.log(isChinese(config) ? "提交前请把待填写字段补充完整。" : "Please replace TODO fields before committing.");
 }
 
-function handover(root) {
-  const config = loadConfig(root);
-  ensureInitialized(root, config);
-
-  const files = collectFiles(root, config, 160);
-  const packageInfo = readPackageInfo(root);
-  const state = readMaybe(path.join(root, config.memoryFiles.state)).trim();
-  const context = readMaybe(path.join(root, config.memoryFiles.context)).trim();
-  const decisions = readDecisions(root, config).trim();
-  const content = [
+function buildHandover(config, data) {
+  const { context, decisions, files, packageInfo, state } = data;
+  if (isChinese(config)) {
+    return [
+      "# 交接指南",
+      "",
+      `最后生成：${timestamp()}`,
+      "",
+      "## 优先阅读",
+      "",
+      "修改代码前先阅读这些文件：",
+      "",
+      `1. \`${config.memoryFiles.context}\``,
+      `2. \`${config.memoryFiles.state}\``,
+      `3. \`${config.memoryFiles.decisions}\``,
+      `4. \`${config.memoryFiles.changelog}\``,
+      "",
+      "## 如何运行",
+      "",
+      packageInfo,
+      "",
+      "## 项目地图",
+      "",
+      "| 区域 | 文件 | 用途 |",
+      "| --- | --- | --- |",
+      ...files.slice(0, 80).map((file) => `| ${areaFor(file)} | \`${file}\` | 修改 ${areaFor(file)} 时需要查看。 |`),
+      "",
+      "## 当前状态快照",
+      "",
+      fenced(trimForDoc(state, 3000)),
+      "",
+      "## 项目上下文快照",
+      "",
+      fenced(trimForDoc(context, 3000)),
+      "",
+      "## 决策快照",
+      "",
+      fenced(trimForDoc(decisions, 2500)),
+      "",
+      "## 风险区域",
+      "",
+      "- 修改核心行为前先查看状态文件中的 `风险区域`。",
+      "- 提交交接变更前运行 `guardian verify`。",
+      "",
+      "## 常见问题",
+      "",
+      "| 问题 | 可能原因 | 处理方式 |",
+      "| --- | --- | --- |",
+      "| 记忆校验失败 | 必填字段仍是模板或待填写 | 补齐最新变更、当前状态和决策细节 |",
+      "",
+      "## 新人第一天",
+      "",
+      "1. 阅读全部项目记忆文件。",
+      "2. 在本地跑起来项目。",
+      "3. 运行可用测试或冒烟检查。",
+      `4. 从 \`${config.memoryFiles.state}\` 里选一个小的下一步任务。`,
+      `5. 完成后更新 \`${config.memoryFiles.state}\` 和 \`${config.memoryFiles.changelog}\`。`,
+      "",
+    ].join("\n");
+  }
+  return [
     "# Handover Guide",
     "",
     `Last generated: ${timestamp()}`,
@@ -260,6 +291,18 @@ function handover(root) {
     `5. Update \`${config.memoryFiles.state}\` and \`${config.memoryFiles.changelog}\` after the change.`,
     "",
   ].join("\n");
+}
+
+function handover(root) {
+  const config = loadConfig(root);
+  ensureInitialized(root, config);
+
+  const files = collectFiles(root, config, 160);
+  const packageInfo = readPackageInfo(root);
+  const state = readMaybe(path.join(root, config.memoryFiles.state)).trim();
+  const context = readMaybe(path.join(root, config.memoryFiles.context)).trim();
+  const decisions = readDecisions(root, config).trim();
+  const content = buildHandover(config, { context, decisions, files, packageInfo, state });
 
   writeFile(path.join(root, config.memoryFiles.handover), content);
   console.log(`Generated ${config.memoryFiles.handover}.`);
@@ -371,7 +414,38 @@ async function decisionAdd(root, args) {
     reviewAfter: await optionalValue(flags.reviewAfter || flags["review-after"], "Review after"),
     followUp: await optionalValue(flags.followUp || flags["follow-up"], "Follow-up"),
   };
-  const entry = [
+  const entry = buildDecisionEntry(config, date, fields);
+  const decisionFile = writeDecisionFile(root, config, date, fields, entry);
+  fs.appendFileSync(path.join(root, config.memoryFiles.decisions), entry, "utf8");
+  if (decisionFile) {
+    const decisionFileLabel = isChinese(config) ? "决策文件" : "Decision file";
+    const separator = isChinese(config) ? "：" : ":";
+    const padding = isChinese(config) ? "" : " ";
+    fs.appendFileSync(path.join(root, config.memoryFiles.decisions), `- ${decisionFileLabel}${separator}${padding}\`${decisionFile}\`\n`, "utf8");
+  }
+  console.log(`Added decision to ${config.memoryFiles.decisions}.`);
+  if (decisionFile) console.log(`Created ${decisionFile}.`);
+}
+
+function buildDecisionEntry(config, date, fields) {
+  if (isChinese(config)) {
+    return [
+      "",
+      `### ${date} - ${fields.title}`,
+      "",
+      `- 背景：${fields.context}`,
+      `- 决策：${fields.decision}`,
+      `- 备选方案：${fields.alternatives || "暂无记录。"}`,
+      `- 影响文件/模块：${fields.files || "未指定。"}`,
+      `- 关联变更：${fields.relatedChange || "未指定。"}`,
+      `- 验证方式：${fields.verification || "未记录。"}`,
+      `- 风险：${fields.risks || "未记录。"}`,
+      `- 复审时间：${fields.reviewAfter || "未安排。"}`,
+      `- 后续动作：${fields.followUp || "暂无记录。"}`,
+      "",
+    ].join("\n");
+  }
+  return [
     "",
     `### ${date} - ${fields.title}`,
     "",
@@ -386,13 +460,6 @@ async function decisionAdd(root, args) {
     `- Follow-up: ${fields.followUp || "None recorded."}`,
     "",
   ].join("\n");
-  const decisionFile = writeDecisionFile(root, config, date, fields, entry);
-  fs.appendFileSync(path.join(root, config.memoryFiles.decisions), entry, "utf8");
-  if (decisionFile) {
-    fs.appendFileSync(path.join(root, config.memoryFiles.decisions), `- Decision file: \`${decisionFile}\`\n`, "utf8");
-  }
-  console.log(`Added decision to ${config.memoryFiles.decisions}.`);
-  if (decisionFile) console.log(`Created ${decisionFile}.`);
 }
 
 function installHooks(root) {
@@ -471,13 +538,13 @@ function installCi(root) {
 }
 
 function installAdapters(root, args = [], options = {}) {
-  const config = loadConfig(root);
+  const config = options.config || loadConfig(root);
   const flags = parseFlags(args);
   const adapters = options.adapters || resolveAdaptersOrFail(flags, config);
   const files = adapterFiles(adapters);
 
   for (const file of files) {
-    copyTemplate(root, file.template, file.target);
+    copyTemplate(root, file.template, file.target, config);
   }
 
   if (!options.fromInit) {
@@ -658,15 +725,23 @@ function ensureInitialized(root, config) {
   }
 }
 
-function copyTemplate(root, templateName, target) {
+function copyTemplate(root, templateName, target, config = DEFAULT_CONFIG) {
   const targetPath = path.join(root, target);
   if (fs.existsSync(targetPath)) {
     console.log(`Kept existing ${target}`);
     return;
   }
-  const source = path.join(TEMPLATE_DIR, templateName);
+  const source = templatePath(templateName, config);
   writeFile(targetPath, fs.readFileSync(source, "utf8"));
   console.log(`Created ${target}`);
+}
+
+function templatePath(templateName, config = DEFAULT_CONFIG) {
+  if (isChinese(config)) {
+    const localized = path.join(TEMPLATE_DIR, "zh-CN", templateName);
+    if (fs.existsSync(localized)) return localized;
+  }
+  return path.join(TEMPLATE_DIR, templateName);
 }
 
 function writeDefaultConfig(root, overrides = {}) {
@@ -708,10 +783,74 @@ function addPackageScripts(packagePath) {
   }
 }
 
-function refreshStateLatestChange(root, config, title, changedFiles) {
-  const statePath = path.join(root, config.memoryFiles.state);
-  const marker = "## Latest AI-Assisted Change";
-  const replacement = [
+function buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat) {
+  if (isChinese(config)) {
+    return [
+      "",
+      `### ${timestamp()} - ${title}`,
+      "",
+      `- 用户需求：${task || "待填写：描述本次需求。"}`,
+      "- AI 总结：待填写：说明改了什么以及为什么改。",
+      "- 变更文件：",
+      indentList(changedFiles.join("\n") || "未检测到变更文件。"),
+      "- 变更行：",
+      indentList(changedLines.join("\n") || "N/A"),
+      "- 业务原因：待填写：记录本次变更背后的业务规则、缺陷或需求。",
+      "- 技术说明：",
+      "  ```text",
+      diffStat
+        .split(/\r?\n/)
+        .map((line) => `  ${line}`)
+        .join("\n"),
+      "  ```",
+      "- 验证方式：待填写：记录命令或人工检查。",
+      "- 风险：待填写：记录兼容性、数据、UI 或部署风险。",
+      "- 敏感信息检查：待填写：是否检查过密码、token、客户隐私等。",
+      "- 下一步：待填写：记录下一个开发者应该做什么。",
+      "",
+    ].join("\n");
+  }
+  return [
+    "",
+    `### ${timestamp()} - ${title}`,
+    "",
+    `- Human request: ${task || "TODO: describe the request."}`,
+    "- AI summary: TODO: summarize what changed and why.",
+    "- Files changed:",
+    indentList(changedFiles.join("\n") || "No changed files detected."),
+    "- Changed lines:",
+    indentList(changedLines.join("\n") || "N/A"),
+    "- Business reason: TODO: record the business rule, bug, or requirement behind this change.",
+    "- Technical notes:",
+    "  ```text",
+    diffStat
+      .split(/\r?\n/)
+      .map((line) => `  ${line}`)
+      .join("\n"),
+    "  ```",
+    "- Verification: TODO: record commands or manual checks.",
+    "- Risks: TODO: record compatibility, data, UI, or deployment risks.",
+    "- Sensitive data checked: TODO: yes/no and notes.",
+    "- Next step: TODO: record what the next developer should do.",
+    "",
+  ].join("\n");
+}
+
+function buildStateLatestChange(config, marker, title, changedFiles) {
+  if (isChinese(config)) {
+    return [
+      marker,
+      "",
+      `- 任务：${title}`,
+      "- 总结：待填写：概括行为变化。",
+      "- 文件：",
+      indentList(changedFiles.join("\n") || "未检测到变更文件。"),
+      "- 验证：待填写：记录检查方式。",
+      "- 后续：待填写：记录下一步。",
+      "",
+    ].join("\n");
+  }
+  return [
     marker,
     "",
     `- Task: ${title}`,
@@ -722,10 +861,19 @@ function refreshStateLatestChange(root, config, title, changedFiles) {
     "- Follow-up: TODO: record next step.",
     "",
   ].join("\n");
+}
+
+function refreshStateLatestChange(root, config, title, changedFiles) {
+  const statePath = path.join(root, config.memoryFiles.state);
   const current = readMaybe(statePath);
-  const withDate = current.replace(/^Last updated:.*$/m, `Last updated: ${timestamp()}`);
-  if (current.includes(marker)) {
-    fs.writeFileSync(statePath, withDate.replace(new RegExp(`${escapeRegExp(marker)}[\\s\\S]*$`), replacement), "utf8");
+  const marker = isChinese(config) ? "## 最新 AI 协助变更" : "## Latest AI-Assisted Change";
+  const markerPattern = /(## Latest AI-Assisted Change|## 最新 AI 协助变更)[\s\S]*$/;
+  const replacement = buildStateLatestChange(config, marker, title, changedFiles);
+  const withDate = current
+    .replace(/^Last updated:.*$/m, `Last updated: ${timestamp()}`)
+    .replace(/^最后更新[:：].*$/m, `最后更新：${timestamp()}`);
+  if (markerPattern.test(current)) {
+    fs.writeFileSync(statePath, withDate.replace(markerPattern, replacement), "utf8");
   } else {
     fs.writeFileSync(statePath, `${withDate}\n${replacement}`, "utf8");
   }
@@ -760,14 +908,15 @@ function inspectDoc(root, rule) {
   if (!text.trim()) issues.push("file is empty");
   if (meaningfulLength(text) < rule.minLength) issues.push(`content is too short: ${meaningfulLength(text)}/${rule.minLength}`);
   for (const section of rule.sections) {
-    if (!text.includes(section)) issues.push(`missing section: ${section}`);
+    const variants = Array.isArray(section) ? section : [section];
+    if (!variants.some((variant) => text.includes(variant))) issues.push(`missing section: ${variants.join(" / ")}`);
   }
   if (placeholders > rule.maxPlaceholders) issues.push(`too many placeholders: ${placeholders}/${rule.maxPlaceholders}`);
   for (const issue of fieldIssues(text)) issues.push(issue);
   if (hasEmptyTableRow(text)) issues.push("contains an empty table row");
-  if (rule.type === "state" && !/^Last updated:\s*\S+/m.test(text)) issues.push("Last updated must have a value");
+  if (rule.type === "state" && !/^(Last updated|最后更新)[:：]\s*\S+/m.test(text)) issues.push("Last updated / 最后更新 must have a value");
   if (rule.type === "decisions" && !hasRealDecision(text)) issues.push("must contain a real decision or explicitly say 暂无关键决策");
-  if (rule.type === "changelog" && latestChangelogText(text).includes("TODO")) issues.push("latest changelog entry must not contain TODO");
+  if (rule.type === "changelog" && hasTodo(latestChangelogText(text))) issues.push("latest changelog entry must not contain TODO / 待填写");
 
   return { file: rule.file, placeholders, issues };
 }
@@ -777,10 +926,10 @@ function countPlaceholders(text) {
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) continue;
-    if (/\bTODO\b/i.test(line)) count += 1;
+    if (hasTodo(line)) count += 1;
     if (/^-\s*$/.test(line)) count += 1;
-    if (/^-\s*[^:]+:\s*$/.test(line)) count += 1;
-    if (/^Last (updated|generated):\s*$/.test(line)) count += 1;
+    if (/^-\s*[^:：]+[:：]\s*$/.test(line)) count += 1;
+    if (/^(Last (updated|generated)|最后(更新|生成))[:：]\s*$/.test(line)) count += 1;
     if (/^\|\s*(\|\s*)+$/.test(line)) count += 1;
   }
   return count;
@@ -791,6 +940,7 @@ function meaningfulLength(text) {
     .replace(/```[\s\S]*?```/g, "")
     .replace(/[#*\-_|:`\s]/g, "")
     .replace(/\bTODO\b/gi, "")
+    .replace(/待填写/g, "")
     .length;
 }
 
@@ -798,7 +948,7 @@ function fieldIssues(text) {
   return text
     .split(/\r?\n/)
     .map((line, index) => ({ line: line.trim(), index: index + 1 }))
-    .filter(({ line }) => /^-\s*[^:]+:\s*$/.test(line))
+    .filter(({ line }) => /^-\s*[^:：]+[:：]\s*$/.test(line))
     .map(({ line, index }) => `line ${index} has an empty field: ${line}`);
 }
 
@@ -811,7 +961,13 @@ function hasEmptyTableRow(text) {
 
 function hasRealDecision(text) {
   if (text.includes("暂无关键决策")) return true;
-  return /###\s+\d{4}-\d{2}-\d{2}\s+-\s+(?!Decision title)[^\n]+/.test(text) && /-\s*Decision:\s*\S+/i.test(text);
+  const hasDecisionTitle = /###\s+\d{4}-\d{2}-\d{2}\s+-\s+(?!(Decision title|决策标题))[^\n]+/.test(text);
+  const hasDecisionField = /-\s*(Decision|决策)[:：]\s*\S+/i.test(text);
+  return hasDecisionTitle && hasDecisionField;
+}
+
+function hasTodo(text) {
+  return /\bTODO\b/i.test(text) || text.includes("待填写");
 }
 
 function latestChangelog(root, config) {
@@ -1011,12 +1167,14 @@ function writeDecisionFile(root, config, date, fields, entry) {
   if (!dir) return "";
   const slug = slugify(fields.title) || `decision-${Date.now()}`;
   const relative = path.join(dir, `${date}-${slug}.md`).replace(/\\/g, "/");
+  const dateLabel = isChinese(config) ? "日期" : "Date";
+  const recordHeading = isChinese(config) ? "## 决策记录" : "## Decision Record";
   const content = [
     `# ${fields.title}`,
     "",
-    `Date: ${date}`,
+    `${dateLabel}: ${date}`,
     "",
-    "## Decision Record",
+    recordHeading,
     entry.trim(),
     "",
   ].join("\n");
@@ -1051,35 +1209,50 @@ function getDocRules(config) {
     {
       file: config.memoryFiles.context,
       type: "context",
-      sections: ["## Project Summary", "## Tech Stack", "## Core Business Flows", "## How To Run"],
+      sections: [
+        ["## Project Summary", "## 项目概览"],
+        ["## Tech Stack", "## 技术栈"],
+        ["## Core Business Flows", "## 核心业务流程"],
+        ["## How To Run", "## 如何运行"],
+      ],
       maxPlaceholders: 8,
       minLength: 400,
     },
     {
       file: config.memoryFiles.state,
       type: "state",
-      sections: ["## Current Status", "## Next Steps", "## Known Issues", "## Latest AI-Assisted Change"],
+      sections: [
+        ["## Current Status", "## 当前状态"],
+        ["## Next Steps", "## 下一步"],
+        ["## Known Issues", "## 已知问题"],
+        ["## Latest AI-Assisted Change", "## 最新 AI 协助变更"],
+      ],
       maxPlaceholders: 6,
       minLength: 300,
     },
     {
       file: config.memoryFiles.decisions,
       type: "decisions",
-      sections: ["# Decisions"],
+      sections: [["# Decisions", "# 决策记录"]],
       maxPlaceholders: 4,
       minLength: 150,
     },
     {
       file: config.memoryFiles.changelog,
       type: "changelog",
-      sections: ["# AI Changelog"],
+      sections: [["# AI Changelog", "# AI 变更日志"]],
       maxPlaceholders: 8,
       minLength: 150,
     },
     {
       file: config.memoryFiles.handover,
       type: "handover",
-      sections: ["## First Read", "## How To Run", "## Project Map", "## New Developer First Day"],
+      sections: [
+        ["## First Read", "## 优先阅读"],
+        ["## How To Run", "## 如何运行"],
+        ["## Project Map", "## 项目地图"],
+        ["## New Developer First Day", "## 新人第一天"],
+      ],
       maxPlaceholders: 8,
       minLength: 300,
     },
@@ -1113,6 +1286,7 @@ function loadConfig(root) {
 function validateConfig(config) {
   const issues = [];
   if (config.__configError) issues.push(`invalid ${CONFIG_FILE}: ${config.__configError}`);
+  if (!SUPPORTED_LANGUAGES.includes(config.language)) issues.push(`language must be one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
   for (const [name, value] of Object.entries(config.memoryFiles || {})) {
     if (typeof value !== "string" || value.trim() === "") issues.push(`memoryFiles.${name} must be a non-empty string`);
   }
@@ -1142,6 +1316,12 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function applyInitFlags(config, flags) {
+  const language = flags.language || flags.lang;
+  if (!language) return config;
+  return mergeConfig(clone(config), { language });
+}
+
 function parseFlags(args) {
   const result = { _: [] };
   for (let index = 0; index < args.length; index += 1) {
@@ -1168,6 +1348,14 @@ function resolveAdaptersOrFail(flags, config) {
   } catch (error) {
     fail(error.message);
   }
+}
+
+function isChinese(config = DEFAULT_CONFIG) {
+  return config.language === "zh-CN";
+}
+
+function validateLanguageOrFail(language) {
+  if (!SUPPORTED_LANGUAGES.includes(language)) fail(`Unknown language: ${language}. Use one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
 }
 
 async function requiredValue(value, label) {
@@ -1294,6 +1482,8 @@ function help() {
 
 Usage:
   guardian init
+  guardian init --language zh-CN
+  guardian init --language en
   guardian init --adapter all
   guardian update "task summary"
   guardian decision add --title "Decision title" --context "Why" --decision "What"
@@ -1310,9 +1500,9 @@ Usage:
   guardian install-ci
 
 Commands:
-  init           Create standard project memory files, AI rules, and config.
+  init           Create standard project memory files, AI rules, and config. Default language is zh-CN; use --language en for English templates.
   update         Append an AI-assisted change record and refresh STATE.md.
-  decision-add   Append a structured decision entry.
+  decision add   Append a structured decision entry.
   handover      Generate docs/HANDOVER.md from current memory and project files.
   check         Fail when code changed but memory was not updated or is low quality.
   doctor        Audit memory files, AI rules, config, and git change state.

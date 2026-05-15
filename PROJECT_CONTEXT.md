@@ -14,6 +14,7 @@
 - Database: None.
 - Package manager: npm is optional for target projects, but this repository now exposes a package CLI through `guardian` and `project-guardian`.
 - Deployment target: Global CLI install, local repository plugin folder, AI tool adapter rules, Codex plugin marketplace metadata, Git hooks, and Gitee Go workflow templates.
+- Default language: `zh-CN`. English teams can initialize with `guardian init --language en`.
 
 ## Core Business Flows
 
@@ -21,7 +22,7 @@
    - Entry point: `guardian init` when the package is installed globally, or `node plugins/project-guardian/scripts/guardian.js init` when the plugin source is vendored into the project.
    - Important files: `plugins/project-guardian/scripts/guardian.js`, `plugins/project-guardian/assets/templates/*`.
    - Rules: Create standard memory files without overwriting existing project-written memory.
-   - Known edge cases: Existing projects may already have partial memory files, so the CLI must preserve them and report what was skipped.
+   - Known edge cases: Existing projects may already have partial memory files, so the CLI must preserve them and report what was skipped. `guardian init --language en` must also pass the selected language into AI adapter templates so English projects do not receive Chinese rule files.
 
 2. Install AI tool adapters.
    - Entry point: `guardian install-adapters --adapter cursor,copilot` or `guardian init --adapter all`.
@@ -70,6 +71,7 @@
 | --- | --- | --- |
 | Project memory | Context, state, decisions, changelog, handover | Stored as Markdown files so humans and AI assistants can read them directly |
 | Guardian config | Memory paths, quality rules, hook behavior, CI defaults, security scan switch, adapter defaults, ignore patterns | Stored in `project-guardian.config.json` with zero-config defaults |
+| Language setting | `zh-CN` or `en` | Controls initial templates and generated update, handover, decision, and adapter-rule text |
 | Decision record | Title, date, context, decision, alternatives, affected files, verification, risks, review date, follow-up | Stored in `DECISIONS.md` and optionally mirrored as a per-decision file |
 | Decision file | One Markdown file per important decision | Stored under `docs/decisions/` when `guardian decision add` is used |
 | Query document | File path, chunk text, score | Built at runtime from memory files, source files, markdown/yaml files, and Git history |
