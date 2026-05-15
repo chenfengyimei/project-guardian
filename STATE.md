@@ -23,16 +23,17 @@
 - 更新了面向用户的文档，让 `guardian verify` 成为提交前和 CI 中推荐使用的默认命令。
 - 新增 `guardian` / `project-guardian` package 二进制入口、`guardian --version`、可配置适配器生成，以及 Cursor 和 GitHub Copilot 模板。
 - 新增独立适配器模块，并补充 `guardian init --adapter ...` 会把所选适配器写入新配置的回归测试。
+- 新增 `explaiw/PROJECT_FILES_EXPLANATION.md`，集中说明当前所有文档、代码、配置、资源和测试文件的职责。
 
 ## 进行中
 
-- 正在把本仓库自己的 Project Guardian 自举记忆文件从英文切换为中文，保持与默认 `zh-CN` 模板一致。
+- 正在补充根目录文件说明，帮助完全不了解仓库结构的人理解每个文件为什么存在、什么时候需要维护。
 
 ## 下一步
 
-1. 复查本次自举记忆中文化的 `git diff`，确认只改了项目记忆文件。
-2. 运行 Project Guardian 文档校验和完整自检，确认中文记忆仍然满足质量闸门。
-3. 提交到 Gitee 前，总结改动文件、验证结果和剩余风险。
+1. 运行 Project Guardian 完整自检、lint 和测试，确认新增说明文档没有破坏质量闸门。
+2. 提交到 Gitee 前，复查 `explaiw/PROJECT_FILES_EXPLANATION.md` 是否覆盖当前仓库文件清单。
+3. 后续新增、删除文件或调整文件职责时，同步更新文件说明总览。
 
 ## 已知问题
 
@@ -51,8 +52,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：将 Project Guardian 自举记忆切换为中文。
-- 总结：把本仓库根目录项目记忆和交接记录的标题、字段、说明和表格内容翻译为中文，保留原有事实、路径、命令和日期含义。
-- 文件：`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`。
-- 验证：运行 `node plugins/project-guardian/scripts/guardian.js validate-docs`、`node plugins/project-guardian/scripts/guardian.js verify` 和 `git diff --check`。
-- 后续：后续修改自举记忆时继续使用中文记录，除非明确为英文项目生成示例。
+- 任务：创建根目录 `explaiw` 文件夹并写入全仓库文件说明。
+- 总结：新增 `explaiw/PROJECT_FILES_EXPLANATION.md`，按文档、规则、模板、代码、配置、资源和测试分类解释每个文件的用途、存在原因、内容和维护时机。
+- 文件：`explaiw/PROJECT_FILES_EXPLANATION.md`、`STATE.md`、`docs/AI_CHANGELOG.md`。
+- 验证：运行 `node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd run lint` 和 `npm.cmd test`。
+- 后续：仓库新增、删除文件，或文件职责发生变化时，同步更新文件说明总览。
