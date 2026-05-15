@@ -1,11 +1,11 @@
 {
   "memoryFiles": {
-    "context": "PROJECT_CONTEXT.md",
-    "state": "STATE.md",
-    "decisions": "DECISIONS.md",
-    "changelog": "docs/AI_CHANGELOG.md",
-    "handover": "docs/HANDOVER.md",
-    "decisionsDirectory": "docs/decisions"
+    "context": "memory/PROJECT_CONTEXT.md",
+    "state": "memory/STATE.md",
+    "decisions": "memory/DECISIONS.md",
+    "changelog": "memory/AI_CHANGELOG.md",
+    "handover": "memory/HANDOVER.md",
+    "decisionsDirectory": "memory/decisions"
   },
   "quality": {
     "requireChangedLines": false,

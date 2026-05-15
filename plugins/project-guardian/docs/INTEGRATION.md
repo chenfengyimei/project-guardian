@@ -7,13 +7,13 @@
 接入完成后，目标项目根目录应该包含：
 
 ```text
-PROJECT_CONTEXT.md
-STATE.md
-DECISIONS.md
-project-guardian.config.json
-docs/
+memory/
+  PROJECT_CONTEXT.md
+  STATE.md
+  DECISIONS.md
   AI_CHANGELOG.md
   HANDOVER.md
+project-guardian.config.json
 AGENTS.md
 .cursorrules
 .cursor/
@@ -29,7 +29,7 @@ AGENTS.md
 当使用 `guardian decision add` 后，还会自动创建可选目录：
 
 ```text
-docs/decisions/
+memory/decisions/
 ```
 
 如果选择把插件源码也放进项目，推荐结构是：
@@ -56,10 +56,10 @@ node plugins/project-guardian/scripts/guardian.js init
 
 它会做四件事：
 
-1. 创建 `PROJECT_CONTEXT.md`。
-2. 创建 `STATE.md`。
-3. 创建 `DECISIONS.md`。
-4. 创建 `docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`AGENTS.md`、`.cursorrules` 和默认 Cursor 规则。
+1. 创建 `memory/PROJECT_CONTEXT.md`。
+2. 创建 `memory/STATE.md`。
+3. 创建 `memory/DECISIONS.md`。
+4. 创建 `memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`、`AGENTS.md`、`.cursorrules` 和默认 Cursor 规则。
 5. 如果没有配置文件，创建 `project-guardian.config.json`。
 
 如果项目有 `package.json`，还会自动加入 `guardian:*` npm scripts。
@@ -150,7 +150,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 推荐让 AI 先读代码后补齐：
 
 ```text
-请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 PROJECT_CONTEXT.md、STATE.md 和 DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
+请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 memory/PROJECT_CONTEXT.md、memory/STATE.md 和 memory/DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
 ```
 
 然后由项目负责人复核。
@@ -199,9 +199,9 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 至少补齐：
 
-- `PROJECT_CONTEXT.md`
-- `STATE.md`
-- `DECISIONS.md`
+- `memory/PROJECT_CONTEXT.md`
+- `memory/STATE.md`
+- `memory/DECISIONS.md`
 
 然后生成交接文档：
 
@@ -262,10 +262,10 @@ node plugins/project-guardian/scripts/guardian.js verify
 接入完成必须满足：
 
 - `doctor` 通过。
-- `PROJECT_CONTEXT.md` 写清楚项目目标、技术栈、运行方式、核心流程。
-- `STATE.md` 写清楚当前状态、下一步、已知问题。
-- `DECISIONS.md` 写清楚关键决策，或明确“暂无关键决策”。
-- `docs/HANDOVER.md` 能让新人独立启动项目。
+- `memory/PROJECT_CONTEXT.md` 写清楚项目目标、技术栈、运行方式、核心流程。
+- `memory/STATE.md` 写清楚当前状态、下一步、已知问题。
+- `memory/DECISIONS.md` 写清楚关键决策，或明确“暂无关键决策”。
+- `memory/HANDOVER.md` 能让新人独立启动项目。
 - `check` 能在代码变更但记忆未更新时失败。
 
 ## 8. 接入完成后的第一条团队规则
@@ -276,7 +276,7 @@ node plugins/project-guardian/scripts/guardian.js verify
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "本次任务说明"
-git add STATE.md docs/AI_CHANGELOG.md
+git add memory/STATE.md memory/AI_CHANGELOG.md
 ```
 
 ## 9. 文档质量检查

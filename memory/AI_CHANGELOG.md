@@ -4,11 +4,23 @@
 
 ## 2026 记录
 
+### 2026-05-15 00:00 - 迁移项目记忆到 memory 目录
+
+- 用户需求：在根目录创建 `memory` 文件夹，把所有项目记忆迁移进去，避免根目录文件越来越多；同时修改 CLI 和相关代码，确保以后执行初始化不会再把核心记忆创建到根目录。
+- AI 总结：将本仓库自举记忆迁移到 `memory/`，把默认 `memoryFiles` 配置改为 `memory/...`，同步项目配置、AI 规则、适配器模板、插件文档、零基础教程、文件总览和测试用例。
+- 变更文件：`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`、`memory/decisions/*`、`project-guardian.config.json`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、README、Project Guardian 文档和 AI 规则模板。
+- 业务原因：项目记忆集中在 `memory/` 后，根目录更清晰，新人也能一眼区分“项目代码/普通文档”和“AI 交接记忆”。
+- 技术说明：`guardian init` 仍使用原模板文件名作为来源，但默认目标路径变为 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 和 `memory/HANDOVER.md`。现有显式配置仍被尊重，旧项目迁移时需要同步更新配置。
+- 验证方式：运行 `node plugins/project-guardian/scripts/guardian.js doctor`、`node plugins/project-guardian/scripts/guardian.js validate-docs`、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify` 和临时目录初始化冒烟测试。
+- 风险：旧项目如果保留旧 `project-guardian.config.json`，CLI 会继续按旧配置写入根目录和 `docs/`；这是为了避免自动覆盖团队已有配置。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：观察已有项目迁移反馈，必要时增加显式 `guardian migrate-memory` 命令。
+
 ### 2026-05-15 00:00 - 新增全仓库文件说明总览
 
 - 用户需求：在根目录创建 `explaiw` 文件夹和一个 md 文件，把所有文档介绍写入文件，并且把除文档外的代码文件也写入介绍。
 - AI 总结：新增 `explaiw/PROJECT_FILES_EXPLANATION.md`，集中说明当前仓库目录结构、文档和规则文件、模板文件、代码配置资源测试文件，以及常见重复文件的区别和维护判断标准。
-- 变更文件：`explaiw/PROJECT_FILES_EXPLANATION.md`、`STATE.md`、`docs/AI_CHANGELOG.md`。
+- 变更文件：`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
 - 业务原因：第一次接触仓库的人需要一个总览文件，快速理解每个文件为什么存在、负责什么、什么时候需要更新。
 - 技术说明：本次不修改 CLI 代码、测试逻辑、模板或插件运行行为，只新增说明文档并同步 Project Guardian 记忆。
 - 验证方式：运行 `node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd run lint` 和 `npm.cmd test`。
@@ -20,7 +32,7 @@
 
 - 用户需求：把 Project Guardian 本仓库自己的自举记忆切换成中文，不修改无关内容，只处理项目开始使用时需要读取的记忆文档。
 - AI 总结：将根目录项目上下文、状态、决策、AI 变更日志和交接指南翻译为中文，保留原有命令、路径、日期、验证方式和风险含义。
-- 变更文件：`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`。
+- 变更文件：`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`。
 - 业务原因：插件默认语言已经是中文，本仓库自举记忆也应使用中文，方便中文团队和零基础接手者直接理解。
 - 技术说明：本次不修改 CLI 代码、测试、模板或插件功能，只更新 Project Guardian 自举记忆内容。
 - 验证方式：运行 `node plugins/project-guardian/scripts/guardian.js validate-docs`、`node plugins/project-guardian/scripts/guardian.js verify` 和 `git diff --check`。
@@ -32,7 +44,7 @@
 
 - 用户需求：解释为什么插件仍然显得英文偏重，增加中文适配，分析可能出现的 bug，并改进项目。
 - AI 总结：新增 `language` 配置并默认使用 `zh-CN`，为记忆文件和 AI 工具适配器新增中文模板，通过 `guardian init --language en` 保留英文初始化；文档校验现在同时接受中英文标题和字段；生成的 update、handover、decision 内容会按语言配置输出；补充中文初始化、英文初始化、中文文档、中文 query 和中文决策记录回归测试。
-- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`project-guardian.config.json`、`plugins/project-guardian/assets/templates/zh-CN/`、`tests/guardian.test.js`、README、Project Guardian 文档、`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md` 和 `docs/HANDOVER.md`。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`project-guardian.config.json`、`plugins/project-guardian/assets/templates/zh-CN/`、`tests/guardian.test.js`、README、Project Guardian 文档、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md` 和 `memory/HANDOVER.md`。
 - 业务原因：目标团队主要使用中文，初次使用者不应先理解英文模板才能保存项目记忆。
 - 技术说明：`guardian init --language en` 现在会把选中的配置传给适配器生成逻辑，避免英文项目收到中文 `AGENTS.md` 或 Cursor/Copilot 规则。query 分词增加中文关键词对，便于本地查询匹配中文问题。
 - 验证方式：`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check`、语言命令冒烟测试和 package dry-run。
@@ -56,7 +68,7 @@
 
 - 用户需求：分析目录结构，检查缺失或薄弱点，并对耦合度过高的地方做解耦或重构。
 - AI 总结：把适配器解析、校验和模板映射从 `guardian.js` 移动到 `plugins/project-guardian/scripts/lib/adapters.js`。修复一个配置一致性问题：新的 `guardian init --adapter copilot` 以前会创建 Copilot 规则，却仍写入默认 generic/Cursor 适配器配置。
-- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/HANDOVER.md` 和 Project Guardian 文档。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/HANDOVER.md` 和 Project Guardian 文档。
 - 业务原因：新增未来 AI 工具适配器时，不应再编辑无关的 CLI 工作流代码；自定义初始化后的新项目不应收到误导性的适配器健康检查。
 - 技术说明：`package.json` 的 lint 现在检查新的适配器模块。新增回归测试验证 `init --adapter copilot` 会把 `["copilot"]` 写入新的 `project-guardian.config.json` 并通过 `doctor`。
 - 验证方式：最终完整 verify 循环前，`npm.cmd run lint` 和 `npm.cmd test` 已通过。

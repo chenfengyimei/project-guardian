@@ -29,7 +29,7 @@ Project Guardian 要解决的不是“多写几篇文档”，而是把 AI 辅�
 
 - 创建或接收 Gitee 仓库。
 - 确认 Project Guardian 已经接入。
-- 审核 `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md` 是否可信。
+- 审核 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md` 是否可信。
 - 在换人前要求开发者运行 `handover`。
 
 ### 当前开发者
@@ -37,12 +37,12 @@ Project Guardian 要解决的不是“多写几篇文档”，而是把 AI 辅�
 - 每天开发前读取项目记忆。
 - AI 改代码后运行 `update`。
 - 提交前运行 `check`。
-- 遇到重要业务规则或技术取舍时更新 `DECISIONS.md`。
+- 遇到重要业务规则或技术取舍时更新 `memory/DECISIONS.md`。
 
 ### 新接手开发者
 
-- 先读 `docs/HANDOVER.md`。
-- 再读 `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`。
+- 先读 `memory/HANDOVER.md`。
+- 再读 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`。
 - 使用 `query` 连续提问，确认模块入口、历史原因和风险点。
 - 只接一个小任务开始，不要上来大改核心模块。
 
@@ -50,7 +50,7 @@ Project Guardian 要解决的不是“多写几篇文档”，而是把 AI 辅�
 
 - 修改前读取项目记忆。
 - 回答时说明依据来自哪个记忆文件或代码文件。
-- 修改后协助更新 `STATE.md` 和 `docs/AI_CHANGELOG.md`。
+- 修改后协助更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`。
 - 发现记忆缺失时提醒补齐。
 
 ## 3. 第一次从 Gitee 接手项目
@@ -155,7 +155,7 @@ node plugins/project-guardian/scripts/guardian.js verify
 node plugins/project-guardian/scripts/guardian.js conflicts
 ```
 
-它会列出冲突文件，并对 `STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md` 和 `docs/decisions/*.md` 的冲突给出处理建议。
+它会列出冲突文件，并对 `memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` 和 `memory/decisions/*.md` 的冲突给出处理建议。
 
 ## 4. init 初始化到底做了什么
 
@@ -170,11 +170,11 @@ node plugins/project-guardian/scripts/guardian.js init
 运行后会创建这些文件：
 
 ```text
-PROJECT_CONTEXT.md
-STATE.md
-DECISIONS.md
-docs/AI_CHANGELOG.md
-docs/HANDOVER.md
+memory/PROJECT_CONTEXT.md
+memory/STATE.md
+memory/DECISIONS.md
+memory/AI_CHANGELOG.md
+memory/HANDOVER.md
 AGENTS.md
 .cursorrules
 .cursor/rules/project-guardian.mdc
@@ -205,14 +205,14 @@ node plugins/project-guardian/scripts/guardian.js init
 
 初始化后，要补齐：
 
-- `PROJECT_CONTEXT.md`：项目是做什么的，技术栈是什么，如何运行。
-- `STATE.md`：当前完成了什么，正在做什么，下一步是什么。
-- `DECISIONS.md`：为什么选这个方案，有什么历史坑。
+- `memory/PROJECT_CONTEXT.md`：项目是做什么的，技术栈是什么，如何运行。
+- `memory/STATE.md`：当前完成了什么，正在做什么，下一步是什么。
+- `memory/DECISIONS.md`：为什么选这个方案，有什么历史坑。
 
 推荐让 AI 帮你补第一版：
 
 ```text
-请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 PROJECT_CONTEXT.md、STATE.md 和 DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态和已知风险。
+请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 memory/PROJECT_CONTEXT.md、memory/STATE.md 和 memory/DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态和已知风险。
 ```
 
 补完后必须人工复核，因为 AI 可能猜错业务背景。
@@ -243,15 +243,15 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 然后阅读：
 
-1. `STATE.md`
-2. `PROJECT_CONTEXT.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md` 最近几条
+1. `memory/STATE.md`
+2. `memory/PROJECT_CONTEXT.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md` 最近几条
 
 建议问 AI：
 
 ```text
-请先读取 PROJECT_CONTEXT.md、STATE.md、DECISIONS.md 和 docs/AI_CHANGELOG.md，然后总结当前项目状态、今天适合继续做什么、哪些地方有风险。
+请先读取 memory/PROJECT_CONTEXT.md、memory/STATE.md、memory/DECISIONS.md 和 memory/AI_CHANGELOG.md，然后总结当前项目状态、今天适合继续做什么、哪些地方有风险。
 ```
 
 ## 6. 一次标准任务循环
@@ -287,7 +287,7 @@ npm run build
 npm run dev
 ```
 
-如果没有自动化测试，至少做手动验证，并把验证步骤写入 `docs/AI_CHANGELOG.md`。
+如果没有自动化测试，至少做手动验证，并把验证步骤写入 `memory/AI_CHANGELOG.md`。
 
 ### 6.4 更新项目记忆
 
@@ -300,11 +300,11 @@ node plugins/project-guardian/scripts/guardian.js update "实现登录验证码"
 它会更新：
 
 ```text
-STATE.md
-docs/AI_CHANGELOG.md
+memory/STATE.md
+memory/AI_CHANGELOG.md
 ```
 
-然后打开 `docs/AI_CHANGELOG.md`，补齐 TODO：
+然后打开 `memory/AI_CHANGELOG.md`，补齐 TODO：
 
 - `AI summary`：这次改了什么。
 - `Business reason`：为什么要改。
@@ -312,7 +312,7 @@ docs/AI_CHANGELOG.md
 - `Risks`：有哪些风险。
 - `Next step`：下一个人要注意什么。
 
-如果这次引入了重要规则，还要更新 `DECISIONS.md`。
+如果这次引入了重要规则，还要更新 `memory/DECISIONS.md`。
 推荐使用命令生成结构化决策：
 
 ```bash
@@ -332,7 +332,7 @@ node plugins/project-guardian/scripts/guardian.js verify
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "补充本次任务记忆"
-git add STATE.md docs/AI_CHANGELOG.md
+git add memory/STATE.md memory/AI_CHANGELOG.md
 node plugins/project-guardian/scripts/guardian.js verify
 ```
 
@@ -379,10 +379,10 @@ node plugins/project-guardian/scripts/guardian.js handover
 
 人工检查：
 
-- `STATE.md` 是否写清楚下一步。
-- `docs/HANDOVER.md` 是否写清楚如何运行。
-- `DECISIONS.md` 是否补齐重要原因。
-- `docs/AI_CHANGELOG.md` 最近记录是否能看懂。
+- `memory/STATE.md` 是否写清楚下一步。
+- `memory/HANDOVER.md` 是否写清楚如何运行。
+- `memory/DECISIONS.md` 是否补齐重要原因。
+- `memory/AI_CHANGELOG.md` 最近记录是否能看懂。
 
 然后提交：
 
@@ -409,7 +409,7 @@ git push
 Gitee 最新提交：
 ```
 
-这些内容也应该同步到 `STATE.md` 或 `docs/HANDOVER.md`。
+这些内容也应该同步到 `memory/STATE.md` 或 `memory/HANDOVER.md`。
 
 ## 8. 新人接手循环
 
@@ -423,11 +423,11 @@ node plugins/project-guardian/scripts/guardian.js doctor
 然后阅读：
 
 ```text
-docs/HANDOVER.md
-STATE.md
-PROJECT_CONTEXT.md
-DECISIONS.md
-docs/AI_CHANGELOG.md
+memory/HANDOVER.md
+memory/STATE.md
+memory/PROJECT_CONTEXT.md
+memory/DECISIONS.md
+memory/AI_CHANGELOG.md
 ```
 
 接着运行多轮查询：
@@ -477,9 +477,9 @@ git push -u origin feature/login-captcha
 
 PR 合并前检查：
 
-- 是否更新 `STATE.md`。
-- 是否更新 `docs/AI_CHANGELOG.md`。
-- 是否需要更新 `DECISIONS.md`。
+- 是否更新 `memory/STATE.md`。
+- 是否更新 `memory/AI_CHANGELOG.md`。
+- 是否需要更新 `memory/DECISIONS.md`。
 - 是否运行过项目验证。
 - 是否说明风险点。
 - 是否通过 `validate-docs`。
@@ -496,11 +496,11 @@ node plugins/project-guardian/scripts/guardian.js handover
 
 检查：
 
-- `STATE.md` 是否过期。
+- `memory/STATE.md` 是否过期。
 - `Next Steps` 是否仍然准确。
 - `Known Issues` 是否已经解决但没删除。
-- `DECISIONS.md` 是否缺少新决策。
-- `docs/HANDOVER.md` 是否能让新人启动项目。
+- `memory/DECISIONS.md` 是否缺少新决策。
+- `memory/HANDOVER.md` 是否能让新人启动项目。
 
 ## 11. 常见问题
 
@@ -536,13 +536,13 @@ node ./plugins/project-guardian/scripts/guardian.js init
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "补充本次修改记录"
-git add STATE.md docs/AI_CHANGELOG.md
+git add memory/STATE.md memory/AI_CHANGELOG.md
 node plugins/project-guardian/scripts/guardian.js check
 ```
 
 ### 新人不知道下一步做什么
 
-先看 `STATE.md` 的 `Next Steps`。如果仍不清楚，运行：
+先看 `memory/STATE.md` 的 `Next Steps`。如果仍不清楚，运行：
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js query
@@ -562,7 +562,7 @@ node plugins/project-guardian/scripts/guardian.js query
 2. 每次 AI 改代码后运行 `update`。
 3. 每次换人前运行 `handover`。
 4. 每次提交前运行 `verify`。
-5. 新人接手先读 `docs/HANDOVER.md`。
+5. 新人接手先读 `memory/HANDOVER.md`。
 
 `verify` 会同时覆盖体检、变更关联、文档质量和安全扫描。
 

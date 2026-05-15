@@ -6,10 +6,10 @@
 
 修改代码前先阅读这些文件：
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
 5. `README.md`
 6. `plugins/project-guardian/docs/CLI_AND_CI.md`
 7. `plugins/project-guardian/docs/STANDARD.md`
@@ -45,7 +45,7 @@ npm.cmd test
 | 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件和 AI 工具规则 |
 | 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
 | 测试 | `package.json`、`tests/guardian.test.js` | 使用临时仓库运行语法检查和命令行为测试 |
-| 记忆 | `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md` | 本仓库的可持续上下文 |
+| 记忆 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | 本仓库的可持续上下文 |
 
 ## 核心流程
 
@@ -79,5 +79,5 @@ npm.cmd test
 2. 运行 `guardian doctor`。
 3. 运行 `node --check plugins/project-guardian/scripts/guardian.js`。
 4. 运行 `npm.cmd test`。
-5. 从 `STATE.md` 里挑一个小问题开始。
+5. 从 `memory/STATE.md` 里挑一个小问题开始。
 6. 完成变更后更新项目记忆，并运行 `guardian verify`。

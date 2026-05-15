@@ -9,17 +9,17 @@ alwaysApply: true
 
 Before editing code or answering project-specific questions, read:
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
-5. `docs/HANDOVER.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
+5. `memory/HANDOVER.md`
 
 After AI-assisted code changes:
 
-- Update `STATE.md` with current status, known issues, next steps, and latest change.
-- Append a concise entry to `docs/AI_CHANGELOG.md`.
-- Update `DECISIONS.md` for important architecture, business-rule, dependency, data-model, security, workflow, or compatibility decisions.
+- Update `memory/STATE.md` with current status, known issues, next steps, and latest change.
+- Append a concise entry to `memory/AI_CHANGELOG.md`.
+- Update `memory/DECISIONS.md` for important architecture, business-rule, dependency, data-model, security, workflow, or compatibility decisions.
 - Run `guardian verify` before committing when the CLI is available.
 
 Answers should explain what changed, why the project currently works this way, what was verified, and what the next developer should know.

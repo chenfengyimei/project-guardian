@@ -6,10 +6,10 @@
 
 修改代码前先阅读这些文件：
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
 
 ## 如何运行
 
@@ -46,5 +46,5 @@
 1. 阅读项目记忆文件。
 2. 在本地跑起来项目。
 3. 运行测试或冒烟检查。
-4. 从 `STATE.md` 里选择一个小任务开始。
+4. 从 `memory/STATE.md` 里选择一个小任务开始。
 5. 完成后更新项目记忆。

@@ -70,7 +70,7 @@ project-guardian/
 
 ## 一句话工作循环
 
-新项目先 `init` 建立记忆文件；每天开发前读 `STATE.md`；AI 改完代码后运行 `update`；提交前运行 `check`；换人或阶段结束运行 `handover`；新人接手先读 `HANDOVER.md`，再用 `query` 多轮提问。
+新项目先 `init` 建立记忆文件；每天开发前读 `memory/STATE.md`；AI 改完代码后运行 `update`；提交前运行 `check`；换人或阶段结束运行 `handover`；新人接手先读 `memory/HANDOVER.md`，再用 `query` 多轮提问。
 
 ## 快速使用
 
@@ -117,11 +117,11 @@ node path/to/project-guardian/scripts/guardian.js init
 初始化后会生成：
 
 ```text
-PROJECT_CONTEXT.md
-STATE.md
-DECISIONS.md
-docs/AI_CHANGELOG.md
-docs/HANDOVER.md
+memory/PROJECT_CONTEXT.md
+memory/STATE.md
+memory/DECISIONS.md
+memory/AI_CHANGELOG.md
+memory/HANDOVER.md
 AGENTS.md
 .cursorrules
 .cursor/rules/project-guardian.mdc
@@ -219,11 +219,11 @@ guardian> exit
 ## 推荐工作流
 
 1. 新项目创建后立刻运行 `init`。
-2. 开发者先填写 `PROJECT_CONTEXT.md` 和 `STATE.md` 的基础内容。
+2. 开发者先填写 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md` 的基础内容。
 3. 每次 AI 辅助改代码后运行 `update`，补全 TODO 字段。
 4. 每次提交前运行 `verify`，或安装 `install-hooks` 自动检查。
 5. 换人、离职、暂停超过一周或版本交付前运行 `handover`。
-6. 新人接手时先读 `docs/HANDOVER.md`，再用 `query` 连续提问。
+6. 新人接手时先读 `memory/HANDOVER.md`，再用 `query` 连续提问。
 
 ## 新增质量检查命令
 

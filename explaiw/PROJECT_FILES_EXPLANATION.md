@@ -4,8 +4,8 @@
 
 当前统计口径：
 
-- 仓库文件总数：49 个。
-- 文档、规则、模板、说明类文件：39 个。
+- 仓库文件总数：50 个。
+- 文档、规则、模板、说明类文件：40 个。
 - 代码、配置、资源、测试和忽略规则等其它文件：10 个。
 - 统计不包含 `.git/` 和 `node_modules/`。
 
@@ -19,11 +19,15 @@ project_ai/
   .cursor/
     rules/
       project-guardian.mdc
-  docs/
+  memory/
     AI_CHANGELOG.md
+    DECISIONS.md
     HANDOVER.md
+    PROJECT_CONTEXT.md
+    STATE.md
     decisions/
       2026-05-14-use-per-decision-files.md
+      2026-05-15-memory.md
   explaiw/
     PROJECT_FILES_EXPLANATION.md
   plugins/
@@ -73,11 +77,8 @@ project_ai/
   .gitignore
   .guardianignore
   AGENTS.md
-  DECISIONS.md
   LICENSE
-  PROJECT_CONTEXT.md
   README.md
-  STATE.md
   package.json
   project-guardian.config.json
   零基础超简单入门.md
@@ -93,12 +94,13 @@ project_ai/
 | `AGENTS.md` | 通用 AI Agent 规则 | 让 Codex 或其它通用 AI Agent 知道本项目使用 Project Guardian 记忆 | 修改前要读哪些记忆文件、修改后更新哪些记忆、禁止写入密钥 | AI 工作规则、记忆文件路径或质量要求变化时 |
 | `.cursorrules` | Cursor 旧版规则文件 | 兼容仍读取 `.cursorrules` 的 Cursor 版本 | 要求 Cursor 先读项目记忆，修改后更新记忆 | Cursor 兼容规则变化；可长期保留作为兼容层 |
 | `.cursor/rules/project-guardian.mdc` | Cursor 新版规则文件 | 适配 Cursor rules 目录机制 | Cursor 中的 Project Guardian 必读和更新规则 | Cursor 新规则格式、项目记忆规则变化时 |
-| `PROJECT_CONTEXT.md` | 项目长期上下文 | AI 和新人需要稳定理解项目为什么存在、怎么运行、核心流程是什么 | 项目概览、技术栈、核心业务流程、依赖、数据模型、运行方式、约束 | 项目目标、技术栈、核心流程、运行方式、重要约束变化时 |
-| `STATE.md` | 当前状态文件 | 接手者需要知道现在做到哪里、下一步是什么、有什么风险 | 当前状态、已完成、进行中、下一步、已知问题、风险区域、最新 AI 协助变更 | 每次阶段状态变化、AI 协助改动后、交接前 |
-| `DECISIONS.md` | 决策索引和主记录 | 记录“为什么这样做”，避免后人只看到结果不知道原因 | 架构、流程、兼容、安全、语言策略等重要决策 | 出现重要业务、架构、依赖、流程、安全或兼容性决策时 |
-| `docs/AI_CHANGELOG.md` | AI 协助变更日志 | 保存聊天窗口之外的 AI 修改上下文 | 用户需求、AI 总结、变更文件、业务原因、技术说明、验证、风险、敏感信息检查、下一步 | 每次 AI 协助修改代码或重要文档后 |
-| `docs/HANDOVER.md` | 交接指南 | 新人或下一位开发者需要第一天就能上手 | 优先阅读、如何运行、项目地图、核心流程、常见问题、风险和新人第一天步骤 | 交接、阶段结束、发布前、项目结构或运行方式变化时 |
-| `docs/decisions/2026-05-14-use-per-decision-files.md` | 单条决策文件 | 降低多人同时修改 `DECISIONS.md` 的冲突概率 | “使用单独决策文件”的决策详情 | 每次通过 `guardian decision add` 记录重要决策时可新增类似文件 |
+| `memory/PROJECT_CONTEXT.md` | 项目长期上下文 | AI 和新人需要稳定理解项目为什么存在、怎么运行、核心流程是什么 | 项目概览、技术栈、核心业务流程、依赖、数据模型、运行方式、约束 | 项目目标、技术栈、核心流程、运行方式、重要约束变化时 |
+| `memory/STATE.md` | 当前状态文件 | 接手者需要知道现在做到哪里、下一步是什么、有什么风险 | 当前状态、已完成、进行中、下一步、已知问题、风险区域、最新 AI 协助变更 | 每次阶段状态变化、AI 协助改动后、交接前 |
+| `memory/DECISIONS.md` | 决策索引和主记录 | 记录“为什么这样做”，避免后人只看到结果不知道原因 | 架构、流程、兼容、安全、语言策略等重要决策 | 出现重要业务、架构、依赖、流程、安全或兼容性决策时 |
+| `memory/AI_CHANGELOG.md` | AI 协助变更日志 | 保存聊天窗口之外的 AI 修改上下文 | 用户需求、AI 总结、变更文件、业务原因、技术说明、验证、风险、敏感信息检查、下一步 | 每次 AI 协助修改代码或重要文档后 |
+| `memory/HANDOVER.md` | 交接指南 | 新人或下一位开发者需要第一天就能上手 | 优先阅读、如何运行、项目地图、核心流程、常见问题、风险和新人第一天步骤 | 交接、阶段结束、发布前、项目结构或运行方式变化时 |
+| `memory/decisions/2026-05-14-use-per-decision-files.md` | 单条决策文件 | 降低多人同时修改 `memory/DECISIONS.md` 的冲突概率 | “使用单独决策文件”的决策详情 | 每次通过 `guardian decision add` 记录重要决策时可新增类似文件 |
+| `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
 | `plugins/project-guardian/docs/STANDARD.md` | 使用规范文档 | 统一团队怎么写、怎么审、怎么维护项目记忆 | 标准目录、记忆文件职责、记录质量、AI 使用规则、提交规范、配置标准 | 团队规范、目录标准、记录字段、配置项变化时 |
@@ -106,8 +108,8 @@ project_ai/
 | `plugins/project-guardian/docs/CLI_AND_CI.md` | 命令行和 CI 文档 | 专门说明 CLI、Git hook 和 Gitee Go CI | 所有 `guardian` 命令、verify、hook、CI 模板、失败处理 | CLI 命令新增/修改、CI 模板或 hook 行为变化时 |
 | `plugins/project-guardian/skills/project-guardian/SKILL.md` | Codex skill 说明 | Codex 插件需要一个可读取的技能入口 | 必读顺序、记忆更新规则、自助知识查询循环、记录标准 | Codex 使用规则、技能描述、项目记忆流程变化时 |
 | `plugins/project-guardian/assets/templates/PROJECT_CONTEXT.md` | 英文项目上下文模板 | 英文项目执行 `guardian init --language en` 时生成 | 英文版项目长期上下文模板 | 英文上下文字段标准变化时 |
-| `plugins/project-guardian/assets/templates/STATE.md` | 英文状态模板 | 英文项目初始化 `STATE.md` 用 | 英文当前状态、下一步、已知问题模板 | 状态记录标准变化时 |
-| `plugins/project-guardian/assets/templates/DECISIONS.md` | 英文决策模板 | 英文项目初始化 `DECISIONS.md` 用 | 英文决策字段模板 | 决策字段或决策结构变化时 |
+| `plugins/project-guardian/assets/templates/STATE.md` | 英文状态模板 | 英文项目初始化 `memory/STATE.md` 用 | 英文当前状态、下一步、已知问题模板 | 状态记录标准变化时 |
+| `plugins/project-guardian/assets/templates/DECISIONS.md` | 英文决策模板 | 英文项目初始化 `memory/DECISIONS.md` 用 | 英文决策字段模板 | 决策字段或决策结构变化时 |
 | `plugins/project-guardian/assets/templates/AI_CHANGELOG.md` | 英文 AI 变更日志模板 | 英文项目初始化 changelog 用 | 英文 AI 协助变更记录字段 | changelog 记录标准变化时 |
 | `plugins/project-guardian/assets/templates/HANDOVER.md` | 英文交接模板 | 英文项目初始化 handover 用 | First Read、How To Run、Project Map、New Developer First Day | 交接文档结构变化时 |
 | `plugins/project-guardian/assets/templates/AGENTS.md` | 英文通用 Agent 规则模板 | 英文项目生成 `AGENTS.md` 用 | 英文 AI 必读和更新规则 | Agent 规则变化时 |
@@ -117,10 +119,10 @@ project_ai/
 | `plugins/project-guardian/assets/templates/copilot-project-guardian.instructions.md` | 英文 Copilot 局部指令模板 | 英文项目生成 `.github/instructions/project-guardian.instructions.md` 用 | Project Guardian 专用 Copilot 英文规则 | Copilot 项目级 instructions 变化时 |
 | `plugins/project-guardian/assets/templates/gitee-go-project-guardian.yml` | Gitee Go CI 模板 | `guardian install-ci` 生成流水线用 | Gitee Go 中运行 Project Guardian 检查的 YAML 模板 | CI 命令、默认分支、Node 版本或流水线结构变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/PROJECT_CONTEXT.md` | 中文项目上下文模板 | 默认 `guardian init` 生成项目上下文 | 中文项目概览、技术栈、核心业务流程模板 | 中文上下文字段标准变化时 |
-| `plugins/project-guardian/assets/templates/zh-CN/STATE.md` | 中文状态模板 | 默认初始化 `STATE.md` | 中文当前状态、下一步、已知问题模板 | 中文状态记录标准变化时 |
-| `plugins/project-guardian/assets/templates/zh-CN/DECISIONS.md` | 中文决策模板 | 默认初始化 `DECISIONS.md` | 背景、决策、备选方案、影响文件、验证、风险等字段 | 中文决策字段变化时 |
-| `plugins/project-guardian/assets/templates/zh-CN/AI_CHANGELOG.md` | 中文 AI 变更日志模板 | 默认初始化 `docs/AI_CHANGELOG.md` | 用户需求、AI 总结、变更文件、验证、风险等字段 | 中文 changelog 标准变化时 |
-| `plugins/project-guardian/assets/templates/zh-CN/HANDOVER.md` | 中文交接模板 | 默认初始化 `docs/HANDOVER.md` | 优先阅读、如何运行、项目地图、新人第一天 | 中文交接结构变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/STATE.md` | 中文状态模板 | 默认初始化 `memory/STATE.md` | 中文当前状态、下一步、已知问题模板 | 中文状态记录标准变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/DECISIONS.md` | 中文决策模板 | 默认初始化 `memory/DECISIONS.md` | 背景、决策、备选方案、影响文件、验证、风险等字段 | 中文决策字段变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/AI_CHANGELOG.md` | 中文 AI 变更日志模板 | 默认初始化 `memory/AI_CHANGELOG.md` | 用户需求、AI 总结、变更文件、验证、风险等字段 | 中文 changelog 标准变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/HANDOVER.md` | 中文交接模板 | 默认初始化 `memory/HANDOVER.md` | 优先阅读、如何运行、项目地图、新人第一天 | 中文交接结构变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/AGENTS.md` | 中文通用 Agent 规则模板 | 默认生成 `AGENTS.md` | 中文 AI 必读、更新记忆、安全限制 | 中文 Agent 规则变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/cursor-rules.mdc` | 中文 Cursor 新规则模板 | 默认生成 `.cursor/rules/project-guardian.mdc` | Cursor 新版中文项目记忆规则 | Cursor 中文适配变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/cursorrules` | 中文 Cursor 旧规则模板 | 默认生成 `.cursorrules` | 旧版 Cursor 中文项目记忆规则 | 旧版 Cursor 中文兼容规则变化时 |
@@ -148,7 +150,7 @@ project_ai/
 | --- | --- |
 | `.cursorrules` 和 `.cursor/rules/project-guardian.mdc` | 前者兼容旧版 Cursor，后者适配新版 Cursor rules 目录。 |
 | 英文模板和 `zh-CN` 中文模板 | 默认中文项目使用 `zh-CN`；英文团队使用 `guardian init --language en`。 |
-| `DECISIONS.md` 和 `docs/decisions/*.md` | 前者是总索引和兼容入口；后者是一条决策一个文件，降低多人协作冲突。 |
+| `memory/DECISIONS.md` 和 `memory/decisions/*.md` | 前者是总索引和兼容入口；后者是一条决策一个文件，降低多人协作冲突。 |
 | `AGENTS.md`、Cursor 规则、Copilot 指令 | 它们分别服务不同 AI 工具，不是给同一个工具重复读取。 |
 
 ## 新增或修改文件的判断标准
@@ -158,4 +160,4 @@ project_ai/
 - 修改项目记忆标准：通常要改模板、`STANDARD.md`、`validate-docs` 规则和测试。
 - 修改使用流程：通常要改 `WORKFLOW.md`、`INTEGRATION.md`、`README.md`。
 - 修改 CI 或 hook 行为：通常要改 `CLI_AND_CI.md`、`guardian.js`、CI 模板和测试。
-- 每次 AI 协助的重要变更：通常要更新 `STATE.md` 和 `docs/AI_CHANGELOG.md`。
+- 每次 AI 协助的重要变更：通常要更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`。

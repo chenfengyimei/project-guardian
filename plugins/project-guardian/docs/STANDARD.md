@@ -63,13 +63,13 @@ project-guardian/
 目标项目接入后，根目录必须包含：
 
 ```text
-PROJECT_CONTEXT.md
-STATE.md
-DECISIONS.md
-project-guardian.config.json
-docs/
+memory/
+  PROJECT_CONTEXT.md
+  STATE.md
+  DECISIONS.md
   AI_CHANGELOG.md
   HANDOVER.md
+project-guardian.config.json
 AGENTS.md
 .cursorrules
 .cursor/
@@ -96,15 +96,15 @@ AGENTS.md
 
 ```text
 plugins/project-guardian/
-docs/decisions/
+memory/decisions/
 ```
 
 如果团队不希望每个项目保存插件源码，可以把插件放到统一工具仓库，但项目内仍必须保留标准记忆文件。
-`docs/decisions/` 是推荐目录，使用 `guardian decision add` 后会自动创建，用于一条决策一个文件。
+`memory/decisions/` 是推荐目录，使用 `guardian decision add` 后会自动创建，用于一条决策一个文件。
 
 ## 3. 标准记忆文件职责
 
-### PROJECT_CONTEXT.md
+### memory/PROJECT_CONTEXT.md
 
 长期稳定上下文。记录项目为什么存在、给谁用、核心业务流程是什么、使用什么技术栈、如何运行。
 
@@ -117,7 +117,7 @@ docs/decisions/
 - 运行、测试、构建命令。
 - 外部依赖和环境变量。
 
-### STATE.md
+### memory/STATE.md
 
 当前状态。记录项目现在做到哪、下一步做什么、有哪些问题和风险。
 
@@ -131,10 +131,10 @@ docs/decisions/
 - Risk Areas
 - Latest AI-Assisted Change
 
-### DECISIONS.md
+### memory/DECISIONS.md
 
 历史决策。记录为什么这样做，而不是只记录做了什么。
-团队协作时推荐同时使用 `docs/decisions/*.md`，一条重要决策一个文件，`DECISIONS.md` 保留主要索引和关键决策摘要。
+团队协作时推荐同时使用 `memory/decisions/*.md`，一条重要决策一个文件，`memory/DECISIONS.md` 保留主要索引和关键决策摘要。
 
 以下情况必须记录：
 
@@ -144,7 +144,7 @@ docs/decisions/
 - 为修复线上问题引入非直观逻辑。
 - 安全、权限、数据模型、支付、登录等高风险模块变化。
 
-### docs/AI_CHANGELOG.md
+### memory/AI_CHANGELOG.md
 
 AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 
@@ -160,7 +160,7 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 - Sensitive data checked
 - Next step
 
-### docs/HANDOVER.md
+### memory/HANDOVER.md
 
 新人交接指南。换人、离职、交付、暂停超过一周时必须刷新。
 
@@ -208,7 +208,7 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 - AI 生成的关键代码必须要求解释业务原因。
 - AI 修改完成后必须运行 `update` 或手动更新记忆。
 - AI 不能只回答“已完成”，必须说明验证方式和风险。
-- AI 不确定时必须把不确定点写入 `STATE.md` 或 `AI_CHANGELOG.md`。
+- AI 不确定时必须把不确定点写入 `memory/STATE.md` 或 `memory/AI_CHANGELOG.md`。
 
 ## 6. 提交规范
 
@@ -216,7 +216,7 @@ AI 辅助开发流水账。每次 AI 改代码后必须追加一条记录。
 
 - 业务代码变更通常要包含记忆文件变更。
 - 纯格式化、依赖锁文件自动刷新、无业务影响的机械变更可以不更新记忆。
-- 如果引入新风险或新约定，必须更新 `DECISIONS.md`。
+- 如果引入新风险或新约定，必须更新 `memory/DECISIONS.md`。
 - 提交前运行：
 
   ```bash
@@ -274,7 +274,7 @@ node plugins/project-guardian/scripts/guardian.js query
 - `validate-docs` 能发现过多 TODO、空字段和缺失章节。
 - `install-hooks` 不覆盖已有 hook。
 - `install-ci` 能生成 Gitee Go 流水线模板。
-- `decision add` 能创建结构化决策并生成 `docs/decisions/*.md`。
+- `decision add` 能创建结构化决策并生成 `memory/decisions/*.md`。
 - `conflicts` 能识别 Git merge 冲突并提示记忆文件冲突处理方式。
 - 文档和模板能让第一次使用者独立接入。
 

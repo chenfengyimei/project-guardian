@@ -4,17 +4,17 @@
 
 在建议或修改项目代码前，请先查看这些文件：
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
-5. `docs/HANDOVER.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
+5. `memory/HANDOVER.md`
 
 代码修改后：
 
-- 更新 `STATE.md`。
-- 向 `docs/AI_CHANGELOG.md` 追加一条简洁记录。
-- 如果引入重要架构、业务、依赖、数据模型、安全、工作流或兼容性决策，更新 `DECISIONS.md`。
+- 更新 `memory/STATE.md`。
+- 向 `memory/AI_CHANGELOG.md` 追加一条简洁记录。
+- 如果引入重要架构、业务、依赖、数据模型、安全、工作流或兼容性决策，更新 `memory/DECISIONS.md`。
 - 建议提交前运行 `guardian verify`。
 
 每条长期记忆都应说明：改了什么、为什么改、影响文件、验证方式、敏感信息检查、风险和下一步。

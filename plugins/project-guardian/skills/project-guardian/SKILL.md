@@ -11,11 +11,11 @@ Use this skill when a user wants to initialize project memory, understand a proj
 
 Before answering project-specific questions or editing code, inspect these files if they exist:
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
-5. `docs/HANDOVER.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
+5. `memory/HANDOVER.md`
 
 If any file is missing, mention it briefly and continue from available context.
 
@@ -23,10 +23,10 @@ If any file is missing, mention it briefly and continue from available context.
 
 After code changes, update project memory unless the user explicitly asks not to:
 
-- Update `STATE.md` with current status, next step, known issues, and latest AI-assisted change.
-- Append a concise entry to `docs/AI_CHANGELOG.md`.
-- Update `DECISIONS.md` when the change introduces a meaningful architecture, business logic, dependency, data model, or compatibility decision.
-- Refresh `docs/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
+- Update `memory/STATE.md` with current status, next step, known issues, and latest AI-assisted change.
+- Append a concise entry to `memory/AI_CHANGELOG.md`.
+- Update `memory/DECISIONS.md` when the change introduces a meaningful architecture, business logic, dependency, data model, or compatibility decision.
+- Refresh `memory/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
 - Preserve existing human-written memory. Append, summarize, or amend the relevant section instead of deleting historical context.
 - Run or recommend `guardian verify` when memory quality matters before handover, PR, or release.
 - Never write production passwords, real tokens, private keys, customer private data, or other secrets into project memory.

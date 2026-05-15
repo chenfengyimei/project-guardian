@@ -21,7 +21,7 @@
 - 背景：AI 辅助编程上下文会随着聊天记录、实习生或本地 IDE 会话丢失。
 - 决策：把可持续项目上下文保存在根目录 Markdown 文件中，并通过 `check`、`validate-docs`、`scan-secrets` 和统一的 `verify` 命令强制维护。
 - 备选方案：依赖聊天导出、要求开发者手写外部交接文档，或等平台化以后再做质量闸门。
-- 影响文件/模块：`PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`、`project-guardian.config.json`。
+- 影响文件/模块：`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`、`project-guardian.config.json`。
 - 关联变更：本仓库已经运行 self-init，因此 Project Guardian 遵循它要求目标项目使用的同一套记忆工作流。
 - 验证方式：填好的记忆文件必须通过 `guardian validate-docs`；当代码变更缺少记忆更新时，`guardian check` 必须失败。
 - 风险：如果模板解释不够清楚，过严校验可能拖慢非专业开发者的接入。
@@ -43,15 +43,15 @@
 ### 2026-05-14 - 使用单独决策文件
 
 - 背景：多人在交接或评审期间可能同时编辑决策历史。
-- 决策：新增结构化决策时同步写入 `docs/decisions/`，同时保持 `DECISIONS.md` 兼容。
+- 决策：新增结构化决策时同步写入 `memory/decisions/`，同时保持 `memory/DECISIONS.md` 兼容。
 - 备选方案：未记录。
-- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`docs/decisions`。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`memory/decisions`。
 - 关联变更：P4 协作冲突处理和新的 `guardian decision add` 命令。
 - 验证方式：`npm.cmd test` 和 `guardian verify`。
 - 风险：为了兼容性，决策内容会有一定重复。
 - 复审时间：2026-06-14。
-- 后续动作：团队接受决策目录后，可以考虑把 `DECISIONS.md` 转成纯索引页。
-- 决策文件：`docs/decisions/2026-05-14-use-per-decision-files.md`
+- 后续动作：团队接受决策目录后，可以考虑把 `memory/DECISIONS.md` 转成纯索引页。
+- 决策文件：`memory/decisions/2026-05-14-use-per-decision-files.md`
 
 ### 2026-05-15 - 默认使用中文项目记忆
 
@@ -64,3 +64,16 @@
 - 风险：已有英文项目如果把配置改成 `zh-CN`，后续 `update` 生成的记录会中英混杂；文档中已要求同一项目不要反复切换语言。
 - 复审时间：2026-06-15。
 - 后续动作：根据真实团队反馈继续补充中文文案和更多 AI 工具适配模板。
+
+### 2026-05-15 - 集中使用 memory 目录保存项目记忆
+
+- 背景：项目记忆散落在根目录和 docs 目录时，随着文档增多会让项目根目录变乱，也容易让新接入项目不知道哪些文件属于 Project Guardian 记忆。
+- 决策：将默认项目记忆路径迁移到根目录 memory 文件夹，核心记忆文件和单独决策文件都放在 memory 下；CLI 默认配置、项目配置、AI 规则、文档和测试同步使用新路径。
+- 备选方案：暂无记录。
+- 影响文件/模块：plugins/project-guardian/scripts/guardian.js, project-guardian.config.json, memory/*, tests/guardian.test.js, Project Guardian docs and adapter templates
+- 关联变更：未指定。
+- 验证方式：运行 doctor、validate-docs、lint、test、verify 和临时目录 init 冒烟测试。
+- 风险：已有项目如果保留旧 project-guardian.config.json，CLI 会继续尊重旧配置；迁移旧项目时需要同步更新配置或重新初始化。
+- 复审时间：2026-06-15
+- 后续动作：观察真实项目接入反馈，必要时增加显式 migrate-memory 命令。
+- 决策文件：`memory/decisions/2026-05-15-memory.md`

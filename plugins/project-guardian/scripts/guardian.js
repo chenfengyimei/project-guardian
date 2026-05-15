@@ -37,12 +37,12 @@ const SOURCE_EXTENSIONS = new Set([
 
 const DEFAULT_CONFIG = {
   memoryFiles: {
-    context: "PROJECT_CONTEXT.md",
-    state: "STATE.md",
-    decisions: "DECISIONS.md",
-    changelog: "docs/AI_CHANGELOG.md",
-    handover: "docs/HANDOVER.md",
-    decisionsDirectory: "docs/decisions",
+    context: "memory/PROJECT_CONTEXT.md",
+    state: "memory/STATE.md",
+    decisions: "memory/DECISIONS.md",
+    changelog: "memory/AI_CHANGELOG.md",
+    handover: "memory/HANDOVER.md",
+    decisionsDirectory: "memory/decisions",
   },
   quality: {
     requireChangedLines: false,
@@ -156,7 +156,7 @@ function init(root, args = []) {
   }
 
   console.log(isChinese(config) ? "Project Guardian 项目记忆已初始化。" : "Project Guardian memory initialized.");
-  console.log(isChinese(config) ? "下一步：补齐项目记忆文件，然后在提交前运行 `guardian verify`。" : "Next: fill PROJECT_CONTEXT.md and run `guardian verify` before committing.");
+  console.log(isChinese(config) ? "下一步：补齐 memory/ 下的项目记忆文件，然后在提交前运行 `guardian verify`。" : "Next: fill the project memory files under memory/ and run `guardian verify` before committing.");
 }
 
 function update(root, task) {
@@ -573,8 +573,8 @@ function conflicts(root) {
     console.log("");
     console.log("Recommended resolution:");
     console.log("1. Preserve useful historical entries from both sides instead of deleting one side blindly.");
-    console.log("2. Keep `Last updated` accurate in STATE.md.");
-    console.log("3. For DECISIONS.md or docs/decisions conflicts, keep the decision reason, affected files, verification, risks, and follow-up.");
+    console.log(`2. Keep \`Last updated\` accurate in ${config.memoryFiles.state}.`);
+    console.log(`3. For ${config.memoryFiles.decisions} or ${config.memoryFiles.decisionsDirectory} conflicts, keep the decision reason, affected files, verification, risks, and follow-up.`);
     console.log("4. After resolving, run `guardian validate-docs` and `guardian verify`.");
   } else {
     console.log("");
@@ -1501,9 +1501,9 @@ Usage:
 
 Commands:
   init           Create standard project memory files, AI rules, and config. Default language is zh-CN; use --language en for English templates.
-  update         Append an AI-assisted change record and refresh STATE.md.
+  update         Append an AI-assisted change record and refresh the state memory file.
   decision add   Append a structured decision entry.
-  handover      Generate docs/HANDOVER.md from current memory and project files.
+  handover      Generate the configured handover memory file from current memory and project files.
   check         Fail when code changed but memory was not updated or is low quality.
   doctor        Audit memory files, AI rules, config, and git change state.
   validate-docs Fail when memory docs are missing required substance.

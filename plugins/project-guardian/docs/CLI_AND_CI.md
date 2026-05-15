@@ -70,7 +70,7 @@ node plugins/project-guardian/scripts/guardian.js verify
 guardian init
 ```
 
-默认语言是中文，生成 `PROJECT_CONTEXT.md`、`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md` 和 AI 规则文件时都会优先使用中文模板。
+默认语言是中文，生成 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` 和 AI 规则文件时都会优先使用中文模板。
 
 如果团队希望所有模板保持英文，可以在第一次初始化时指定：
 
@@ -135,8 +135,8 @@ guardian update "实现登录验证码"
 
 作用：
 
-- 向 `docs/AI_CHANGELOG.md` 追加本次 AI 辅助开发记录。
-- 更新 `STATE.md` 的 `Latest AI-Assisted Change`。
+- 向 `memory/AI_CHANGELOG.md` 追加本次 AI 辅助开发记录。
+- 更新 `memory/STATE.md` 的 `Latest AI-Assisted Change`。
 - 自动读取 staged、working tree、untracked 文件列表。
 - 自动写入 `git diff --stat` 摘要。
 
@@ -156,7 +156,7 @@ node plugins/project-guardian/scripts/guardian.js handover
 
 作用：
 
-- 生成或刷新 `docs/HANDOVER.md`。
+- 生成或刷新 `memory/HANDOVER.md`。
 - 汇总项目结构、当前状态、项目背景和决策快照。
 - 给新人生成第一天接手建议。
 
@@ -191,7 +191,7 @@ node plugins/project-guardian/scripts/guardian.js check
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "补充本次修改记录"
-git add STATE.md docs/AI_CHANGELOG.md
+git add memory/STATE.md memory/AI_CHANGELOG.md
 node plugins/project-guardian/scripts/guardian.js check
 ```
 
@@ -237,8 +237,8 @@ node plugins/project-guardian/scripts/guardian.js decision add --title "采用�
 
 作用：
 
-- 向 `DECISIONS.md` 追加结构化决策。
-- 同时在 `docs/decisions/` 下生成一份单独决策文件，降低多人同时改同一个决策文件的冲突概率。
+- 向 `memory/DECISIONS.md` 追加结构化决策。
+- 同时在 `memory/decisions/` 下生成一份单独决策文件，降低多人同时改同一个决策文件的冲突概率。
 - 可选字段包括 `--alternatives`、`--files`、`--related-change`、`--verification`、`--risks`、`--review-after`、`--follow-up`。
 
 建议在这些情况下记录决策：框架或库选型、重要业务规则、兼容性处理、数据模型变化、安全策略、部署方式、CI 或工作流变化。
@@ -252,7 +252,7 @@ node plugins/project-guardian/scripts/guardian.js conflicts
 作用：
 
 - 检测当前 Git merge 冲突文件。
-- 如果冲突涉及项目记忆文件，会给出保留历史、处理 `STATE.md` 更新时间、合并决策字段、重新运行验证的建议。
+- 如果冲突涉及项目记忆文件，会给出保留历史、处理 `memory/STATE.md` 更新时间、合并决策字段、重新运行验证的建议。
 - 有冲突时命令会返回失败状态，适合在手动排查时使用。
 
 ## 8. 多轮知识查询
@@ -390,7 +390,7 @@ git push
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js update "补充本次修改记录"
-git add STATE.md docs/AI_CHANGELOG.md
+git add memory/STATE.md memory/AI_CHANGELOG.md
 ```
 
 ### validate-docs 失败
@@ -399,10 +399,10 @@ git add STATE.md docs/AI_CHANGELOG.md
 
 处理：
 
-- 补齐 `PROJECT_CONTEXT.md` 的项目目标、技术栈、运行方式。
-- 补齐 `STATE.md` 的当前状态、下一步、风险。
-- 补齐 `DECISIONS.md` 的关键决策，或明确暂无关键决策。
-- 补齐 `docs/HANDOVER.md` 的运行方式和新人接手步骤。
+- 补齐 `memory/PROJECT_CONTEXT.md` 的项目目标、技术栈、运行方式。
+- 补齐 `memory/STATE.md` 的当前状态、下一步、风险。
+- 补齐 `memory/DECISIONS.md` 的关键决策，或明确暂无关键决策。
+- 补齐 `memory/HANDOVER.md` 的运行方式和新人接手步骤。
 
 ### install-ci 后 Gitee 没触发
 

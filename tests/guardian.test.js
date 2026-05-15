@@ -46,12 +46,12 @@ function writeJson(file, value) {
 function defaultConfig(overrides = {}) {
   return {
     memoryFiles: {
-      context: "PROJECT_CONTEXT.md",
-      state: "STATE.md",
-      decisions: "DECISIONS.md",
-      changelog: "docs/AI_CHANGELOG.md",
-      handover: "docs/HANDOVER.md",
-      decisionsDirectory: "docs/decisions",
+      context: "memory/PROJECT_CONTEXT.md",
+      state: "memory/STATE.md",
+      decisions: "memory/DECISIONS.md",
+      changelog: "memory/AI_CHANGELOG.md",
+      handover: "memory/HANDOVER.md",
+      decisionsDirectory: "memory/decisions",
     },
     quality: {
       requireChangedLines: false,
@@ -80,7 +80,7 @@ function defaultConfig(overrides = {}) {
 function writeValidMemory(root, configOverrides = {}) {
   writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ language: "en", ...configOverrides }));
   writeFile(
-    path.join(root, "PROJECT_CONTEXT.md"),
+    path.join(root, "memory/PROJECT_CONTEXT.md"),
     `# Project Context
 
 ## Project Summary
@@ -144,7 +144,7 @@ npm test
   );
 
   writeFile(
-    path.join(root, "STATE.md"),
+    path.join(root, "memory/STATE.md"),
     `# Project State
 
 Last updated: 2026-05-14
@@ -190,7 +190,7 @@ Last updated: 2026-05-14
   );
 
   writeFile(
-    path.join(root, "DECISIONS.md"),
+    path.join(root, "memory/DECISIONS.md"),
     `# Decisions
 
 This file records decisions that future developers and AI agents must understand.
@@ -212,7 +212,7 @@ This file records decisions that future developers and AI agents must understand
   );
 
   writeFile(
-    path.join(root, "docs", "AI_CHANGELOG.md"),
+    path.join(root, "memory", "AI_CHANGELOG.md"),
     `# AI Changelog
 
 This file records AI-assisted development context that should survive beyond a chat session.
@@ -234,7 +234,7 @@ This file records AI-assisted development context that should survive beyond a c
   );
 
   writeFile(
-    path.join(root, "docs", "HANDOVER.md"),
+    path.join(root, "memory", "HANDOVER.md"),
     `# Handover Guide
 
 Last generated: 2026-05-14
@@ -243,10 +243,10 @@ Last generated: 2026-05-14
 
 Read these files before editing code:
 
-1. PROJECT_CONTEXT.md
-2. STATE.md
-3. DECISIONS.md
-4. docs/AI_CHANGELOG.md
+1. memory/PROJECT_CONTEXT.md
+2. memory/STATE.md
+3. memory/DECISIONS.md
+4. memory/AI_CHANGELOG.md
 
 ## How To Run
 
@@ -259,8 +259,8 @@ npm test
 
 | Area | Files | Purpose |
 | --- | --- | --- |
-| memory | PROJECT_CONTEXT.md, STATE.md, DECISIONS.md | Durable context for tests |
-| docs | docs/AI_CHANGELOG.md, docs/HANDOVER.md | Change history and handover guide |
+| memory | memory/PROJECT_CONTEXT.md, memory/STATE.md, memory/DECISIONS.md | Durable context for tests |
+| docs | memory/AI_CHANGELOG.md, memory/HANDOVER.md | Change history and handover guide |
 
 ## Core Flows
 
@@ -312,12 +312,12 @@ function initGit(root) {
 test("init creates standard files and preserves existing memory", () => {
   const root = tempDir("init");
   try {
-    writeFile(path.join(root, "PROJECT_CONTEXT.md"), "custom context\n");
+    writeFile(path.join(root, "memory/PROJECT_CONTEXT.md"), "custom context\n");
     const result = run(root, ["init"]);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8"), "custom context\n");
+    assert.equal(fs.readFileSync(path.join(root, "memory/PROJECT_CONTEXT.md"), "utf8"), "custom context\n");
     assert.ok(fs.existsSync(path.join(root, "project-guardian.config.json")));
-    assert.ok(fs.existsSync(path.join(root, "docs", "AI_CHANGELOG.md")));
+    assert.ok(fs.existsSync(path.join(root, "memory", "AI_CHANGELOG.md")));
     assert.ok(fs.existsSync(path.join(root, "AGENTS.md")));
     assert.ok(fs.existsSync(path.join(root, ".cursor", "rules", "project-guardian.mdc")));
     assert.ok(fs.existsSync(path.join(root, ".cursorrules")));
@@ -331,7 +331,7 @@ test("init defaults to Chinese memory templates", () => {
   try {
     const result = run(root, ["init"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const context = fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8");
+    const context = fs.readFileSync(path.join(root, "memory/PROJECT_CONTEXT.md"), "utf8");
     const agents = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
     const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
     assert.match(context, /# 项目上下文/);
@@ -347,7 +347,7 @@ test("init --language en keeps English memory templates", () => {
   try {
     const result = run(root, ["init", "--language", "en"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const context = fs.readFileSync(path.join(root, "PROJECT_CONTEXT.md"), "utf8");
+    const context = fs.readFileSync(path.join(root, "memory/PROJECT_CONTEXT.md"), "utf8");
     const agents = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
     const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
     assert.match(context, /# Project Context/);
@@ -486,7 +486,7 @@ test("validate-docs accepts filled memory, including CRLF files", () => {
   const root = tempDir("valid-docs");
   try {
     writeValidMemory(root);
-    for (const file of ["PROJECT_CONTEXT.md", "STATE.md", "DECISIONS.md", "docs/AI_CHANGELOG.md", "docs/HANDOVER.md"]) {
+    for (const file of ["memory/PROJECT_CONTEXT.md", "memory/STATE.md", "memory/DECISIONS.md", "memory/AI_CHANGELOG.md", "memory/HANDOVER.md"]) {
       const full = path.join(root, file);
       fs.writeFileSync(full, fs.readFileSync(full, "utf8").replace(/\n/g, os.EOL), "utf8");
     }
@@ -502,7 +502,7 @@ test("validate-docs accepts filled Chinese memory", () => {
   try {
     writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ language: "zh-CN" }));
     writeFile(
-      path.join(root, "PROJECT_CONTEXT.md"),
+      path.join(root, "memory/PROJECT_CONTEXT.md"),
       `# 项目上下文
 
 ## 项目概览
@@ -568,7 +568,7 @@ npm test
 `,
     );
     writeFile(
-      path.join(root, "STATE.md"),
+      path.join(root, "memory/STATE.md"),
       `# 项目状态
 
 最后更新：2026-05-15
@@ -613,7 +613,7 @@ npm test
 `,
     );
     writeFile(
-      path.join(root, "DECISIONS.md"),
+      path.join(root, "memory/DECISIONS.md"),
       `# 决策记录
 
 ## 有效决策
@@ -632,7 +632,7 @@ npm test
 `,
     );
     writeFile(
-      path.join(root, "docs", "AI_CHANGELOG.md"),
+      path.join(root, "memory", "AI_CHANGELOG.md"),
       `# AI 变更日志
 
 ## 2026 记录
@@ -651,17 +651,17 @@ npm test
 `,
     );
     writeFile(
-      path.join(root, "docs", "HANDOVER.md"),
+      path.join(root, "memory", "HANDOVER.md"),
       `# 交接指南
 
 最后生成：2026-05-15
 
 ## 优先阅读
 
-1. PROJECT_CONTEXT.md
-2. STATE.md
-3. DECISIONS.md
-4. docs/AI_CHANGELOG.md
+1. memory/PROJECT_CONTEXT.md
+2. memory/STATE.md
+3. memory/DECISIONS.md
+4. memory/AI_CHANGELOG.md
 
 ## 如何运行
 
@@ -673,7 +673,7 @@ guardian verify
 
 | 区域 | 文件 | 用途 |
 | --- | --- | --- |
-| 记忆 | PROJECT_CONTEXT.md, STATE.md | 中文上下文 |
+| 记忆 | memory/PROJECT_CONTEXT.md, memory/STATE.md | 中文上下文 |
 
 ## 核心流程
 
@@ -731,8 +731,8 @@ test("check blocks staged memory that still contains new TODO content", () => {
     writeValidMemory(root);
     initGit(root);
     writeFile(path.join(root, "src", "app.js"), "console.log('hello');\n");
-    fs.appendFileSync(path.join(root, "docs", "AI_CHANGELOG.md"), "\n- Next step: TODO fill this before commit.\n", "utf8");
-    git(root, ["add", "src/app.js", "docs/AI_CHANGELOG.md"]);
+    fs.appendFileSync(path.join(root, "memory", "AI_CHANGELOG.md"), "\n- Next step: TODO fill this before commit.\n", "utf8");
+    git(root, ["add", "src/app.js", "memory/AI_CHANGELOG.md"]);
     const result = run(root, ["check"]);
     assert.notEqual(result.status, 0);
     assert.match(`${result.stdout}\n${result.stderr}`, /latest changelog entry must not contain TODO|memory document quality issues/i);
@@ -741,14 +741,14 @@ test("check blocks staged memory that still contains new TODO content", () => {
   }
 });
 
-test("check treats docs/decisions entries as memory updates", () => {
+test("check treats memory/decisions entries as memory updates", () => {
   const root = tempDir("check-decision-file-memory");
   try {
     writeValidMemory(root);
     initGit(root);
     writeFile(path.join(root, "src", "app.js"), "console.log('hello');\n");
-    writeFile(path.join(root, "docs", "decisions", "2026-05-14-test-decision.md"), "# Test decision\n\nThe source change is covered by a decision note.\n");
-    git(root, ["add", "src/app.js", "docs/decisions/2026-05-14-test-decision.md"]);
+    writeFile(path.join(root, "memory", "decisions", "2026-05-14-test-decision.md"), "# Test decision\n\nThe source change is covered by a decision note.\n");
+    git(root, ["add", "src/app.js", "memory/decisions/2026-05-14-test-decision.md"]);
     const result = run(root, ["check"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   } finally {
@@ -773,8 +773,8 @@ test("decision add appends a structured decision", () => {
       "Run guardian doctor.",
     ]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(fs.readFileSync(path.join(root, "DECISIONS.md"), "utf8"), /Use JSON config/);
-    assert.ok(fs.readdirSync(path.join(root, "docs", "decisions")).some((file) => file.includes("use-json-config")));
+    assert.match(fs.readFileSync(path.join(root, "memory/DECISIONS.md"), "utf8"), /Use JSON config/);
+    assert.ok(fs.readdirSync(path.join(root, "memory", "decisions")).some((file) => file.includes("use-json-config")));
     assert.equal(run(root, ["validate-docs"]).status, 0);
   } finally {
     cleanup(root);
@@ -799,10 +799,10 @@ test("decision add uses Chinese fields for Chinese projects", () => {
       "运行中文初始化测试。",
     ]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const decisions = fs.readFileSync(path.join(root, "DECISIONS.md"), "utf8");
+    const decisions = fs.readFileSync(path.join(root, "memory/DECISIONS.md"), "utf8");
     assert.match(decisions, /- 背景：团队主要使用中文交接。/);
     assert.match(decisions, /- 决策：默认生成中文项目记忆。/);
-    assert.match(decisions, /- 决策文件：`docs\/decisions\//);
+    assert.match(decisions, /- 决策文件：`memory\/decisions\//);
   } finally {
     cleanup(root);
   }
@@ -847,7 +847,7 @@ test("scan-secrets detects suspicious values and redacts output", () => {
   try {
     writeValidMemory(root);
     const fakeValue = "abcdEFGH1234_SECRET";
-    fs.appendFileSync(path.join(root, "docs", "AI_CHANGELOG.md"), `\n- Debug note: api_key=${fakeValue}\n`, "utf8");
+    fs.appendFileSync(path.join(root, "memory", "AI_CHANGELOG.md"), `\n- Debug note: api_key=${fakeValue}\n`, "utf8");
     const result = run(root, ["scan-secrets"]);
     assert.notEqual(result.status, 0);
     assert.match(`${result.stdout}\n${result.stderr}`, /keyword-secret/);
@@ -861,10 +861,10 @@ test("scan-secrets includes per-decision files", () => {
   const root = tempDir("secret-scan-decisions");
   try {
     writeValidMemory(root);
-    writeFile(path.join(root, "docs", "decisions", "2026-05-14-risk.md"), "# Risk\n\napi_key=ZZZZyyyy1234_SECRET\n");
+    writeFile(path.join(root, "memory", "decisions", "2026-05-14-risk.md"), "# Risk\n\napi_key=ZZZZyyyy1234_SECRET\n");
     const result = run(root, ["scan-secrets"]);
     assert.notEqual(result.status, 0);
-    assert.match(`${result.stdout}\n${result.stderr}`, /docs\/decisions\/2026-05-14-risk\.md/);
+    assert.match(`${result.stdout}\n${result.stderr}`, /memory\/decisions\/2026-05-14-risk\.md/);
     assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /ZZZZyyyy1234_SECRET/);
   } finally {
     cleanup(root);
@@ -889,7 +889,7 @@ test("query supports Chinese keywords", () => {
     const initResult = run(root, ["init"]);
     assert.equal(initResult.status, 0, `${initResult.stdout}\n${initResult.stderr}`);
     writeFile(
-      path.join(root, "PROJECT_CONTEXT.md"),
+      path.join(root, "memory/PROJECT_CONTEXT.md"),
       "# 项目上下文\n\n## 项目概览\n\n验证码登录模块负责短信验证码校验和登录风控。\n",
     );
     const result = run(root, ["query", "验证码登录"]);
@@ -909,12 +909,12 @@ test("conflicts reports memory merge conflicts", () => {
     git(root, ["add", "."]);
     git(root, ["commit", "-m", "initial memory"]);
     git(root, ["checkout", "-b", "other"]);
-    fs.writeFileSync(path.join(root, "STATE.md"), fs.readFileSync(path.join(root, "STATE.md"), "utf8").replace("The test project has enough filled memory", "The other branch has enough filled memory"), "utf8");
-    git(root, ["add", "STATE.md"]);
+    fs.writeFileSync(path.join(root, "memory/STATE.md"), fs.readFileSync(path.join(root, "memory/STATE.md"), "utf8").replace("The test project has enough filled memory", "The other branch has enough filled memory"), "utf8");
+    git(root, ["add", "memory/STATE.md"]);
     git(root, ["commit", "-m", "other state"]);
     git(root, ["checkout", "master"]);
-    fs.writeFileSync(path.join(root, "STATE.md"), fs.readFileSync(path.join(root, "STATE.md"), "utf8").replace("The test project has enough filled memory", "The master branch has enough filled memory"), "utf8");
-    git(root, ["add", "STATE.md"]);
+    fs.writeFileSync(path.join(root, "memory/STATE.md"), fs.readFileSync(path.join(root, "memory/STATE.md"), "utf8").replace("The test project has enough filled memory", "The master branch has enough filled memory"), "utf8");
+    git(root, ["add", "memory/STATE.md"]);
     git(root, ["commit", "-m", "master state"]);
     assert.notEqual(gitResult(root, ["merge", "other"]).status, 0);
 

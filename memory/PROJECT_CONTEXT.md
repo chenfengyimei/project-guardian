@@ -38,13 +38,13 @@
 
 4. 保存交接和决策上下文。
    - 入口：`guardian update`、`guardian handover` 和 `guardian decision add`。
-   - 重要文件：`STATE.md`、`DECISIONS.md`、`docs/AI_CHANGELOG.md`、`docs/HANDOVER.md`。
+   - 重要文件：`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`。
    - 规则：每次 AI 协助变更都应说明改了什么、为什么改、如何验证、剩余风险是什么，以及下一位开发者需要知道什么。
    - 已知边界情况：刚运行 `init` 后的输出故意是不完整模板，团队填入真实项目上下文前应无法通过校验。
 
 5. 处理项目记忆冲突。
    - 入口：`guardian conflicts`。
-   - 重要文件：Git 冲突状态、根目录记忆文件和 `docs/decisions/*.md`。
+   - 重要文件：Git 冲突状态、`memory/` 下的项目记忆文件和 `memory/decisions/*.md`。
    - 规则：保留冲突双方有价值的历史记录，确保状态日期准确，解决后重新运行 `guardian verify`。
    - 已知边界情况：只有 Git 记录到未解决冲突后，命令才能检测到冲突；普通工作区会显示无冲突。
 
@@ -70,10 +70,11 @@
 | 对象 | 重要字段 | 备注 |
 | --- | --- | --- |
 | 项目记忆 | 上下文、状态、决策、变更日志、交接指南 | 以 Markdown 文件保存，方便人和 AI 直接阅读 |
+| 记忆目录 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | CLI 默认生成和维护的位置，用于避免根目录被项目记忆文件占满 |
 | Guardian 配置 | 记忆路径、质量规则、hook 行为、CI 默认值、安全扫描开关、默认适配器、忽略路径 | 存放在 `project-guardian.config.json`，默认零配置可用 |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
-| 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `DECISIONS.md`，也可以同步生成单独决策文件 |
-| 决策文件 | 每个重要决策一份 Markdown 文件 | 使用 `guardian decision add` 时存放在 `docs/decisions/` |
+| 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |
+| 决策文件 | 每个重要决策一份 Markdown 文件 | 使用 `guardian decision add` 时存放在 `memory/decisions/` |
 | 查询文档 | 文件路径、片段文本、分数 | 运行时从记忆文件、源码文件、Markdown/YAML 文件和 Git 历史构建 |
 
 ## 如何运行

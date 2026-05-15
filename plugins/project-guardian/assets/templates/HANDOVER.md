@@ -6,10 +6,10 @@ Last generated:
 
 Read these files before editing code:
 
-1. `PROJECT_CONTEXT.md`
-2. `STATE.md`
-3. `DECISIONS.md`
-4. `docs/AI_CHANGELOG.md`
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+3. `memory/DECISIONS.md`
+4. `memory/AI_CHANGELOG.md`
 
 ## How To Run
 
@@ -46,5 +46,5 @@ Read these files before editing code:
 1. Read project memory.
 2. Run the project locally.
 3. Run tests or smoke checks.
-4. Pick one small issue from `STATE.md`.
+4. Pick one small issue from `memory/STATE.md`.
 5. Update project memory after the change.
