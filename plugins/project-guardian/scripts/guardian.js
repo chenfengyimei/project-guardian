@@ -6,6 +6,7 @@ const path = require("path");
 const readline = require("readline");
 const { execFileSync } = require("child_process");
 const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters, validateAdapters } = require("./lib/adapters");
+const { runMcpServer } = require("./lib/mcp");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -121,6 +122,9 @@ async function main() {
       } else {
         fail("Unknown adapters command. Use: guardian adapters doctor");
       }
+      break;
+    case "mcp":
+      runMcpServer({ root, guardianScript: __filename });
       break;
     case "install-hooks":
       installHooks(root);
@@ -813,6 +817,7 @@ function addPackageScripts(packagePath) {
       "guardian:conflicts": `${runner} conflicts`,
       "guardian:adapters-doctor": `${runner} adapters doctor`,
       "guardian:install-adapters": `${runner} install-adapters`,
+      "guardian:mcp": `${runner} mcp`,
       "guardian:install-ci": `${runner} install-ci`,
     };
     for (const [name, command] of Object.entries(scripts)) {
@@ -1547,6 +1552,7 @@ Usage:
   guardian conflicts
   guardian install-adapters --adapter cursor,copilot
   guardian adapters doctor
+  guardian mcp
   guardian install-hooks
   guardian install-ci
 
@@ -1564,6 +1570,7 @@ Commands:
   conflicts     Show Git merge conflicts and memory conflict resolution advice.
   install-adapters Install AI-tool rule adapters: ${SUPPORTED_ADAPTERS.join(", ")}, or all.
   adapters doctor Show which AI IDE adapters are installed or missing.
+  mcp           Start a stdio MCP server exposing Project Guardian tools.
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
 `);

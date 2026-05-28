@@ -31,25 +31,31 @@
    - 规则：适配器文件告诉 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 和通用 AI Agent 先读取并维护 Project Guardian 记忆；已有适配器文件必须保留。
    - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。VS Code 当前通过 tasks 和 Copilot instructions 适配，不是原生 VS Code 扩展，tasks 默认要求 `guardian` 命令可用。
 
-3. 在提交前执行记忆质量闸门。
+3. 通过 MCP 让 AI IDE 直接调用 Project Guardian。
+   - 入口：`guardian mcp`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`。
+   - 规则：MCP server 通过 stdio JSON-RPC 暴露 `guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts` 和 `guardian_adapters_doctor`。
+   - 已知边界情况：MCP 当前不引入外部 SDK 和权限系统，仍依赖本地 Git 权限、仓库权限和人工评审；支持 MCP 的 IDE 需要配置 `guardian mcp` 或本地脚本路径。
+
+4. 在提交前执行记忆质量闸门。
    - 入口：`guardian check`、`guardian validate-docs` 和 `guardian verify`。
    - 重要文件：`plugins/project-guardian/scripts/guardian.js`、`project-guardian.config.json`、`.guardianignore`。
    - 规则：代码变更通常应带上有意义的记忆更新；记忆文件不能停留在空模板；疑似密钥不能写入记忆。
    - 已知边界情况：纯格式化或元数据变更可能不需要更新记忆；团队可以通过配置调整忽略路径和质量规则。
 
-4. 保存交接和决策上下文。
+5. 保存交接和决策上下文。
    - 入口：`guardian update`、`guardian handover` 和 `guardian decision add`。
    - 重要文件：`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`。
    - 规则：每次 AI 协助变更都应说明改了什么、为什么改、如何验证、剩余风险是什么，以及下一位开发者需要知道什么。
    - 已知边界情况：刚运行 `init` 后的输出故意是不完整模板，团队填入真实项目上下文前应无法通过校验。
 
-5. 处理项目记忆冲突。
+6. 处理项目记忆冲突。
    - 入口：`guardian conflicts`。
    - 重要文件：Git 冲突状态、`memory/` 下的项目记忆文件和 `memory/decisions/*.md`。
    - 规则：保留冲突双方有价值的历史记录，确保状态日期准确，解决后重新运行 `guardian verify`。
    - 已知边界情况：只有 Git 记录到未解决冲突后，命令才能检测到冲突；普通工作区会显示无冲突。
 
-6. 查询本地项目知识。
+7. 查询本地项目知识。
    - 入口：`guardian query` 和 `guardian query "问题"`。
    - 重要文件：记忆文件、源码文件、Markdown 文件、YAML 文件和最近 Git 历史。
    - 规则：当前查询是本地关键词检索，不是托管 AI 服务；结果应显示来源路径，方便开发者核实。
@@ -74,6 +80,7 @@
 | 记忆目录 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | CLI 默认生成和维护的位置，用于避免根目录被项目记忆文件占满 |
 | Guardian 配置 | 记忆路径、质量规则、hook 行为、CI 默认值、安全扫描开关、默认适配器、忽略路径 | 存放在 `project-guardian.config.json`，默认零配置可用 |
 | AI IDE 适配器 | adapter 名称、目标文件、模板文件、安装状态 | 由 `scripts/lib/adapters.js` 维护，`guardian adapters doctor` 输出当前状态 |
+| MCP 工具 | 工具名、输入 schema、CLI 子命令映射、返回文本 | 由 `scripts/lib/mcp.js` 维护，支持 MCP 的 IDE 通过 stdio 调用 |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
 | 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |
 | 决策文件 | 每个重要决策一份 Markdown 文件 | 使用 `guardian decision add` 时存放在 `memory/decisions/` |

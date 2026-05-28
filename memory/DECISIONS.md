@@ -88,5 +88,18 @@
 - 验证方式：运行 npm.cmd run lint、npm.cmd test、guardian adapters doctor、guardian verify 和 npm.cmd pack --dry-run。
 - 风险：规则文件适配依赖各 IDE 当前约定；VS Code 目前是 tasks + Copilot instructions，不是原生扩展；后续如 IDE 规则格式变化，需要更新模板。
 - 复审时间：2026-06-15
-- 后续动作：后续评估 guardian mcp，再考虑 VS Code 扩展或 JetBrains 插件。
+- 后续动作：guardian mcp 已在 2026-05-28 实现；后续观察真实 IDE 接入反馈，再考虑 VS Code 扩展或 JetBrains 插件。
 - 决策文件：`memory/decisions/2026-05-15-ai-ide.md`
+
+### 2026-05-28 - Expose Project Guardian MCP server
+
+- 背景：AI IDE 规则文件可以提醒模型读取项目记忆，但不能直接调用 Project Guardian 的查询、更新、验证和决策记录能力。
+- 决策：新增 `guardian mcp` stdio MCP server，使用独立 `scripts/lib/mcp.js` 维护工具定义和 CLI 子命令映射；主 CLI 只负责分发 `mcp` 命令。
+- 备选方案：暂时只保留规则文件适配器；引入 MCP SDK 依赖；或为每个 IDE 分别开发原生插件。
+- 影响文件/模块：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`。
+- 关联变更：MCP 暴露 `guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts` 和 `guardian_adapters_doctor`。
+- 验证方式：运行 lint、Node 测试套件、MCP initialize/tools/list/tools/call 冒烟测试和完整 `guardian verify`。
+- 风险：当前 MCP 没有独立权限系统，工具调用会执行本地 Guardian 命令；接入时必须依赖本地仓库权限、Git 权限、代码评审和密钥扫描。
+- 复审时间：2026-06-28。
+- 后续动作：观察真实 IDE 接入反馈，再考虑 MCP prompts/resources、权限细化或官方 SDK 集成。
+- 决策文件：`memory/decisions/2026-05-28-mcp.md`

@@ -32,7 +32,7 @@
     "cli"
   ],
   "scripts": {
-    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check tests/guardian.test.js",
+    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check plugins/project-guardian/scripts/lib/mcp.js && node --check tests/guardian.test.js",
     "test": "node --test tests/guardian.test.js",
     "verify": "npm run lint && npm test && node plugins/project-guardian/scripts/guardian.js verify"
   }

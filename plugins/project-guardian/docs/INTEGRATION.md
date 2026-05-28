@@ -94,7 +94,7 @@ node plugins/project-guardian/scripts/guardian.js init
 - Node.js 18 或更新版本。
 - Git。正式项目建议先 `git init` 或使用已有代码仓库；`check`、`update`、`verify`、hooks 和 CI 都依赖 Git 状态。
 - npm。只有全局安装 CLI、运行测试或发布包时需要；业务项目本身不必须是 Node 项目。
-- 不需要数据库、后端服务、OpenAI API Key 或向量库。当前版本的 `query` 是本地关键词检索，后续才考虑 RAG/MCP。
+- 不需要数据库、后端服务、OpenAI API Key 或向量库。当前版本的 `query` 是本地关键词检索；MCP 已提供 stdio 工具入口，RAG/向量检索仍属于后续增强。
 
 ### 3.1 放入插件
 
@@ -158,13 +158,14 @@ guardian init
 
 ### 3.4 AI IDE 适配方式
 
-Project Guardian 的最稳定调用方式是 CLI：任何能打开终端并运行 Node.js 的 IDE 都能执行 `guardian init`、`guardian update`、`guardian verify` 和 `guardian query`。
+Project Guardian 的最稳定调用方式是 CLI：任何能打开终端并运行 Node.js 的 IDE 都能执行 `guardian init`、`guardian update`、`guardian verify` 和 `guardian query`。支持 MCP 的 AI IDE 还可以通过 `guardian mcp` 直接调用 Project Guardian 工具。
 
 规则文件适配器用于让不同 AI IDE 在回答或修改代码前自动读取项目记忆：
 
 | 适配器 | 面向工具 | 生成文件 |
 | --- | --- | --- |
 | `generic` | 通用 AI Agent | `AGENTS.md` |
+| `mcp` | 支持 MCP 的 AI IDE | 不生成规则文件，运行 `guardian mcp` |
 | `codex` | OpenAI Codex | `AGENTS.md` |
 | `cursor` | Cursor | `.cursor/rules/project-guardian.mdc`、`.cursorrules` |
 | `copilot` | GitHub Copilot | `.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` |
@@ -186,7 +187,39 @@ guardian adapters doctor
 
 VS Code tasks 默认调用 `guardian`，所以在 VS Code 里运行任务前要先确认终端能执行 `guardian --version`。如果你的团队没有全局安装 CLI，而是把插件源码复制到项目内，请使用终端里的本地脚本路径，或把 `.vscode/tasks.json` 中的命令改成 `node plugins/project-guardian/scripts/guardian.js ...`。
 
-### 3.5 运行体检
+### 3.5 MCP 接入方式
+
+如果你的 AI IDE 支持 MCP，可以优先接入 `guardian mcp`。它会暴露查询、更新、决策、验证、密钥扫描、交接和适配器体检工具。
+
+全局 CLI：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "guardian",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+项目内源码：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "node",
+      "args": ["plugins/project-guardian/scripts/guardian.js", "mcp"]
+    }
+  }
+}
+```
+
+第一次接入后，先让 AI 调用 `guardian_doctor` 或 `guardian_query`，确认 MCP server 已经能读取当前项目。
+
+### 3.6 运行体检
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js doctor
@@ -194,7 +227,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 
 看到 `Core memory files: ok` 表示核心记忆文件齐全。
 
-### 3.6 补齐第一版项目记忆
+### 3.7 补齐第一版项目记忆
 
 推荐让 AI 先读代码后补齐：
 

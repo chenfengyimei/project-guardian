@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-05-28 00:00 - 新增 MCP 工具入口
+
+- 用户需求：继续完善当前插件的功能。
+- AI 总结：新增 `guardian mcp` stdio MCP server，不引入第三方依赖，通过 MCP 暴露 `guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts` 和 `guardian_adapters_doctor`；补充 MCP 文档、测试、文件总览和项目记忆。
+- 变更文件：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`plugins/project-guardian/docs/INTEGRATION.md`、`plugins/project-guardian/docs/STANDARD.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`零基础超简单入门.md`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`。
+- 业务原因：规则文件只能提醒 AI 阅读项目记忆，MCP 可以让支持 MCP 的 AI IDE 直接调用查询、更新、验证和决策记录工具，减少手工切换终端的摩擦。
+- 技术说明：MCP server 使用 stdio JSON-RPC，主 CLI 只增加 `mcp` 分发，具体工具定义和 CLI 子命令映射放在 `scripts/lib/mcp.js`。工具调用通过子进程执行既有 Guardian 命令，避免重复实现业务逻辑。
+- 验证方式：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和真实 stdio MCP 冒烟测试；新增 MCP initialize、tools/list 和 `guardian_query` 回归测试。
+- 风险：MCP 当前没有独立权限系统，接入后能执行本地 Guardian 命令；团队仍需依赖本地仓库权限、Git 权限、代码评审和 `guardian verify`。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：提交到 Gitee 前复查 `git status`，确认新增 MCP 文件、测试、文档和记忆文件一起提交。
+
 ### 2026-05-15 00:00 - 完整审查启动、适配和环境说明
 
 - 用户需求：全面检测代码是否正确、文档是否更新最新内容、用户如何启动和适配、是否有大变化、环境要求，以及是否存在漏洞、缺点或小风险，并一并修复。
@@ -24,9 +36,9 @@
 - 业务原因：Project Guardian 应作为跨 IDE 的项目记忆工作流，而不是只绑定 Codex；团队需要知道当前项目到底安装了哪些 AI 工具规则。
 - 技术说明：CLI 仍是最稳定通用层。规则文件适配器只生成提示和任务文件，不默认生成所有 IDE 配置；已有同名文件仍会保留。`renderTemplate` 会把模板里的默认 `memory/...` 替换为项目配置中的真实路径。
 - 验证方式：运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js adapters doctor`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd pack --dry-run` 和临时目录适配器冒烟测试。
-- 风险：各 IDE 的规则文件格式可能演进；VS Code 当前是 tasks + Copilot instructions，不是原生扩展；MCP Server 尚未实现。
+- 风险：各 IDE 的规则文件格式可能演进；VS Code 当前是 tasks + Copilot instructions，不是原生扩展；MCP Server 已在 2026-05-28 变更中实现，但仍需要真实 IDE 联调反馈。
 - 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
-- 下一步：后续优先评估 `guardian mcp`，再考虑原生 VS Code 或 JetBrains 插件。
+- 下一步：后续优先评估 MCP prompts/resources、权限细化，再考虑原生 VS Code 或 JetBrains 插件。
 
 ### 2026-05-15 00:00 - 迁移项目记忆到 memory 目录
 

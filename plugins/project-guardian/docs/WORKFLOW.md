@@ -189,6 +189,8 @@ guardian init --adapter all
 
 这些适配规则只告诉不同 AI 工具如何读取 Project Guardian 记忆，不会覆盖已有项目记忆文件。
 
+如果 AI IDE 支持 MCP，也可以接入 `guardian mcp`，让 IDE 直接调用查询、更新、验证、交接和安全扫描工具。MCP 不会生成额外记忆文件，仍然读取和维护 `memory/` 目录下的标准项目记忆。
+
 ### 4.1 init 不会覆盖已有记忆
 
 如果项目里已经有同名文件，`init` 会保留已有文件，不会覆盖。
@@ -228,6 +230,7 @@ npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:query
+npm run guardian:mcp
 ```
 
 如果不是 Node 项目，也可以直接使用 `node plugins/project-guardian/scripts/guardian.js <命令>`。

@@ -1,6 +1,6 @@
 ---
 name: project-guardian
-description: Maintain durable project memory for AI-assisted coding projects, including context files, state tracking, decisions, handover guides, and multi-turn self-service project knowledge lookup.
+description: Maintain durable project memory for AI-assisted coding projects, including context files, state tracking, decisions, handover guides, MCP tools, and multi-turn self-service project knowledge lookup.
 ---
 
 # Project Guardian
@@ -55,6 +55,8 @@ When users ask how to adopt or standardize the plugin, reference:
 - `plugins/project-guardian/docs/INTEGRATION.md`
 - `plugins/project-guardian/docs/STANDARD.md`
 - `plugins/project-guardian/docs/CLI_AND_CI.md`
+
+If the user asks about MCP or direct AI IDE tool calls, mention `guardian mcp` and the MCP setup examples in `CLI_AND_CI.md` and `INTEGRATION.md`.
 
 ## Recording Standard
 

@@ -39,6 +39,7 @@ guardian verify
 guardian decision add --title "决策标题" --context "背景" --decision "决定"
 guardian conflicts
 guardian query
+guardian mcp
 guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
 guardian adapters doctor
 guardian install-hooks
@@ -54,6 +55,7 @@ npm run guardian:handover
 npm run guardian:check
 npm run guardian:validate-docs
 npm run guardian:query
+npm run guardian:mcp
 npm run guardian:adapters-doctor
 npm run guardian:install-ci
 ```
@@ -143,6 +145,52 @@ guardian adapters doctor
 - 显示每个适配器需要的规则文件。
 - 给出缺失适配器的安装命令。
 - 提醒 VS Code 当前是 tasks + Copilot instructions，不是原生 VS Code 扩展。
+
+### 2.3 MCP server
+
+```bash
+guardian mcp
+```
+
+`mcp` 会启动一个 stdio MCP server，让支持 MCP 的 AI IDE 直接调用 Project Guardian，而不是只依赖规则文件提示。
+
+MCP 工具列表：
+
+- `guardian_query`：查询项目记忆、源码片段和最近 Git 历史。
+- `guardian_update`：记录一次 AI 协助变更并刷新状态。
+- `guardian_decision_add`：新增结构化决策。
+- `guardian_verify`：运行完整质量闸门。
+- `guardian_doctor`：检查接入状态和 Git 变更状态。
+- `guardian_scan_secrets`：扫描记忆文件中的疑似密钥。
+- `guardian_handover`：生成或刷新交接指南。
+- `guardian_conflicts`：查看合并冲突和记忆冲突建议。
+- `guardian_adapters_doctor`：查看 AI IDE 适配器状态。
+
+全局 CLI 配置示例：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "guardian",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+项目内源码模式配置示例：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "node",
+      "args": ["plugins/project-guardian/scripts/guardian.js", "mcp"]
+    }
+  }
+}
+```
 
 ## 3. 体检命令
 

@@ -339,11 +339,30 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 
 默认配置应保持零门槛可用。只有团队确实需要不同目录、任务编号或 CI 分支时才修改配置。
 
-## 12. 当前限制和风险
+## 12. MCP 标准
+
+`guardian mcp` 是 Project Guardian 的 stdio MCP 入口。它不创建文件，而是让支持 MCP 的 AI IDE 直接调用项目记忆工具。
+
+当前标准工具：
+
+- `guardian_query`
+- `guardian_update`
+- `guardian_decision_add`
+- `guardian_verify`
+- `guardian_doctor`
+- `guardian_scan_secrets`
+- `guardian_handover`
+- `guardian_conflicts`
+- `guardian_adapters_doctor`
+
+MCP 工具调用仍然要遵守项目记忆标准：修改代码后必须更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`；重要决策必须记录到 `memory/DECISIONS.md` 或 `memory/decisions/`；敏感信息不能写入记忆。
+
+## 13. 当前限制和风险
 
 - CLI 需要 Node.js 18 或更新版本；`check`、`update`、`verify`、hooks 和 CI 需要 Git。
 - Project Guardian 不依赖 Codex 才能使用；Codex 只是支持度最高的插件形态。其它 IDE 主要通过 CLI 和规则文件适配。
 - VS Code 当前是 `.vscode/tasks.json` 加 Copilot instructions，不是原生 VS Code 扩展。任务默认调用 `guardian`，使用前要保证 CLI 在 PATH 中。
+- MCP 当前是 stdio JSON-RPC 入口，不包含权限系统；接入公开仓库或多人环境时，要继续依赖 Git 权限和代码评审。
 - `query` 是本地关键词检索，不是语义向量检索；表达差异大时可能搜不到，需要换关键词或查看来源文件。
 - 各 AI IDE 的规则文件约定可能变化，新增或升级 IDE 后要运行 `guardian adapters doctor` 并复核官方文档。
 - 记忆文件不能写入生产密码、真实 token、客户隐私或私钥；提交前运行 `guardian verify`，并保留人工复核。

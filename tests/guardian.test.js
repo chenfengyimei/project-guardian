@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { execFileSync, spawnSync } = require("node:child_process");
+const { execFileSync, spawn, spawnSync } = require("node:child_process");
 const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
@@ -23,6 +23,64 @@ function run(cwd, args) {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NO_COLOR: "1" },
+  });
+}
+
+function runMcpSession(cwd, messages, expectedResponses) {
+  return new Promise((resolve, reject) => {
+    const child = spawnMcp(cwd);
+    const responses = [];
+    let stderr = "";
+    const timer = setTimeout(() => {
+      finish(new Error(`MCP session timed out. stderr=${stderr}`));
+    }, 5000);
+    let done = false;
+
+    function finish(error) {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      child.stdin.end();
+      const settle = () => {
+        if (error) reject(error);
+        else resolve(responses);
+      };
+      if (child.exitCode !== null || child.signalCode !== null) {
+        settle();
+        return;
+      }
+      child.once("close", settle);
+      if (!child.killed) child.kill();
+    }
+
+    child.stdout.on("data", (chunk) => {
+      for (const line of chunk.toString().split(/\r?\n/).filter(Boolean)) {
+        responses.push(JSON.parse(line));
+      }
+      if (responses.length >= expectedResponses) {
+        finish();
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (error) => {
+      finish(error);
+    });
+    child.on("close", (code) => {
+      if (!done && code !== 0) finish(new Error(`MCP server exited with ${code}. stderr=${stderr}`));
+    });
+
+    for (const message of messages) child.stdin.write(`${JSON.stringify(message)}\n`);
+  });
+}
+
+function spawnMcp(cwd) {
+  return spawn(process.execPath, [guardian, "mcp"], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, NO_COLOR: "1" },
+    stdio: ["pipe", "pipe", "pipe"],
   });
 }
 
@@ -378,6 +436,7 @@ test("init adds portable package scripts when CLI is external to the target proj
     const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
     assert.equal(pkg.scripts["guardian:verify"], "guardian verify");
     assert.equal(pkg.scripts["guardian:adapters-doctor"], "guardian adapters doctor");
+    assert.equal(pkg.scripts["guardian:mcp"], "guardian mcp");
     assert.doesNotMatch(pkg.scripts["guardian:verify"], /\.\.\//);
   } finally {
     cleanup(root);
@@ -517,6 +576,41 @@ test("adapters doctor reports installed and missing adapters", () => {
     assert.match(result.stdout, /cursor \(Cursor\): installed/);
     assert.match(result.stdout, /claude \(Claude Code\): missing/);
     assert.match(result.stdout, /guardian install-adapters --adapter claude/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp server exposes Project Guardian tools", async () => {
+  const root = tempDir("mcp-tools");
+  try {
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+    ], 2);
+    assert.equal(responses[0].result.serverInfo.name, "project-guardian");
+    const toolNames = responses[1].result.tools.map((tool) => tool.name);
+    assert.ok(toolNames.includes("guardian_query"));
+    assert.ok(toolNames.includes("guardian_verify"));
+    assert.ok(toolNames.includes("guardian_adapters_doctor"));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp query tool returns CLI output", async () => {
+  const root = tempDir("mcp-query");
+  try {
+    writeValidMemory(root);
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "guardian_query", arguments: { question: "memory workflow" } } },
+    ], 2);
+    assert.equal(responses[1].result.isError, false);
+    assert.match(responses[1].result.content[0].text, /Source:/);
+    assert.match(responses[1].result.content[0].text, /memory\/PROJECT_CONTEXT\.md/);
   } finally {
     cleanup(root);
   }

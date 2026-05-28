@@ -29,6 +29,9 @@ guardian help
 guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
 guardian adapters doctor
 
+# 给支持 MCP 的 AI IDE 调用
+guardian mcp
+
 # 运行完整本地质量闸门
 guardian verify
 
@@ -42,7 +45,7 @@ npm.cmd test
 | --- | --- | --- |
 | 插件元数据 | `plugins/project-guardian/.codex-plugin/plugin.json`、`.agents/plugins/marketplace.json` | 让 Codex 发现和安装本地插件 |
 | Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | 告诉 Codex 在回答或编辑前如何使用项目记忆 |
-| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js` | 实现 init、update、handover、check、validation、query、hooks、CI、decisions、conflicts、verify、安全扫描、AI 工具适配器解析和 adapters doctor |
+| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/mcp.js` | 实现 init、update、handover、check、validation、query、mcp、hooks、CI、decisions、conflicts、verify、安全扫描、AI 工具适配器解析和 adapters doctor |
 | 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件、AI 工具规则和 VS Code tasks |
 | 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
 | 测试 | `package.json`、`tests/guardian.test.js` | 使用临时仓库运行语法检查和命令行为测试 |
@@ -56,6 +59,7 @@ npm.cmd test
 - 冲突处理：运行 `guardian conflicts`，解决代码和记忆冲突，保留双方有价值的历史，再重新运行 `guardian verify`。
 - 交接：运行 `guardian update`，运行 `guardian handover`，审阅生成的交接指南，运行 `guardian verify`，然后推送。
 - CI 接入：运行 `guardian install-ci`，审阅生成的 `.workflow/project-guardian.yml`，并按需通过配置调整分支或 Node 版本。
+- MCP 接入：支持 MCP 的 AI IDE 使用 `guardian mcp`；没有全局 CLI 时使用 `node plugins/project-guardian/scripts/guardian.js mcp`。
 
 ## 常见问题
 
@@ -67,6 +71,7 @@ npm.cmd test
 | Query 回答不完整 | 当前 query 是关键词检索 | 使用文件名或业务关键词提问，然后查看列出的来源路径 |
 | 英文 init 生成中文 AI 规则 | 旧版语言处理没有把 init 参数传给适配器生成 | 使用当前 CLI，并运行覆盖 `guardian init --language en` 的回归测试 |
 | VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian`，但 CLI 没在 PATH 中 | 先运行 `guardian --version` 确认可用；源码内置模式可改用本地 `node plugins/project-guardian/scripts/guardian.js ...` |
+| MCP 工具调用没有结果 | IDE 没有正确配置 stdio 命令或工作目录 | 先在项目根目录手动运行 `guardian mcp`，再检查 IDE 的 MCP 配置 |
 
 ## 风险区域
 
@@ -74,6 +79,7 @@ npm.cmd test
 - 校验规则应该阻止空模板，但不能强迫团队写过量文档。
 - 安全扫描必须隐藏敏感值，并允许通过 `.guardianignore` 对无害示例做排除。
 - Gitee 工作流生成必须保持可配置，因为组织之间的分支名和流水线语法可能不同。
+- MCP 当前没有独立权限系统，接入后仍需依赖本地仓库权限、Git 权限、代码评审和 `guardian verify`。
 
 ## 新人第一天
 

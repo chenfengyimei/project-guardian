@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-05-15
+最后更新：2026-05-28
 
 ## 当前状态
 
@@ -31,16 +31,17 @@
 - 已复核全局 CLI 初始化业务项目时的 `package.json` scripts 生成逻辑；外部 CLI 使用 `guardian ...`，项目内源码模式使用本地脚本路径。
 - Continue 规则模板已经补充规则头，VS Code tasks 和跨 IDE 适配限制已经在 README、CLI/CI、接入和标准文档中说明。
 - 新增 `package-lock.json`，让 `npm audit` 可以稳定运行；当前项目没有第三方运行依赖，审计结果为 0 个漏洞。
+- 新增 `guardian mcp` stdio MCP server，支持 MCP 的 AI IDE 可以直接调用 query、update、decision、verify、doctor、scan-secrets、handover、conflicts 和 adapters doctor。
 
 ## 进行中
 
-- 当前本轮审查和修复已经完成，等待提交到 Gitee。
+- MCP 功能、文档同步和最终验证已完成，当前等待提交到 Gitee。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 `package-lock.json`、记忆文件和教程更新一起提交。
-2. 后续优先评估 `guardian mcp`，再考虑 VS Code 原生扩展或 JetBrains 插件。
-3. 定期复核 Cursor、Copilot、Windsurf、Cline、Continue、Claude Code 和 Gemini CLI 的官方规则文件约定。
+1. 提交到 Gitee 前复查 `git status`，确认 `plugins/project-guardian/scripts/lib/mcp.js`、文档、测试和记忆一起提交。
+2. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
+3. 根据真实 IDE 反馈，再考虑 MCP prompts/resources、权限细化、VS Code 原生扩展、JetBrains 插件和 RAG/向量检索。
 
 ## 已知问题
 
@@ -51,6 +52,7 @@
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
 | 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 本次保持尊重显式配置；旧项目迁移时应同步更新 `project-guardian.config.json` |
 | AI IDE 规则格式会变化 | 某些适配器模板未来可能失效 | 维护者 | 已新增 `adapters doctor` 帮助发现缺失文件；仍需定期复核官方规则格式 |
+| MCP 当前没有独立权限系统 | 支持 MCP 的 IDE 可以执行本地 Guardian 命令 | 维护者 | 依赖本地仓库权限、Git 权限和代码评审；不要把生产密钥写入记忆 |
 
 ## 风险区域
 
@@ -62,7 +64,7 @@
 ## 最新 AI 协助变更
 
 - 任务：扩展 AI IDE 适配能力并新增适配器体检。
-- 总结：新增 Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 适配器和 `vscode-copilot` 别名；新增 `guardian adapters doctor`；适配模板会按配置注入真实记忆路径；全局 CLI 初始化时的 npm scripts 已复核为可移植命令；文档补充启动方式、环境要求、AI IDE 支持矩阵和当前限制。
-- 文件：`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/*`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`、`package-lock.json`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
-- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run`、旧路径/过期表述扫描和适配器临时目录冒烟测试。
-- 后续：优先评估 `guardian mcp`，再考虑 VS Code 扩展或 JetBrains 插件。
+- 总结：在已有多 AI IDE 规则适配基础上新增 `guardian mcp`，让支持 MCP 的 IDE 可以直接调用 Project Guardian 工具；补充 MCP 文档、测试和文件总览。
+- 文件：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`plugins/project-guardian/docs/*`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
+- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和真实 stdio MCP 冒烟测试；MCP initialize、tools/list 和 guardian_query 工具测试通过。
+- 后续：真实接入支持 MCP 的 IDE 后，再评估 MCP prompts/resources、权限细化、VS Code 扩展、JetBrains 插件和 RAG/向量检索。

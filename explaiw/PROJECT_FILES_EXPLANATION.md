@@ -4,9 +4,9 @@
 
 当前统计口径：
 
-- 仓库文件总数：64 个。
+- 仓库文件总数：65 个。
 - 文档、规则、模板、说明类文件：53 个。
-- 代码、配置、资源、测试和忽略规则等其它文件：11 个。
+- 代码、配置、资源、测试和忽略规则等其它文件：12 个。
 - 统计不包含 `.git/` 和 `node_modules/`。
 
 ## 目录结构
@@ -81,6 +81,7 @@ project_ai/
         guardian.js
         lib/
           adapters.js
+          mcp.js
       skills/
         project-guardian/
           SKILL.md
@@ -165,9 +166,10 @@ project_ai/
 | `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、language、adapters、ignore | 记忆路径、语言、适配器、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
-| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、query、decision、conflicts、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
+| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、query、decision、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、query、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、CLI 子命令转发 | MCP 协议工具、暴露命令或安全策略变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、query、mcp、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |
@@ -180,6 +182,7 @@ project_ai/
 | 英文模板和 `zh-CN` 中文模板 | 默认中文项目使用 `zh-CN`；英文团队使用 `guardian init --language en`。 |
 | `memory/DECISIONS.md` 和 `memory/decisions/*.md` | 前者是总索引和兼容入口；后者是一条决策一个文件，降低多人协作冲突。 |
 | `AGENTS.md`、Cursor 规则、Copilot 指令 | 它们分别服务不同 AI 工具，不是给同一个工具重复读取。 |
+| 规则文件适配器和 `guardian mcp` | 前者让 AI 读取项目记忆规则，后者让支持 MCP 的 AI IDE 直接调用查询、更新、验证等工具。 |
 
 ## 新增或修改文件的判断标准
 

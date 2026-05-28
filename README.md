@@ -21,6 +21,7 @@ project-guardian/
   skills/project-guardian/SKILL.md
   scripts/guardian.js
   scripts/lib/adapters.js
+  scripts/lib/mcp.js
   assets/icon.svg
   assets/templates/
     PROJECT_CONTEXT.md
@@ -163,6 +164,7 @@ guardian adapters doctor
 | 工具 | 当前支持方式 | 生成文件 | 使用建议 |
 | --- | --- | --- | --- |
 | 任意 IDE 终端 | CLI | 无额外文件 | 只要能运行 Node.js，就能运行 `guardian init/update/verify/query` |
+| 支持 MCP 的 AI IDE | stdio MCP | 无额外文件 | 使用 `guardian mcp` 暴露查询、更新、验证、决策等工具 |
 | Codex | 插件元数据 + AGENTS | `.codex-plugin/plugin.json`、`AGENTS.md`、`SKILL.md` | 当前支持度最高 |
 | Cursor | Project Rules | `.cursor/rules/project-guardian.mdc`、`.cursorrules` | 推荐安装 `cursor` 适配器 |
 | VS Code | Tasks + Copilot instructions | `.vscode/tasks.json`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` | 使用 `vscode` 或 `vscode-copilot` 适配器 |
@@ -181,6 +183,42 @@ guardian adapters doctor
 ```
 
 VS Code tasks 默认调用 `guardian` 命令，因此使用前要保证 CLI 已全局安装，或项目已把 Project Guardian 作为依赖安装到可执行路径中。如果团队选择把插件源码直接复制进项目，也可以继续在终端使用 `node plugins/project-guardian/scripts/guardian.js ...`。
+
+## MCP 工具调用
+
+支持 MCP 的 AI IDE 可以不只读取规则文件，还能通过 stdio 直接调用 Project Guardian：
+
+```bash
+guardian mcp
+```
+
+常见 MCP 配置示例：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "guardian",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+如果没有全局安装 CLI，可以改成本地脚本路径：
+
+```json
+{
+  "mcpServers": {
+    "project-guardian": {
+      "command": "node",
+      "args": ["plugins/project-guardian/scripts/guardian.js", "mcp"]
+    }
+  }
+}
+```
+
+当前 MCP 暴露工具：`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`。
 
 ## 常用命令
 
@@ -209,6 +247,9 @@ guardian conflicts
 # 进入多轮项目知识查询
 guardian query
 
+# 启动 MCP server，给支持 MCP 的 AI IDE 调用
+guardian mcp
+
 # 安装 pre-commit hook
 guardian install-hooks
 ```
@@ -221,6 +262,7 @@ npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:query
+npm run guardian:mcp
 ```
 
 ## 统一质量入口
