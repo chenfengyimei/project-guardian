@@ -4,6 +4,30 @@
 
 ## 2026 记录
 
+### 2026-06-03 17:04 - 修复 Run 读取记忆旧后端提示
+
+- 用户需求：Run 控制台点击读取记忆时连续失败，输出 `Method not allowed`，需要解释原因并解决。
+- AI 总结：确认当前代码已经使用 `GET /api/memory`；`Method not allowed` 更符合旧版 `Run/server.js` 进程仍在运行的情况，因为静态前端文件会实时读取磁盘新版，而 Node 后端代码不会在不重启时自动更新。新增 API 能力标记和前端兼容提示。
+- 变更文件：`Run/server.js`、`Run/public/app.js`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：零基础用户看到 `Method not allowed` 不知道该重启服务，容易误以为记忆文件损坏或插件无法读取。
+- 技术说明：`/api/status` 新增 `apiVersion` 和 `features`，包含 `memoryRead`、`initProject`、`appendMemory`、`configuredMemoryPaths`；前端发现缺少 `memoryRead` 时禁用记忆按钮并显示重启 `npm run ui` 或 `node Run/server.js` 的提示。
+- 验证方式：已运行 `npm.cmd run lint` 和 `npm.cmd test`，当前 50 个测试通过；新增断言覆盖 `/api/status` 能力标记。
+- 风险：如果用户同时开了多个 Run 服务端口，仍可能访问到旧端口；需要确认浏览器地址和当前终端输出的 URL 一致。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：最终提交前继续运行完整 `guardian verify`。
+
+### 2026-06-03 16:45 - 增强 Run 控制台记忆查看和受控写入
+
+- 用户需求：Run 可视化控制台需要能点击查看核心记忆文件内容，并集成更多核心功能，例如插件初始化和用户手动提交新记忆内容。
+- AI 总结：Run 控制台新增核心记忆文件点击预览、固定表单初始化、手动追加记忆和配置化记忆路径解析；后端保持不使用任意 shell，写入操作必须输入确认词，并对疑似密钥内容做基础拦截。
+- 变更文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/decisions/2026-06-03-run-visual-layer.md`。
+- 业务原因：零基础用户和项目管理者需要不用命令行也能查看记忆、初始化项目和补充上下文；同时必须避免网页界面变成任意文件写入或任意命令执行入口。
+- 技术说明：新增 `/api/memory`、`/api/init` 和 `/api/memory/append`；核心记忆路径优先从 `project-guardian.config.json` 读取；`/api/init` 只接受固定语言和适配器选项并要求 `RUN_INIT`；`/api/memory/append` 只写核心记忆白名单并要求 `APPEND_MEMORY`；敏感内容拦截收窄为疑似密钥赋值、Authorization/Bearer 和私钥块，避免误伤正常 token 成本说明。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和本地 Run UI/API 冒烟脚本；当前 50 个测试通过，审计 0 漏洞，发布包清单包含 `Run/`。新增回归测试覆盖记忆读取、缺少确认拒绝、疑似 `api_key=` 拒绝、普通 token 预算说明允许、Run 初始化和自定义记忆路径读取/追加。
+- 风险：Run 没有内置登录鉴权，不能直接公网暴露；手动追加记忆只有基础敏感内容拦截，不能替代 `guardian verify`、代码评审和人工安全审查；复杂写入流程仍应优先使用 CLI/MCP。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：真实使用后评估是否增加写入 diff 预览、操作日志、记忆搜索、复审日历或桌面窗口包装。
+
 ### 2026-06-03 11:46 - 新增 Run 可视化运行层
 
 - 用户需求：创建 `Run/` 文件夹，在其中实现用户可自行部署的网页或窗口可视化功能，隔离可视化内容和插件本体，但仍作为插件的一部分维护。

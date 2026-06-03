@@ -18,7 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
-- 新增 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、核心记忆文件、brief、query 和只读检查命令。
+- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、点击预览核心记忆文件、运行 `guardian init`、手动追加记忆、生成 brief、query 和只读检查命令。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -47,15 +47,15 @@
 - 新增 `guardian query --limit` 和 MCP `guardian_query.limit`，用于控制查询返回片段数量，降低 MCP 接入后的上下文和 token 成本。
 - 新增 `guardian brief`、MCP `guardian_brief`、VS Code Brief task 和 `guardian:brief` package script，用于在查询或读取记忆前做 token 预算路由。
 - 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
-- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。
+- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化和手动追加记忆都需要确认词。
 
 ## 进行中
 
-- `Run/` 可视化层已完成首版代码、文档和测试接入，并已通过核心验证；复审机制、时间精度修复、MCP 强校验、query limit、token 预算读取机制和软著材料仍保持在当前未提交工作区中。
+- `Run/` 控制台增强已经完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 MCP 权限代码、MCP 强校验、query limit、token 预算读取机制、复审机制、时间精度修复、文档、测试、记忆和 `.gitignore` 一起提交，且 `docs/ip/` 不被 Git 跟踪。
+1. 提交到 Gitee 前复查 `git status`，确认 Run 控制台增强代码、文档、测试和记忆一起提交，且 `docs/ip/` 不被 Git 跟踪。
 2. 软著申请前由人工确认著作权人、申请版本、软件完成日期、首次发表日期和权属方式，并更新 `docs/ip/` 下的待填写字段。
 3. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
 
@@ -81,8 +81,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：建立 `Run/` 可视化运行层。
-- 总结：新增 `Run/` 文件夹，内含本地 Web server、静态页面、样式、浏览器交互和中文说明；界面通过只读白名单调用现有 Project Guardian CLI，默认不开放写入命令和任意 shell。
-- 文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`、`package.json`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check` 和 `node Run/server.js --help`；当前 48 个测试通过，审计 0 漏洞。`npm.cmd pack --dry-run` 普通运行因 npm 缓存目录权限失败，提权重跑被当前环境审批/用量限制拦截，需用户本机补跑确认发布包。
-- 后续：根据真实用户反馈决定是否增加写入命令确认、diff 预览、复审日历或桌面窗口包装。
+- 任务：修复 Run 读取记忆时的 `Method not allowed` 体验问题。
+- 总结：确认该现象通常来自新版前端连接旧版 Run server 进程；新增 `/api/status` 能力标记，前端检测不到 `memoryRead` 能力时禁用记忆、初始化和追加按钮，并提示用户重启 Run 服务。
+- 文件：`Run/server.js`、`Run/public/app.js`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 验证：已运行 `npm.cmd run lint` 和 `npm.cmd test`，当前 50 个测试通过；本轮结束前继续运行完整 `guardian verify`。
+- 后续：如果真实使用中仍出现读取失败，需要让用户确认浏览器地址对应的端口和当前启动的 `node Run/server.js` 进程一致。

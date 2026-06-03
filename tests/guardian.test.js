@@ -474,7 +474,7 @@ test("package exposes guardian CLI bin entries", () => {
   assert.equal(pkg.scripts.ui, "node Run/server.js");
 });
 
-test("Run web server exposes read-only Project Guardian UI API", async () => {
+test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
   const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
@@ -487,8 +487,51 @@ test("Run web server exposes read-only Project Guardian UI API", async () => {
     assert.equal(status.body.ok, true);
     assert.equal(status.body.projectRoot, root);
     assert.equal(status.body.guardianAvailable, true);
+    assert.ok(status.body.apiVersion >= 2);
+    assert.equal(status.body.features.memoryRead, true);
+    assert.equal(status.body.features.initProject, true);
+    assert.equal(status.body.features.appendMemory, true);
     assert.ok(status.body.actions.includes("verify"));
     assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
+
+    const memory = await requestJson(server, "/api/memory?name=STATE");
+    assert.equal(memory.status, 200);
+    assert.equal(memory.body.ok, true);
+    assert.equal(memory.body.name, "STATE");
+    assert.match(memory.body.content, /Current Status/);
+
+    const missingConfirm = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      content: "Manual note with verification evidence.",
+    });
+    assert.equal(missingConfirm.status, 400);
+    assert.match(missingConfirm.body.error, /APPEND_MEMORY/);
+
+    const blockedSecret = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      content: "api_key=should-not-be-stored-in-project-memory",
+      confirm: "APPEND_MEMORY",
+    });
+    assert.equal(blockedSecret.status, 400);
+    assert.match(blockedSecret.body.error, /secret|token|API key/i);
+
+    const allowedTokenNote = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      content: "Token budget note without a secret assignment.",
+      confirm: "APPEND_MEMORY",
+    });
+    assert.equal(allowedTokenNote.status, 200);
+    assert.match(allowedTokenNote.body.content, /Token budget note/);
+
+    const appended = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      content: "Manual note with verification evidence.",
+      confirm: "APPEND_MEMORY",
+    });
+    assert.equal(appended.status, 200);
+    assert.equal(appended.body.ok, true);
+    assert.match(appended.body.content, /Run 手动记录/);
+    assert.match(appended.body.content, /Manual note with verification evidence/);
 
     const blocked = await requestJson(server, "/api/command", { action: "update" });
     assert.equal(blocked.status, 400);
@@ -499,6 +542,85 @@ test("Run web server exposes read-only Project Guardian UI API", async () => {
     assert.equal(brief.body.ok, true);
     assert.match(brief.body.stdout, /Project Guardian brief/);
     assert.match(brief.body.stdout, /Mode: full/);
+  } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
+});
+
+test("Run web server initializes project memory with explicit confirmation", async () => {
+  const root = tempDir("run-ui-init");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  try {
+    await listen(server);
+
+    const missingConfirm = await requestJson(server, "/api/init", { language: "zh-CN", adapter: "default" });
+    assert.equal(missingConfirm.status, 400);
+    assert.match(missingConfirm.body.error, /RUN_INIT/);
+
+    const result = await requestJson(server, "/api/init", {
+      language: "zh-CN",
+      adapter: "default",
+      confirm: "RUN_INIT",
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.body.ok, true, `${result.body.stdout}\n${result.body.stderr}`);
+    assert.equal(result.body.status, 0, `${result.body.stdout}\n${result.body.stderr}`);
+    assert.ok(fs.existsSync(path.join(root, "memory", "PROJECT_CONTEXT.md")));
+    assert.ok(fs.existsSync(path.join(root, "memory", "STATE.md")));
+
+    const status = await requestJson(server, "/api/status");
+    assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
+  } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
+});
+
+test("Run web server follows configured memory file paths", async () => {
+  const root = tempDir("run-ui-configured-memory");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const customMemoryFiles = {
+    context: "docs/guardian-memory/PROJECT_CONTEXT.md",
+    state: "docs/guardian-memory/STATE.md",
+    decisions: "docs/guardian-memory/DECISIONS.md",
+    changelog: "docs/guardian-memory/AI_CHANGELOG.md",
+    handover: "docs/guardian-memory/HANDOVER.md",
+    decisionsDirectory: "docs/guardian-memory/decisions",
+  };
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  try {
+    writeValidMemory(root, { memoryFiles: customMemoryFiles });
+    for (const [source, target] of [
+      ["memory/PROJECT_CONTEXT.md", customMemoryFiles.context],
+      ["memory/STATE.md", customMemoryFiles.state],
+      ["memory/DECISIONS.md", customMemoryFiles.decisions],
+      ["memory/AI_CHANGELOG.md", customMemoryFiles.changelog],
+      ["memory/HANDOVER.md", customMemoryFiles.handover],
+    ]) {
+      const targetPath = path.join(root, target);
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(path.join(root, source), targetPath);
+    }
+    await listen(server);
+
+    const status = await requestJson(server, "/api/status");
+    assert.ok(status.body.memoryFiles.some((file) => file.name === "STATE" && file.path === customMemoryFiles.state && file.exists));
+
+    const memory = await requestJson(server, "/api/memory?name=STATE");
+    assert.equal(memory.status, 200);
+    assert.equal(memory.body.path, customMemoryFiles.state);
+    assert.match(memory.body.content, /Current Status/);
+
+    const appended = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      content: "Configured path note with verification evidence.",
+      confirm: "APPEND_MEMORY",
+    });
+    assert.equal(appended.status, 200);
+    assert.match(fs.readFileSync(path.join(root, customMemoryFiles.state), "utf8"), /Configured path note/);
+    assert.doesNotMatch(fs.readFileSync(path.join(root, "memory/STATE.md"), "utf8"), /Configured path note/);
   } finally {
     if (server.listening) await new Promise((resolve) => server.close(resolve));
     cleanup(root);

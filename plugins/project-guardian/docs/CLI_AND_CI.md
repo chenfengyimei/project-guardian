@@ -220,7 +220,7 @@ MCP 权限可以通过 `project-guardian.config.json` 限制：
 
 ### 2.3.1 本地可视化界面
 
-`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、运行体检、生成 brief 和做本地知识查询。
+`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、查看核心记忆内容、运行体检、初始化项目、手动追加记忆、生成 brief 和做本地知识查询。
 
 在仓库根目录运行：
 
@@ -247,7 +247,16 @@ node Run/server.js --port 4358
 node Run/server.js --cwd D:\your-project
 ```
 
-当前 Web 界面默认只读，只允许白名单命令：`doctor`、`verify`、`validate-docs`、`reviews`、`reviews due`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`。它不会开放任意 shell，也不会默认执行 `update`、`handover`、`decision add` 等写入命令。
+当前 Web 界面不开放任意 shell。`/api/command` 只允许白名单命令：`doctor`、`verify`、`validate-docs`、`reviews`、`reviews due`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`。
+
+Run 现在有两个受控写入入口：
+
+- 插件初始化：输入确认词 `RUN_INIT` 后，调用固定的 `guardian init --language ...` 参数。
+- 手动追加记忆：输入确认词 `APPEND_MEMORY` 后，只能追加到核心记忆文件白名单，并会先做基础敏感词拦截。
+
+如果目标项目在 `project-guardian.config.json` 中自定义了核心记忆文件路径，Run 会按配置读取和写入；没有配置时使用默认 `memory/` 目录。
+
+`update`、`handover`、`decision add` 等复杂写入仍建议使用 CLI/MCP，方便保留完整参数、diff 和团队审查流程。
 
 默认只监听 `127.0.0.1`。如果使用 `--host 0.0.0.0` 给局域网访问，必须由团队自行增加登录认证、访问控制、反向代理和操作审计。
 

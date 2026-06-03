@@ -140,7 +140,11 @@ node Run/server.js
 http://127.0.0.1:4357
 ```
 
-这个界面是可选层，不替代 CLI/MCP。当前默认只开放只读白名单命令，例如 `doctor`、`verify`、`validate-docs`、`reviews`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`；不会开放任意 shell，也不会默认执行 `update`、`handover`、`decision add` 等写入命令。
+这个界面是可选层，不替代 CLI/MCP。它可以查看核心记忆文件内容、生成 brief、查询项目知识、运行检查命令，也可以通过固定表单运行 `guardian init` 或手动追加一段记忆。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`。
+
+Run 不开放任意 shell。`/api/command` 仍然只允许只读白名单命令，例如 `doctor`、`verify`、`validate-docs`、`reviews`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`；`update`、`handover`、`decision add` 这类复杂写入仍建议在 CLI/MCP 中按团队流程执行。
+
+如果目标项目在 `project-guardian.config.json` 里改过记忆文件路径，Run 会按配置读取和追加；没有配置时使用默认 `memory/` 目录。
 
 如果要给其它项目指定目录：
 

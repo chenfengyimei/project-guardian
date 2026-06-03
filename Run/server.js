@@ -11,10 +11,17 @@ const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4357;
+const CONFIG_FILE = "project-guardian.config.json";
+const API_VERSION = 2;
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 512 * 1024;
+const MAX_MEMORY_FILE_BYTES = 256 * 1024;
+const MAX_MANUAL_MEMORY_BYTES = 16 * 1024;
 const BRIEF_MODES = new Set(["auto", "quick", "deep", "full"]);
+const INIT_LANGUAGES = new Set(["zh-CN", "en"]);
+const INIT_ADAPTERS = new Set(["default", "all"]);
+const SENSITIVE_TEXT_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(authorization|bearer)\b|\b(password|passwd|secret|token|api[_-]?key|private\s+key)\b\s*[:=：]|(密码|密钥|令牌|私钥)\s*[:=：]/i;
 
 const READ_ONLY_ACTIONS = new Map([
   ["doctor", ["doctor"]],
@@ -26,13 +33,19 @@ const READ_ONLY_ACTIONS = new Map([
   ["adapters-doctor", ["adapters", "doctor"]],
 ]);
 
-const MEMORY_FILES = [
-  ["PROJECT_CONTEXT", "memory/PROJECT_CONTEXT.md"],
-  ["STATE", "memory/STATE.md"],
-  ["DECISIONS", "memory/DECISIONS.md"],
-  ["AI_CHANGELOG", "memory/AI_CHANGELOG.md"],
-  ["HANDOVER", "memory/HANDOVER.md"],
+const MEMORY_FILE_CONFIG = [
+  ["PROJECT_CONTEXT", "context", "memory/PROJECT_CONTEXT.md"],
+  ["STATE", "state", "memory/STATE.md"],
+  ["DECISIONS", "decisions", "memory/DECISIONS.md"],
+  ["AI_CHANGELOG", "changelog", "memory/AI_CHANGELOG.md"],
+  ["HANDOVER", "handover", "memory/HANDOVER.md"],
 ];
+const MEMORY_FILES = MEMORY_FILE_CONFIG.map(([name, , relativePath]) => [name, relativePath]);
+
+const WRITE_CONFIRMATIONS = {
+  init: "RUN_INIT",
+  appendMemory: "APPEND_MEMORY",
+};
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -85,6 +98,17 @@ function fail(message) {
   process.exit(1);
 }
 
+class HttpError extends Error {
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+function badRequest(message) {
+  return new HttpError(400, message);
+}
+
 function printHelp() {
   console.log(`Project Guardian Run UI
 
@@ -96,7 +120,7 @@ Options:
   --port   HTTP port. Use 0 to let the OS choose a free port.
   --cwd    Target project root. Defaults to the current working directory.
 
-The web UI is read-only by default and only runs allowlisted Project Guardian commands.`);
+The web UI runs allowlisted Project Guardian commands. Write-capable UI actions require explicit confirmation.`);
 }
 
 function resolveProjectRoot(projectRoot) {
@@ -129,7 +153,7 @@ function createServer(inputOptions = {}) {
       }
       serveStatic(requestUrl.pathname, res);
     } catch (error) {
-      sendJson(res, 500, { ok: false, error: error.message || String(error) });
+      sendJson(res, error.statusCode || 500, { ok: false, error: error.message || String(error) });
     }
   });
 }
@@ -137,6 +161,11 @@ function createServer(inputOptions = {}) {
 async function handleApi(req, res, requestUrl, context) {
   if (req.method === "GET" && requestUrl.pathname === "/api/status") {
     sendJson(res, 200, statusPayload(context));
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/memory") {
+    sendJson(res, 200, readMemoryPayload(context, requestUrl.searchParams.get("name")));
     return;
   }
 
@@ -172,6 +201,23 @@ async function handleApi(req, res, requestUrl, context) {
     return;
   }
 
+  if (requestUrl.pathname === "/api/init") {
+    validateConfirmation(body.confirm, WRITE_CONFIRMATIONS.init);
+    const language = validateInitLanguage(body.language);
+    const adapter = validateInitAdapter(body.adapter);
+    const args = ["init", "--language", language];
+    if (adapter === "all") args.push("--adapter", "all");
+    await sendCommandResult(res, context, args, "init");
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/memory/append") {
+    validateConfirmation(body.confirm, WRITE_CONFIRMATIONS.appendMemory);
+    const result = appendManualMemory(context, body.name, body.content);
+    sendJson(res, 200, result);
+    return;
+  }
+
   sendJson(res, 404, { ok: false, error: "API route not found" });
 }
 
@@ -182,9 +228,19 @@ function statusPayload(context) {
     guardianScript: context.guardianScript,
     guardianAvailable: Boolean(context.guardianScript),
     nodeVersion: process.version,
-    readOnly: true,
+    apiVersion: API_VERSION,
+    features: {
+      memoryRead: true,
+      initProject: true,
+      appendMemory: true,
+      configuredMemoryPaths: true,
+    },
+    readOnly: false,
+    commandApiReadOnly: true,
+    writeRequiresConfirmation: true,
+    confirmations: WRITE_CONFIRMATIONS,
     actions: Array.from(READ_ONLY_ACTIONS.keys()),
-    memoryFiles: MEMORY_FILES.map(([name, relativePath]) => {
+    memoryFiles: memoryFilesForProject(context.projectRoot).map(([name, relativePath]) => {
       const absolutePath = path.join(context.projectRoot, relativePath);
       return {
         name,
@@ -195,23 +251,160 @@ function statusPayload(context) {
   };
 }
 
+function readMemoryPayload(context, name) {
+  const target = resolveMemoryTarget(context.projectRoot, name);
+  const exists = fs.existsSync(target.absolutePath);
+  const payload = {
+    ok: true,
+    name: target.name,
+    path: target.relativePath,
+    exists,
+    size: 0,
+    tooLarge: false,
+    content: "",
+  };
+  if (!exists) return payload;
+
+  const stat = fs.statSync(target.absolutePath);
+  payload.size = stat.size;
+  if (stat.size > MAX_MEMORY_FILE_BYTES) {
+    payload.tooLarge = true;
+    return payload;
+  }
+  payload.content = fs.readFileSync(target.absolutePath, "utf8");
+  return payload;
+}
+
+function appendManualMemory(context, name, content) {
+  const target = resolveMemoryTarget(context.projectRoot, name);
+  if (!fs.existsSync(target.absolutePath)) {
+    throw badRequest(`Memory file does not exist yet: ${target.relativePath}. Run init first.`);
+  }
+
+  const cleanedContent = validateManualMemoryContent(content);
+  fs.appendFileSync(target.absolutePath, buildManualMemoryEntry(target.name, cleanedContent), "utf8");
+  return readMemoryPayload(context, target.name);
+}
+
+function resolveMemoryTarget(projectRoot, name) {
+  const normalized = String(name || "").trim().toUpperCase();
+  const entry = memoryFilesForProject(projectRoot).find(([memoryName]) => memoryName === normalized);
+  if (!entry) throw badRequest("Unknown memory file. Use one of the core Project Guardian memory names.");
+  return {
+    name: entry[0],
+    relativePath: entry[1],
+    absolutePath: path.join(projectRoot, entry[1]),
+  };
+}
+
+function memoryFilesForProject(projectRoot) {
+  const configuredMemoryFiles = loadProjectMemoryConfig(projectRoot);
+  return MEMORY_FILE_CONFIG.map(([name, configKey, fallbackPath]) => [
+    name,
+    sanitizeMemoryPath(configuredMemoryFiles[configKey], fallbackPath),
+  ]);
+}
+
+function loadProjectMemoryConfig(projectRoot) {
+  const configPath = path.join(projectRoot, CONFIG_FILE);
+  if (!fs.existsSync(configPath)) return {};
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    return config && typeof config.memoryFiles === "object" && config.memoryFiles ? config.memoryFiles : {};
+  } catch {
+    return {};
+  }
+}
+
+function sanitizeMemoryPath(value, fallbackPath) {
+  const rawPath = typeof value === "string" && value.trim() ? value.trim() : fallbackPath;
+  const normalized = rawPath.replace(/\\/g, "/");
+  if (path.isAbsolute(normalized) || normalized.split("/").includes("..")) return fallbackPath;
+  return normalized;
+}
+
 function validateQuestion(value) {
   const question = String(value || "").trim();
-  if (!question) throw new Error("Question is required.");
-  if (question.length > 500) throw new Error("Question must be 500 characters or fewer.");
+  if (!question) throw badRequest("Question is required.");
+  if (question.length > 500) throw badRequest("Question must be 500 characters or fewer.");
   return question;
 }
 
 function validateLimit(value, fallback) {
   const limit = value === undefined || value === null || value === "" ? fallback : Number(value);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error("Limit must be an integer from 1 to 10.");
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw badRequest("Limit must be an integer from 1 to 10.");
   return limit;
 }
 
 function validateMode(value) {
   const mode = String(value || "auto").trim().toLowerCase();
-  if (!BRIEF_MODES.has(mode)) throw new Error("Mode must be one of: auto, quick, deep, full.");
+  if (!BRIEF_MODES.has(mode)) throw badRequest("Mode must be one of: auto, quick, deep, full.");
   return mode;
+}
+
+function validateInitLanguage(value) {
+  const language = String(value || "zh-CN").trim();
+  if (!INIT_LANGUAGES.has(language)) throw badRequest("Language must be zh-CN or en.");
+  return language;
+}
+
+function validateInitAdapter(value) {
+  const adapter = String(value || "default").trim().toLowerCase();
+  if (!INIT_ADAPTERS.has(adapter)) throw badRequest("Adapter must be default or all.");
+  return adapter;
+}
+
+function validateConfirmation(value, expected) {
+  if (String(value || "").trim() !== expected) throw badRequest(`Type ${expected} to confirm this write operation.`);
+}
+
+function validateManualMemoryContent(value) {
+  const content = String(value || "").replace(/\r\n/g, "\n").trim();
+  if (!content) throw badRequest("Memory content is required.");
+  if (Buffer.byteLength(content, "utf8") > MAX_MANUAL_MEMORY_BYTES) {
+    throw badRequest(`Memory content must be ${MAX_MANUAL_MEMORY_BYTES} bytes or fewer.`);
+  }
+  if (SENSITIVE_TEXT_PATTERN.test(content)) {
+    throw badRequest("Memory content looks like it may contain a password, token, API key, or other secret.");
+  }
+  return content;
+}
+
+function buildManualMemoryEntry(name, content) {
+  const title = `Run 手动记录 - ${localTimestamp()}`;
+  if (name === "AI_CHANGELOG") {
+    const indented = content
+      .split("\n")
+      .map((line) => `  ${line}`)
+      .join("\n");
+    return [
+      "",
+      "",
+      `### ${title}`,
+      "",
+      "- 用户记录：",
+      indented,
+      "- 来源：Run 可视化控制台手动追加。",
+      "- Sensitive data checked: Run 基础敏感词拦截已通过。",
+      "",
+    ].join("\n");
+  }
+
+  return [
+    "",
+    "",
+    `## ${title}`,
+    "",
+    "来源：Run 可视化控制台手动追加。",
+    "",
+    content,
+    "",
+  ].join("\n");
+}
+
+function localTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 async function sendCommandResult(res, context, args, action) {
@@ -284,7 +477,7 @@ function readJsonBody(req) {
     req.on("data", (chunk) => {
       body += chunk.toString();
       if (Buffer.byteLength(body, "utf8") > MAX_BODY_BYTES) {
-        reject(new Error("Request body is too large."));
+        reject(badRequest("Request body is too large."));
         req.destroy();
       }
     });
@@ -296,7 +489,7 @@ function readJsonBody(req) {
       try {
         resolve(JSON.parse(body));
       } catch {
-        reject(new Error("Request body must be valid JSON."));
+        reject(badRequest("Request body must be valid JSON."));
       }
     });
     req.on("error", reject);
@@ -371,6 +564,9 @@ module.exports = {
   parseServerArgs,
   resolveProjectRoot,
   READ_ONLY_ACTIONS,
+  MEMORY_FILES,
+  WRITE_CONFIRMATIONS,
+  API_VERSION,
 };
 
 if (require.main === module) main();
