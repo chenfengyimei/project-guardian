@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project Guardian Run</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Project Guardian</p>
+        <h1>Run 可视化控制台</h1>
+      </div>
+      <button id="refreshStatus" class="ghost-button" type="button">刷新状态</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>项目状态</h2>
+          <span id="serverBadge" class="badge">加载中</span>
+        </div>
+        <dl class="status-grid">
+          <div>
+            <dt>项目根目录</dt>
+            <dd id="projectRoot">-</dd>
+          </div>
+          <div>
+            <dt>Node 版本</dt>
+            <dd id="nodeVersion">-</dd>
+          </div>
+          <div>
+            <dt>CLI 状态</dt>
+            <dd id="guardianState">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>核心记忆文件</h2>
+          <span class="muted">只显示是否存在，不读取全文</span>
+        </div>
+        <div id="memoryFiles" class="memory-list"></div>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>读取计划</h2>
+          <span class="muted">先 brief，再按需打开记忆</span>
+        </div>
+        <form id="briefForm" class="form-row">
+          <input id="briefQuestion" name="question" type="text" maxlength="500" value="我要接手这个项目" aria-label="读取计划问题">
+          <select id="briefMode" name="mode" aria-label="读取深度">
+            <option value="auto">auto</option>
+            <option value="quick">quick</option>
+            <option value="deep">deep</option>
+            <option value="full">full</option>
+          </select>
+          <input id="briefLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
+          <button type="submit">生成 brief</button>
+        </form>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>知识查询</h2>
+          <span class="muted">默认限制 3 个片段</span>
+        </div>
+        <form id="queryForm" class="form-row">
+          <input id="queryQuestion" name="question" type="text" maxlength="500" value="当前项目风险有哪些" aria-label="查询问题">
+          <input id="queryLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
+          <button type="submit">查询</button>
+        </form>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>只读命令</h2>
+          <span class="muted">白名单执行，不开放任意 shell</span>
+        </div>
+        <div id="commandButtons" class="button-grid"></div>
+      </section>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <h2>输出</h2>
+          <button id="clearOutput" class="ghost-button" type="button">清空</button>
+        </div>
+        <pre id="output" class="output" aria-live="polite">等待操作...</pre>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

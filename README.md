@@ -56,6 +56,13 @@ project-guardian/
   docs/INTEGRATION.md
   docs/STANDARD.md
   docs/WORKFLOW.md
+Run/
+  README.md
+  server.js
+  public/
+    index.html
+    styles.css
+    app.js
 ```
 
 - `SKILL.md`：Codex 使用本插件时遵守的项目记忆规则。
@@ -67,6 +74,7 @@ project-guardian/
 - `docs/CLI_AND_CI.md`：命令行、Git Hook 和 Gitee CI 操作说明。
 - `docs/INTEGRATION.md`：如何把插件接入新项目或已有项目。
 - `docs/STANDARD.md`：团队使用规范、目录标准和记录标准。
+- `Run/`：可选本地可视化运行层，和核心插件代码隔离，但随插件一起发布。
 
 ## 推荐阅读顺序
 
@@ -111,6 +119,36 @@ guardian brief "新人接手项目" --mode full
 - `full`：读取全部核心记忆，适合新人接手、交接、上线、审计、大范围重构，或用户明确要求完整上下文。
 
 按需读取不是硬限制。只要证据不足、查询结果冲突、任务风险变高，Agent 必须升级到 `deep` 或 `full` 后再修改。
+
+## 可视化运行层
+
+如果不想一直敲命令，可以启动 `Run/` 下的本地网页界面：
+
+```bash
+npm run ui
+```
+
+或者：
+
+```bash
+node Run/server.js
+```
+
+默认访问地址是：
+
+```text
+http://127.0.0.1:4357
+```
+
+这个界面是可选层，不替代 CLI/MCP。当前默认只开放只读白名单命令，例如 `doctor`、`verify`、`validate-docs`、`reviews`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`；不会开放任意 shell，也不会默认执行 `update`、`handover`、`decision add` 等写入命令。
+
+如果要给其它项目指定目录：
+
+```bash
+node Run/server.js --cwd D:\your-project
+```
+
+不要直接把它暴露到公网；如果必须局域网访问，需要团队自行加登录认证、访问控制和审计。
 
 ## 快速使用
 

@@ -18,6 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
+- 新增 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、核心记忆文件、brief、query 和只读检查命令。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -46,10 +47,11 @@
 - 新增 `guardian query --limit` 和 MCP `guardian_query.limit`，用于控制查询返回片段数量，降低 MCP 接入后的上下文和 token 成本。
 - 新增 `guardian brief`、MCP `guardian_brief`、VS Code Brief task 和 `guardian:brief` package script，用于在查询或读取记忆前做 token 预算路由。
 - 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
+- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。
 
 ## 进行中
 
-- Token 预算读取机制和升级模式已完成代码、规则模板和文档更新，并已通过最终验证；复审机制、时间精度修复、MCP 强校验、query limit 和软著材料仍保持在当前未提交工作区中。
+- `Run/` 可视化层已完成首版代码、文档和测试接入，并已通过核心验证；复审机制、时间精度修复、MCP 强校验、query limit、token 预算读取机制和软著材料仍保持在当前未提交工作区中。
 
 ## 下一步
 
@@ -79,8 +81,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：建立 token 预算控制和按需读取机制。
-- 总结：新增 `guardian brief` 和 MCP `guardian_brief`，输出必读文件、按需文件、建议查询命令和粗略 token 预算；所有主要 AI 规则模板和使用文档已改为预算友好读取；现已补充 `quick`、`deep` 和 `full` 升级模式，避免按需读取误判。
-- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`tests/guardian.test.js`、AI 规则模板、README、Project Guardian 文档、`零基础超简单入门.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run`、`guardian brief "普通小改动" --mode quick --limit 2`、`guardian brief "修复登录回归" --mode deep --limit 2` 和 `guardian brief "新人接手" --mode full --limit 2`；当前 47 个测试通过，审计 0 漏洞，发布 dry-run 包含 CLI、MCP、规则模板、Skill 和文档。
-- 后续：观察真实 AI IDE 是否仍倾向全量读取；如果核心记忆继续变大，再考虑生成更短的 `memory/SUMMARY.md` 或 MCP resources。
+- 任务：建立 `Run/` 可视化运行层。
+- 总结：新增 `Run/` 文件夹，内含本地 Web server、静态页面、样式、浏览器交互和中文说明；界面通过只读白名单调用现有 Project Guardian CLI，默认不开放写入命令和任意 shell。
+- 文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`、`package.json`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check` 和 `node Run/server.js --help`；当前 48 个测试通过，审计 0 漏洞。`npm.cmd pack --dry-run` 普通运行因 npm 缓存目录权限失败，提权重跑被当前环境审批/用量限制拦截，需用户本机补跑确认发布包。
+- 后续：根据真实用户反馈决定是否增加写入命令确认、diff 预览、复审日历或桌面窗口包装。

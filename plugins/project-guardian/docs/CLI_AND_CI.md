@@ -64,6 +64,7 @@ npm run guardian:reviews
 npm run guardian:mcp
 npm run guardian:adapters-doctor
 npm run guardian:install-ci
+npm run ui
 ```
 
 当前版本推荐把提交前命令统一为：
@@ -216,6 +217,39 @@ MCP 权限可以通过 `project-guardian.config.json` 限制：
 - `allowedTools: []` 表示允许全部标准工具；填入工具名后只暴露这些工具。
 - 临时只读可以设置环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1`。
 - MCP 启动时会校验 `mcp` 配置，工具调用时会按 schema 拒绝多余参数、错误类型和越界 `limit`，避免 AI IDE 误以为无效参数已经生效。
+
+### 2.3.1 本地可视化界面
+
+`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、运行体检、生成 brief 和做本地知识查询。
+
+在仓库根目录运行：
+
+```bash
+npm run ui
+```
+
+如果没有使用 npm scripts，也可以直接运行：
+
+```bash
+node Run/server.js
+```
+
+默认地址：
+
+```text
+http://127.0.0.1:4357
+```
+
+指定端口或目标项目：
+
+```bash
+node Run/server.js --port 4358
+node Run/server.js --cwd D:\your-project
+```
+
+当前 Web 界面默认只读，只允许白名单命令：`doctor`、`verify`、`validate-docs`、`reviews`、`reviews due`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`。它不会开放任意 shell，也不会默认执行 `update`、`handover`、`decision add` 等写入命令。
+
+默认只监听 `127.0.0.1`。如果使用 `--host 0.0.0.0` 给局域网访问，必须由团队自行增加登录认证、访问控制、反向代理和操作审计。
 
 ## 2.4 决策复审命令
 

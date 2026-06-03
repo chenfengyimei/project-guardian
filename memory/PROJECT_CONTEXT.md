@@ -13,7 +13,7 @@
 - 框架：无应用框架。CLI 只使用 Node.js 标准库模块。
 - 数据库：无。
 - 包管理器：目标项目不强制使用 npm，但本仓库已经通过 `guardian` 和 `project-guardian` 暴露 package CLI。
-- 部署位置：全局 CLI 安装、本地仓库插件目录、AI 工具适配规则、Codex 插件市场元数据、Git hooks 和 Gitee Go 工作流模板。
+- 部署位置：全局 CLI 安装、本地仓库插件目录、AI 工具适配规则、Codex 插件市场元数据、Git hooks、Gitee Go 工作流模板和可选 `Run/` 本地可视化层。
 - 默认语言：`zh-CN`。英文团队可以使用 `guardian init --language en` 初始化。
 - 环境要求：Node.js 18+；正式项目建议使用 Git；npm 只在安装 CLI、运行测试或发布包时需要；不需要数据库、后端服务、OpenAI API Key 或向量库。
 
@@ -37,31 +37,37 @@
    - 规则：MCP server 通过 stdio JSON-RPC 暴露 `guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due` 和 `guardian_review_complete`。
    - 已知边界情况：MCP 支持 `mcp.readOnly`、`mcp.allowedTools` 和 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 收紧工具权限，并会在启动时校验 MCP 配置、在工具调用时校验参数 schema；但不做身份认证或逐次审批。支持 MCP 的 IDE 需要配置 `guardian mcp` 或本地脚本路径。
 
-4. 控制 AI 读取项目记忆的 token 成本。
+4. 使用可选 `Run/` 本地可视化层。
+   - 入口：`npm run ui` 或 `node Run/server.js`。
+   - 重要文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`。
+   - 规则：可视化层和核心 CLI/MCP 隔离，但随插件一起发布；默认只监听 `127.0.0.1`，只开放只读白名单命令，不提供任意 shell 执行。
+   - 已知边界情况：如果团队使用 `--host 0.0.0.0` 让局域网访问，必须自行增加登录认证、访问控制、反向代理和操作审计。
+
+5. 控制 AI 读取项目记忆的 token 成本。
    - 入口：`guardian brief "任务或问题"`、`guardian brief "任务或问题" --mode quick|deep|full`、MCP `guardian_brief`、`guardian query "问题" --limit 3` 和 MCP `guardian_query.limit`。
    - 重要文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/mcp.js`、AI 规则模板、Project Guardian 文档。
    - 规则：AI 每轮先生成读取计划，默认先读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`；只有涉及决策、历史、风险、交接或上线时，才继续读取 `memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 或 `memory/HANDOVER.md`。`quick` 只读核心两份，`deep` 读取核心、决策和变更日志，`full` 读取全部核心记忆。
    - 已知边界情况：`brief` 使用本地文件大小估算粗略 token，不能替代语义检索；按需读取不是硬限制，bug、回归、测试失败、高风险模块、历史不清楚或准备重构时必须升级到 `deep`，新人接手、交接、上线、审计、大范围重构或完整上下文请求必须升级到 `full`。
 
-5. 在提交前执行记忆质量闸门。
+6. 在提交前执行记忆质量闸门。
    - 入口：`guardian check`、`guardian validate-docs`、`guardian reviews due` 和 `guardian verify`。
    - 重要文件：`plugins/project-guardian/scripts/guardian.js`、`project-guardian.config.json`、`.guardianignore`。
    - 规则：代码变更通常应带上有意义的记忆更新；记忆文件不能停留在空模板；疑似密钥不能写入记忆；到期但未完成的决策复审会让 `guardian verify` 失败。
    - 已知边界情况：纯格式化或元数据变更可能不需要更新记忆；团队可以通过配置调整忽略路径和质量规则。
 
-6. 保存交接和决策上下文。
+7. 保存交接和决策上下文。
    - 入口：`guardian update`、`guardian handover`、`guardian decision add`、`guardian reviews`、`guardian reviews due` 和 `guardian reviews complete`。
    - 重要文件：`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md`、`memory/decisions/*.md`。
    - 规则：每次 AI 协助变更都应说明改了什么、为什么改、如何验证、剩余风险是什么，以及下一位开发者需要知道什么。临时方案、安全权限、质量闸门、MCP、CI、兼容策略等需要后续确认的决策应设置复审时间。
    - 已知边界情况：刚运行 `init` 后的输出故意是不完整模板，团队填入真实项目上下文前应无法通过校验。复审检测依赖决策文件中的 `Review after` 或 `复审时间` 字段；完成复审后要写入“无需继续复审”。
 
-7. 处理项目记忆冲突。
+8. 处理项目记忆冲突。
    - 入口：`guardian conflicts`。
    - 重要文件：Git 冲突状态、`memory/` 下的项目记忆文件和 `memory/decisions/*.md`。
    - 规则：保留冲突双方有价值的历史记录，确保状态日期准确，解决后重新运行 `guardian verify`。
    - 已知边界情况：只有 Git 记录到未解决冲突后，命令才能检测到冲突；普通工作区会显示无冲突。
 
-8. 查询本地项目知识。
+9. 查询本地项目知识。
    - 入口：`guardian query`、`guardian query "问题"` 和 `guardian query "问题" --limit 3`。
    - 重要文件：记忆文件、源码文件、Markdown 文件、YAML 文件和最近 Git 历史。
    - 规则：当前查询是本地关键词检索，不是托管 AI 服务；结果应显示来源路径，方便开发者核实。`--limit` / `guardian_query.limit` 可控制返回片段数量，减少上下文噪声和 token 成本。
@@ -87,6 +93,7 @@
 | Guardian 配置 | 记忆路径、质量规则、hook 行为、CI 默认值、安全扫描开关、MCP 工具权限、默认适配器、忽略路径 | 存放在 `project-guardian.config.json`，默认零配置可用 |
 | AI IDE 适配器 | adapter 名称、目标文件、模板文件、安装状态 | 由 `scripts/lib/adapters.js` 维护，`guardian adapters doctor` 输出当前状态 |
 | MCP 工具 | 工具名、输入 schema、CLI 子命令映射、返回文本 | 由 `scripts/lib/mcp.js` 维护，支持 MCP 的 IDE 通过 stdio 调用；多余参数、错误类型和越界 query limit 会被拒绝 |
+| Run 可视化层 | 本地 HTTP server、静态页面、只读 API、命令白名单 | 存放在 `Run/`，默认只监听 localhost，通过固定参数调用现有 CLI，不复制核心业务逻辑 |
 | 读取计划 | 任务问题、读取模式、推荐文件、必读文件、按需文件、粗略 token 估算、建议查询 limit、升级触发条件 | 由 `guardian brief` 和 MCP `guardian_brief` 输出，用于让 AI 在打开大型历史记忆前先做成本判断；支持 `auto`、`quick`、`deep` 和 `full` |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
 | 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |

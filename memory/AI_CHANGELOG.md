@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-03 11:46 - 新增 Run 可视化运行层
+
+- 用户需求：创建 `Run/` 文件夹，在其中实现用户可自行部署的网页或窗口可视化功能，隔离可视化内容和插件本体，但仍作为插件的一部分维护。
+- AI 总结：新增 `Run/` 可选本地 Web 控制台，包含无第三方依赖的 Node.js HTTP server、静态页面、样式和浏览器交互；默认监听 `127.0.0.1`，通过只读白名单调用现有 Project Guardian CLI。
+- 变更文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`、`package.json`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/decisions/2026-06-03-run-visual-layer.md`。
+- 业务原因：完全依赖命令行会增加零基础用户和非技术管理者的使用门槛；可视化层可以降低查看状态、运行检查、生成 brief 和查询项目知识的成本，同时保持核心 CLI/MCP 稳定。
+- 技术说明：`Run/server.js` 不使用 shell 拼接命令，而是通过固定参数调用 Node.js 和 `guardian.js`；`/api/command` 只允许只读命令，`brief` 和 `query` 限制问题长度和返回数量；`package.json` 增加 `npm run ui` 并把 `Run` 纳入发布范围。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check` 和 `node Run/server.js --help`；新增 Run API 回归测试覆盖状态接口、写入命令拒绝和 `brief --mode full` 调用，当前 48 个测试通过，审计 0 漏洞。`npm.cmd pack --dry-run` 普通运行因 npm 缓存目录权限失败，提权重跑被当前环境审批/用量限制拦截，需用户本机补跑确认发布包。
+- 风险：当前 Web UI 没有登录鉴权，不能直接暴露公网；默认只读，后续如果增加写入能力，必须先做确认、预览和审计。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：真实使用后评估是否增加复审日历、记忆只读预览、写入确认流程或桌面窗口包装。
+
 ### 2026-06-03 11:11 - 修复按需读取误判风险
 
 - 用户需求：修复 token 按需读取机制的风险，避免 Agent 因为限制只读部分记忆而漏掉需要全量上下文的情况。

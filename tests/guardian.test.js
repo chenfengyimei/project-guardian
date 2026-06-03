@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync, spawn, spawnSync } = require("node:child_process");
@@ -23,6 +24,46 @@ function run(cwd, args) {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NO_COLOR: "1" },
+  });
+}
+
+function requestJson(server, route, payload) {
+  return new Promise((resolve, reject) => {
+    const address = server.address();
+    const body = payload === undefined ? null : JSON.stringify(payload);
+    const req = http.request({
+      host: "127.0.0.1",
+      port: address.port,
+      path: route,
+      method: body === null ? "GET" : "POST",
+      headers: body === null ? {} : {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        text += chunk;
+      });
+      res.on("end", () => {
+        try {
+          resolve({ status: res.statusCode, body: JSON.parse(text) });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    req.on("error", reject);
+    if (body !== null) req.write(body);
+    req.end();
+  });
+}
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
   });
 }
 
@@ -428,7 +469,40 @@ test("package exposes guardian CLI bin entries", () => {
   assert.equal(pkg.bin.guardian, "plugins/project-guardian/scripts/guardian.js");
   assert.equal(pkg.bin["project-guardian"], "plugins/project-guardian/scripts/guardian.js");
   assert.equal(pkg.engines.node, ">=18");
+  assert.ok(pkg.files.includes("Run"));
   assert.ok(pkg.files.includes("plugins/project-guardian"));
+  assert.equal(pkg.scripts.ui, "node Run/server.js");
+});
+
+test("Run web server exposes read-only Project Guardian UI API", async () => {
+  const root = tempDir("run-ui");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  try {
+    writeValidMemory(root);
+    await listen(server);
+
+    const status = await requestJson(server, "/api/status");
+    assert.equal(status.status, 200);
+    assert.equal(status.body.ok, true);
+    assert.equal(status.body.projectRoot, root);
+    assert.equal(status.body.guardianAvailable, true);
+    assert.ok(status.body.actions.includes("verify"));
+    assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
+
+    const blocked = await requestJson(server, "/api/command", { action: "update" });
+    assert.equal(blocked.status, 400);
+    assert.match(blocked.body.error, /Unsupported or write-capable action/);
+
+    const brief = await requestJson(server, "/api/brief", { question: "handover onboarding", mode: "full", limit: 2 });
+    assert.equal(brief.status, 200);
+    assert.equal(brief.body.ok, true);
+    assert.match(brief.body.stdout, /Project Guardian brief/);
+    assert.match(brief.body.stdout, /Mode: full/);
+  } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
 });
 
 test("init adds portable package scripts when CLI is external to the target project", () => {
@@ -1165,6 +1239,7 @@ test("decision add uses Chinese fields for Chinese projects", () => {
 test("reviews due blocks verify until review is completed", () => {
   const root = tempDir("reviews-due");
   try {
+    initGit(root);
     writeValidMemory(root);
     const reviewFile = path.join(root, "memory", "decisions", "2026-05-01-risk-review.md");
     writeFile(
@@ -1213,8 +1288,10 @@ Date: 2026-05-01
     assert.match(updated, /Review status: completed/);
     assert.match(updated, /Further review: no further review needed/);
 
-    assert.equal(run(root, ["reviews", "due"]).status, 0);
-    assert.equal(run(root, ["verify"]).status, 0);
+    const passedDue = run(root, ["reviews", "due"]);
+    assert.equal(passedDue.status, 0, `${passedDue.stdout}\n${passedDue.stderr}`);
+    const passedVerify = run(root, ["verify"]);
+    assert.equal(passedVerify.status, 0, `${passedVerify.stdout}\n${passedVerify.stderr}`);
   } finally {
     cleanup(root);
   }

@@ -17,6 +17,7 @@
     "project-guardian": "plugins/project-guardian/scripts/guardian.js"
   },
   "files": [
+    "Run",
     "plugins/project-guardian",
     "README.md",
     "LICENSE"
@@ -32,8 +33,9 @@
     "cli"
   ],
   "scripts": {
-    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check plugins/project-guardian/scripts/lib/mcp.js && node --check tests/guardian.test.js",
+    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check plugins/project-guardian/scripts/lib/mcp.js && node --check Run/server.js && node --check Run/public/app.js && node --check tests/guardian.test.js",
     "test": "node --test tests/guardian.test.js",
+    "ui": "node Run/server.js",
     "verify": "npm run lint && npm test && node plugins/project-guardian/scripts/guardian.js verify"
   }
 }
