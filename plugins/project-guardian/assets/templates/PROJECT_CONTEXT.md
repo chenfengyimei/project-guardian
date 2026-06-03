@@ -57,6 +57,6 @@
 
 ## AI Notes
 
-- AI agents must read this file before modifying project code.
+- AI agents must read this file and `memory/STATE.md` before modifying project code, then use `guardian brief` or `guardian query --limit 3` before opening larger history files. Use `guardian brief --mode deep` or `--mode full` when the first pass is risky or incomplete.
 - Long-term business and technical context belongs here.
 - Do not store production passwords, real tokens, customer private data, or other secrets in project memory.

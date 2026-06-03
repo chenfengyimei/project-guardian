@@ -36,7 +36,11 @@ guardian check
 guardian validate-docs
 guardian scan-secrets
 guardian verify
+guardian brief "任务或问题"
 guardian decision add --title "决策标题" --context "背景" --decision "决定"
+guardian reviews
+guardian reviews due
+guardian reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
 guardian conflicts
 guardian query
 guardian mcp
@@ -54,7 +58,9 @@ npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:validate-docs
+npm run guardian:brief -- "任务或问题"
 npm run guardian:query
+npm run guardian:reviews
 npm run guardian:mcp
 npm run guardian:adapters-doctor
 npm run guardian:install-ci
@@ -72,7 +78,7 @@ guardian verify
 node plugins/project-guardian/scripts/guardian.js verify
 ```
 
-`verify` 会依次运行 `doctor`、`check`、`validate-docs`，并在配置开启时运行 `scan-secrets`。
+`verify` 会依次运行 `doctor`、`check`、`validate-docs`、`reviews`，并在配置开启时运行 `scan-secrets`。
 
 ## 2. 初始化命令
 
@@ -124,7 +130,7 @@ guardian adapters doctor
 - `continue`：生成 `.continue/rules/project-guardian.md`。
 - `claude`：生成 `CLAUDE.md`。
 - `gemini`：生成 `GEMINI.md`。
-- `vscode` / `vscode-copilot`：生成 Copilot instructions，并生成 `.vscode/tasks.json`，提供 Verify、Update Memory、Query、Handover 任务。
+- `vscode` / `vscode-copilot`：生成 Copilot instructions，并生成 `.vscode/tasks.json`，提供 Verify、Update Memory、Brief、Query、Handover 任务。
 
 适配器文件和核心记忆文件分开管理。再次运行 `install-adapters` 时，已有同名规则文件会被保留，不会覆盖团队已经调整过的规则。
 新项目第一次 `init --adapter copilot` 或 `init --adapter all` 时，CLI 会把本次选择写入 `project-guardian.config.json`，后续 `doctor` 会按同一套适配器规则检查。
@@ -156,7 +162,8 @@ guardian mcp
 
 MCP 工具列表：
 
-- `guardian_query`：查询项目记忆、源码片段和最近 Git 历史。
+- `guardian_query`：查询项目记忆、源码片段和最近 Git 历史；可传 `limit` 控制返回片段数量，范围 1 到 10。
+- `guardian_brief`：根据当前任务生成预算友好的记忆读取计划，列出必读文件、按需文件和粗略 token 估算；可传 `mode: "auto" | "quick" | "deep" | "full"` 控制读取深度。
 - `guardian_update`：记录一次 AI 协助变更并刷新状态。
 - `guardian_decision_add`：新增结构化决策。
 - `guardian_verify`：运行完整质量闸门。
@@ -165,6 +172,8 @@ MCP 工具列表：
 - `guardian_handover`：生成或刷新交接指南。
 - `guardian_conflicts`：查看合并冲突和记忆冲突建议。
 - `guardian_adapters_doctor`：查看 AI IDE 适配器状态。
+- `guardian_reviews_due`：查看到期复审，存在到期未完成复审时返回失败。
+- `guardian_review_complete`：标记某个复审文件为正常完成。
 
 全局 CLI 配置示例：
 
@@ -191,6 +200,45 @@ MCP 工具列表：
   }
 }
 ```
+
+MCP 权限可以通过 `project-guardian.config.json` 限制：
+
+```json
+{
+  "mcp": {
+    "readOnly": true,
+    "allowedTools": ["guardian_brief", "guardian_query", "guardian_verify", "guardian_doctor"]
+  }
+}
+```
+
+- `readOnly: true` 会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete` 和 `guardian_handover`。
+- `allowedTools: []` 表示允许全部标准工具；填入工具名后只暴露这些工具。
+- 临时只读可以设置环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1`。
+- MCP 启动时会校验 `mcp` 配置，工具调用时会按 schema 拒绝多余参数、错误类型和越界 `limit`，避免 AI IDE 误以为无效参数已经生效。
+
+## 2.4 决策复审命令
+
+高风险功能、临时兼容方案、安全权限变化、质量闸门变化和 AI 工作流规则变化，应该通过 `guardian decision add` 记录决策，并设置 `--review-after`：
+
+```bash
+guardian decision add --title "登录限流策略" --context "防止爆破登录" --decision "启用 IP 限流" --review-after "2026-07-01"
+```
+
+查看复审状态：
+
+```bash
+guardian reviews
+guardian reviews due
+```
+
+当复审时间到期且没有完成标记时，`guardian reviews due` 和 `guardian verify` 会失败，提醒 AI 或人工检查。复审完成后标记：
+
+```bash
+guardian reviews complete memory/decisions/2026-07-01-login-rate-limit.md --summary "复审通过，策略仍然有效" --verification "检查登录测试、限流配置和上线记录"
+```
+
+命令会在对应决策文件追加 `复审结果` 或 `Review Result`，写入复审状态、完成时间、复审人、结论、验证方式和“无需继续复审”。完成后该文件后续不会再触发到期复审。
 
 ## 3. 体检命令
 
@@ -219,6 +267,7 @@ guardian update "实现登录验证码"
 - 更新 `memory/STATE.md` 的 `Latest AI-Assisted Change`。
 - 自动读取 staged、working tree、untracked 文件列表。
 - 自动写入 `git diff --stat` 摘要。
+- 自动记录当前本地时间，格式为 `YYYY-MM-DD HH:mm`；人工补写时不要使用 `00:00` 占位。
 
 运行后必须人工补全 `TODO` 字段，尤其是：
 
@@ -335,10 +384,45 @@ node plugins/project-guardian/scripts/guardian.js conflicts
 - 如果冲突涉及项目记忆文件，会给出保留历史、处理 `memory/STATE.md` 更新时间、合并决策字段、重新运行验证的建议。
 - 有冲突时命令会返回失败状态，适合在手动排查时使用。
 
+## 7.4 Token 预算读取计划
+
+```bash
+guardian brief "我要修复登录验证码问题"
+guardian brief "新人接手这个项目" --limit 2
+guardian brief "普通小改动" --mode quick
+guardian brief "修复登录回归" --mode deep
+guardian brief "新人接手项目" --mode full
+```
+
+如果没有全局 CLI，使用：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js brief "我要修复登录验证码问题" --limit 3
+```
+
+作用：
+
+- 先估算标准记忆文件的粗略 token 成本。
+- 告诉 AI 本轮必须先读哪些文件，哪些文件只有相关时才读。
+- 默认始终推荐 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`。
+- 涉及决策、历史、交接时再推荐 `memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 或 `memory/HANDOVER.md`。
+- 给出建议的 `guardian query "问题" --limit N` 命令，避免一次返回太多片段。
+- 支持 `--mode auto|quick|deep|full`，让团队在风险升高时主动提高读取深度。
+
+模式含义：
+
+- `auto`：默认模式，按任务关键词推荐文件。
+- `quick`：只读 `PROJECT_CONTEXT` 和 `STATE`，适合低风险日常小任务。
+- `deep`：额外读取 `DECISIONS` 和 `AI_CHANGELOG`，适合 bug、回归、历史不清楚、高风险模块、测试失败或准备重构。
+- `full`：读取全部核心记忆，适合新人接手、交接、上线、审计、大范围重构，或用户明确要求完整上下文。
+
+推荐把 `brief` 作为 AI 每轮工作的第一步。按需读取不是硬限制；如果证据不足、查询结果冲突或任务风险变高，必须升级到 `deep` 或 `full` 后再修改。
+
 ## 8. 多轮知识查询
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js query
+node plugins/project-guardian/scripts/guardian.js query "登录流程" --limit 3
 ```
 
 作用：
@@ -347,6 +431,7 @@ node plugins/project-guardian/scripts/guardian.js query
 - 检索 AI 规则文件。
 - 检索项目源码和 Markdown/YAML 文件。
 - 检索最近 80 条 Git 提交历史。
+- 非交互模式支持 `--limit 1..10`，用于控制返回片段数量和 token 消耗。
 
 示例：
 
@@ -358,7 +443,7 @@ guardian> 哪些地方风险最高？
 guardian> exit
 ```
 
-注意：当前 `query` 是本地轻量关键词检索，不依赖外部模型 API。复杂语义问答后续可以升级为向量检索或 RAG。
+注意：当前 `query` 是本地轻量关键词检索，不依赖外部模型 API。日常答疑建议先用 `brief` 判断读取范围，再用 `query --limit 2` 或 `--limit 3` 获取少量证据；复杂语义问答后续可以升级为向量检索或 RAG。
 
 ## 9. 安装 Git Hook
 

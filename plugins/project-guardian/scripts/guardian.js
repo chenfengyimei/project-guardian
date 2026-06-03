@@ -6,13 +6,16 @@ const path = require("path");
 const readline = require("readline");
 const { execFileSync } = require("child_process");
 const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters, validateAdapters } = require("./lib/adapters");
-const { runMcpServer } = require("./lib/mcp");
+const { runMcpServer, validateMcpConfig } = require("./lib/mcp");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
 const CONFIG_FILE = "project-guardian.config.json";
 const AGENT_RULE_FILES = ["AGENTS.md", ".cursorrules"];
 const SUPPORTED_LANGUAGES = ["zh-CN", "en"];
+const DEFAULT_QUERY_LIMIT = 6;
+const MAX_QUERY_LIMIT = 10;
+const BRIEF_MODES = ["auto", "quick", "deep", "full"];
 const SOURCE_EXTENSIONS = new Set([
   ".js",
   ".jsx",
@@ -59,6 +62,10 @@ const DEFAULT_CONFIG = {
   security: {
     scanSecrets: true,
   },
+  mcp: {
+    readOnly: false,
+    allowedTools: [],
+  },
   language: "zh-CN",
   adapters: DEFAULT_ADAPTERS,
   ignore: [],
@@ -93,11 +100,19 @@ async function main() {
     case "scan-secrets":
       scanSecrets(root);
       break;
+    case "brief":
+      brief(root, args);
+      break;
     case "query":
-      if (args.length > 0) {
-        queryOnce(root, args.join(" "));
-      } else {
-        await queryLoop(root);
+      {
+        const flags = parseFlags(args);
+        const limit = parseQueryLimit(flags.limit);
+        const question = flags._.join(" ").trim();
+        if (question) {
+          queryOnce(root, question, limit);
+        } else {
+          await queryLoop(root, limit);
+        }
       }
       break;
     case "decision-add":
@@ -109,6 +124,10 @@ async function main() {
       } else {
         fail("Unknown decision command. Use: guardian decision add --title \"Decision title\"");
       }
+      break;
+    case "reviews":
+    case "review":
+      reviews(root, args);
       break;
     case "conflicts":
       conflicts(root);
@@ -124,7 +143,7 @@ async function main() {
       }
       break;
     case "mcp":
-      runMcpServer({ root, guardianScript: __filename });
+      runMcpServer({ root, guardianScript: __filename, mcpConfig: loadConfig(root).mcp });
       break;
     case "install-hooks":
       installHooks(root);
@@ -356,6 +375,7 @@ function verify(root) {
     ["doctor", runDoctor(root, config), printDoctor],
     ["check", runCheck(root, config), printCheck],
     ["validate-docs", runDocValidation(root, config), printDocValidation],
+    ["reviews", runReviewValidation(root, config), printReviewValidation],
   ];
   if (config.security.scanSecrets) {
     steps.push(["scan-secrets", runSecretScan(root, config), printSecretScan]);
@@ -372,7 +392,7 @@ function verify(root) {
   console.log("Project Guardian verify passed.");
 }
 
-async function queryLoop(root) {
+async function queryLoop(root, limit = DEFAULT_QUERY_LIMIT) {
   const config = loadConfig(root);
   ensureInitialized(root, config);
   const index = buildIndex(root, config);
@@ -395,17 +415,27 @@ async function queryLoop(root) {
       rl.close();
       break;
     }
-    console.log(formatResults(searchIndex(index, question, 6)));
+    console.log(formatResults(searchIndex(index, question, limit)));
     console.log("Suggested next question: ask `why`, `risk`, `next step`, or a specific file/module name.");
     rl.prompt();
   }
 }
 
-function queryOnce(root, question) {
+function queryOnce(root, question, limit = DEFAULT_QUERY_LIMIT) {
   const config = loadConfig(root);
   ensureInitialized(root, config);
   const index = buildIndex(root, config);
-  console.log(formatResults(searchIndex(index, question, 6)));
+  console.log(formatResults(searchIndex(index, question, limit)));
+}
+
+function brief(root, args = []) {
+  const config = loadConfig(root);
+  ensureInitialized(root, config);
+  const flags = parseFlags(args);
+  const limit = parseQueryLimit(flags.limit === undefined ? 3 : flags.limit);
+  const mode = parseBriefMode(flags.mode);
+  const question = flags._.join(" ").trim();
+  console.log(formatBrief(buildBrief(root, config, question, limit, mode)));
 }
 
 async function decisionAdd(root, args) {
@@ -436,6 +466,22 @@ async function decisionAdd(root, args) {
   }
   console.log(`Added decision to ${config.memoryFiles.decisions}.`);
   if (decisionFile) console.log(`Created ${decisionFile}.`);
+}
+
+function reviews(root, args = []) {
+  const config = loadConfig(root);
+  ensureInitialized(root, config);
+  const subcommand = args[0] || "list";
+  if (subcommand === "complete") {
+    completeReview(root, config, args.slice(1));
+    return;
+  }
+  if (!["list", "due", "status"].includes(subcommand)) {
+    fail("Unknown reviews command. Use: guardian reviews, guardian reviews due, or guardian reviews complete <decision-file>");
+  }
+  const result = runReviewValidation(root, config);
+  printReviewValidation(result, false);
+  if (subcommand === "due") finish(result.ok);
 }
 
 function buildDecisionEntry(config, date, fields) {
@@ -669,6 +715,16 @@ function runDocValidation(root, config) {
   return { ok: issues.length === 0, reports, issues };
 }
 
+function runReviewValidation(root, config) {
+  const items = getReviewItems(root, config);
+  const due = items.filter((item) => item.status === "due");
+  const issues = due.map((item) => ({
+    file: item.file,
+    message: `review due since ${item.reviewAfter}: ${item.title}`,
+  }));
+  return { ok: due.length === 0, items, due, issues };
+}
+
 function runSecretScan(root, config) {
   const ignore = loadIgnorePatterns(root, config);
   const files = unique([...getKnowledgeFiles(config), ...getDecisionFiles(root, config), CONFIG_FILE]).filter((file) => {
@@ -726,6 +782,23 @@ function printDocValidation(result, silent) {
     }
   }
   console.log(result.ok ? "\nDocument validation passed." : "\nDocument validation failed.");
+}
+
+function printReviewValidation(result, silent) {
+  if (silent) return;
+  console.log("Project Guardian decision review");
+  console.log("");
+  if (result.items.length === 0) {
+    console.log("No scheduled decision reviews found.");
+    return;
+  }
+  for (const item of result.items) {
+    const label = item.status === "completed" ? "completed" : item.status === "due" ? "due" : "scheduled";
+    console.log(`${item.file}: ${label} (review after ${item.reviewAfter})`);
+    console.log(`  - ${item.title}`);
+    if (item.status === "due") console.log(`  - review due since ${item.reviewAfter}`);
+  }
+  console.log(result.ok ? "\nDecision review check passed." : "\nDecision review check failed.");
 }
 
 function printSecretScan(result, silent) {
@@ -813,8 +886,10 @@ function addPackageScripts(packagePath) {
       "guardian:validate-docs": `${runner} validate-docs`,
       "guardian:scan-secrets": `${runner} scan-secrets`,
       "guardian:verify": `${runner} verify`,
+      "guardian:brief": `${runner} brief`,
       "guardian:query": `${runner} query`,
       "guardian:conflicts": `${runner} conflicts`,
+      "guardian:reviews": `${runner} reviews`,
       "guardian:adapters-doctor": `${runner} adapters doctor`,
       "guardian:install-adapters": `${runner} install-adapters`,
       "guardian:mcp": `${runner} mcp`,
@@ -971,7 +1046,11 @@ function inspectDoc(root, rule) {
   if (hasEmptyTableRow(text)) issues.push("contains an empty table row");
   if (rule.type === "state" && !/^(Last updated|最后更新)[:：]\s*\S+/m.test(text)) issues.push("Last updated / 最后更新 must have a value");
   if (rule.type === "decisions" && !hasRealDecision(text)) issues.push("must contain a real decision or explicitly say 暂无关键决策");
-  if (rule.type === "changelog" && hasTodo(latestChangelogText(text))) issues.push("latest changelog entry must not contain TODO / 待填写");
+  if (rule.type === "changelog") {
+    const latest = latestChangelogText(text);
+    if (hasTodo(latest)) issues.push("latest changelog entry must not contain TODO / 待填写");
+    if (hasMidnightTimestamp(latest)) issues.push("latest changelog entry must use the current local HH:mm time, not 00:00");
+  }
 
   return { file: rule.file, placeholders, issues };
 }
@@ -1032,8 +1111,13 @@ function latestChangelog(root, config) {
 function latestChangelogText(text) {
   const matches = [...text.matchAll(/^###\s+.+$/gm)];
   if (matches.length === 0) return "";
-  const last = matches[matches.length - 1];
-  return text.slice(last.index);
+  const first = matches[0];
+  const second = matches[1];
+  return text.slice(first.index, second ? second.index : undefined);
+}
+
+function hasMidnightTimestamp(text) {
+  return /^###\s+\d{4}-\d{2}-\d{2}\s+00:00\s+-\s+\S+/m.test(text);
 }
 
 function searchIndex(index, question, limit) {
@@ -1069,6 +1153,110 @@ function formatResults(results) {
       return [`\n[${index + 1}] Source: ${doc.file} (score ${resultScore})`, "```text", preview, "```"].join("\n");
     })
     .join("\n");
+}
+
+function buildBrief(root, config, question, limit, mode = "auto") {
+  const files = [
+    briefFile(root, config.memoryFiles.context, "Stable project purpose, architecture, environment, and core workflows."),
+    briefFile(root, config.memoryFiles.state, "Current status, known issues, next steps, and latest AI-assisted change."),
+    briefFile(root, config.memoryFiles.decisions, "Architecture, workflow, security, compatibility, dependency, and review decisions."),
+    briefFile(root, config.memoryFiles.changelog, "Recent implementation history, verification notes, regressions, and risks."),
+    briefFile(root, config.memoryFiles.handover, "Onboarding, handover, release preparation, and first-day guidance."),
+  ];
+  const required = files.slice(0, 2).filter((file) => file.exists);
+  const optional = files.slice(2).filter((file) => file.exists);
+  const relevantOptional = optional.filter((file) => briefFileRelevant(file.file, question));
+  const recommended = recommendedBriefFiles(mode, required, optional, relevantOptional, question);
+  const fullTokens = files.reduce((total, file) => total + file.tokens, 0);
+  const recommendedTokens = recommended.reduce((total, file) => total + file.tokens, 0);
+  return { question, limit, mode, files, required, optional, relevantOptional, recommended, fullTokens, recommendedTokens };
+}
+
+function recommendedBriefFiles(mode, required, optional, relevantOptional, question) {
+  if (mode === "quick") return required;
+  if (mode === "deep") return uniqueBriefFiles([...required, ...optional.filter((file) => /DECISIONS|AI_CHANGELOG/i.test(file.file))]);
+  if (mode === "full") return uniqueBriefFiles([...required, ...optional]);
+  return question ? uniqueBriefFiles([...required, ...relevantOptional]) : required;
+}
+
+function briefFile(root, file, reason) {
+  const text = readMaybe(path.join(root, file));
+  return { file, reason, exists: Boolean(text), tokens: estimateTokens(text) };
+}
+
+function briefFileRelevant(file, question) {
+  if (!question) return false;
+  const text = question.toLowerCase();
+  if (/DECISIONS/i.test(file)) return /decisions|decision|architecture|dependency|security|compatibility|workflow|review|token|budget|cost|mcp|ci|auth|payment|data model|决策|架构|依赖|安全|权限|兼容|工作流|复审|token|成本|预算|消耗|登录|支付|数据模型|质量/.test(text);
+  if (/AI_CHANGELOG/i.test(file)) return /history|recent|change|changed|changelog|bug|regression|error|why|risk|最近|历史|变更|修改|修复|报错|错误|回归|风险|为什么/.test(text);
+  if (/HANDOVER/i.test(file)) return /handover|onboard|onboarding|release|start|first day|交接|接手|新人|上线|发布|从0|入门|第一天/.test(text);
+  return false;
+}
+
+function uniqueBriefFiles(files) {
+  const seen = new Set();
+  return files.filter((file) => {
+    if (seen.has(file.file)) return false;
+    seen.add(file.file);
+    return true;
+  });
+}
+
+function estimateTokens(text) {
+  return Math.ceil(String(text || "").length / 2.2);
+}
+
+function formatBrief(briefData) {
+  const savings = briefData.fullTokens > 0
+    ? Math.max(0, Math.round((1 - briefData.recommendedTokens / briefData.fullTokens) * 100))
+    : 0;
+  const queryText = shellQuoteText(briefData.question || "your question");
+  const linesOut = [
+    "Project Guardian brief",
+    "",
+    `Question: ${briefData.question || "(not provided)"}`,
+    `Mode: ${briefData.mode} budget-aware staged reading`,
+    "",
+    "Mode guide:",
+    "- auto: route by task keywords, then escalate when evidence is weak.",
+    "- quick: read only stable context and current state for low-risk routine work.",
+    "- deep: read context, state, decisions, and changelog for bugs, regressions, high-risk modules, or unclear history.",
+    "- full: read every core memory file for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.",
+    "",
+    "Read first:",
+    ...briefData.required.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
+    "",
+    "Read only when relevant:",
+    ...briefData.optional.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
+    "",
+    "Recommended for this task:",
+    ...briefData.recommended.map((file) => `- ${file.file}`),
+    "",
+    "Suggested commands:",
+    `- guardian query "${queryText}" --limit ${briefData.limit}`,
+    `- guardian brief "${queryText}" --mode deep --limit ${briefData.limit}`,
+    `- guardian brief "${queryText}" --mode full --limit ${briefData.limit}`,
+    "- guardian reviews due",
+    "",
+    "Estimated memory token budget:",
+    `- Recommended first pass: ~${briefData.recommendedTokens} tokens`,
+    `- Full core memory: ~${briefData.fullTokens} tokens`,
+    `- Estimated savings: ~${savings}%`,
+    "",
+    "Escalate to deep/full when:",
+    "- the task touches auth, payment, permissions, data models, CI, MCP, security, compatibility, or shared workflows;",
+    "- tests fail, behavior regresses, an error message appears, or the existing implementation is unclear;",
+    "- the user asks why something changed, what happened before, or who should take over;",
+    "- query results are weak, conflicting, or missing important source paths;",
+    "- you plan to delete, rewrite, migrate, or refactor important code.",
+    "",
+    "Rule: budget-aware reading is a starting point, not a hard restriction. Escalate before making risky changes.",
+  ];
+  return linesOut.join("\n");
+}
+
+function shellQuoteText(text) {
+  return String(text).replace(/"/g, '\\"');
 }
 
 function collectFiles(root, config, limit) {
@@ -1217,6 +1405,97 @@ function getDecisionFiles(root, config) {
     .map((file) => path.join(config.memoryFiles.decisionsDirectory, file).replace(/\\/g, "/"));
 }
 
+function getReviewItems(root, config) {
+  return getDecisionFiles(root, config)
+    .map((file) => reviewItem(root, file))
+    .filter((item) => item.reviewAfter);
+}
+
+function reviewItem(root, file) {
+  const text = readMaybe(path.join(root, file));
+  const reviewAfter = reviewDate(text);
+  const title = reviewTitle(text, file);
+  const completed = reviewCompleted(text);
+  const status = completed ? "completed" : reviewAfter && reviewAfter <= today() ? "due" : "scheduled";
+  return { file, title, reviewAfter, completed, status };
+}
+
+function reviewDate(text) {
+  const match = text.match(/^-\s*(?:Review after|复审时间)[:：]\s*(.+)$/mi);
+  if (!match) return "";
+  const value = match[1].trim();
+  if (/^(not scheduled|未安排)/i.test(value)) return "";
+  const date = value.match(/\d{4}-\d{2}-\d{2}/);
+  return date ? date[0] : "";
+}
+
+function reviewTitle(text, fallback) {
+  const heading = text.match(/^###\s+(.+)$/m) || text.match(/^#\s+(.+)$/m);
+  return heading ? heading[1].trim() : fallback;
+}
+
+function reviewCompleted(text) {
+  const status = text.match(/^-\s*(?:Review status|复审状态)[:：]\s*(.+)$/mi);
+  const further = text.match(/^-\s*(?:Further review|后续复审)[:：]\s*(.+)$/mi);
+  return Boolean(status && /^(completed|complete|done|normal|正常|已完成|无需继续复审)/i.test(status[1].trim()))
+    || Boolean(further && /^(no further review needed|无需继续复审)/i.test(further[1].trim()));
+}
+
+function completeReview(root, config, args) {
+  const flags = parseFlags(args);
+  const target = flags._[0];
+  if (!target) fail("Missing decision file. Use: guardian reviews complete memory/decisions/example.md --summary \"Still valid\" --verification \"Checked tests\"");
+  const file = resolveReviewFile(root, config, target);
+  const full = path.join(root, file);
+  const current = readMaybe(full);
+  if (!current) fail(`Review file not found: ${target}`);
+  if (reviewCompleted(current)) {
+    console.log(`${file} is already marked as review completed.`);
+    return;
+  }
+  const block = buildReviewCompletion(config, flags);
+  fs.writeFileSync(full, `${current.replace(/\s*$/, "")}\n\n${block}\n`, "utf8");
+  console.log(`Marked review completed for ${file}.`);
+}
+
+function resolveReviewFile(root, config, target) {
+  const normalized = normalizeForHook(target);
+  const direct = path.join(root, normalized);
+  if (fs.existsSync(direct)) return normalized;
+  const files = getDecisionFiles(root, config);
+  const found = files.find((file) => file === normalized || path.basename(file) === normalized || file.includes(normalized));
+  if (!found) fail(`Review file not found: ${target}`);
+  return found;
+}
+
+function buildReviewCompletion(config, flags) {
+  const reviewer = flags.reviewer || flags.by || (isChinese(config) ? "AI 或人工复审者" : "AI or human reviewer");
+  const summary = flags.summary || flags.result || (isChinese(config) ? "复审通过，当前决策仍然有效。" : "Review passed; the decision remains valid.");
+  const verification = flags.verification || (isChinese(config) ? "复审时已检查相关代码、文档或测试结果。" : "Relevant code, docs, or test results were checked during review.");
+  if (isChinese(config)) {
+    return [
+      "## 复审结果",
+      "",
+      "- 复审状态：正常",
+      `- 复审完成时间：${timestamp()}`,
+      `- 复审人：${reviewer}`,
+      `- 复审结论：${summary}`,
+      `- 验证方式：${verification}`,
+      "- 后续复审：无需继续复审",
+    ].join("\n");
+  }
+  return [
+    "## Review Result",
+    "",
+    "- Review status: completed",
+    `- Review completed at: ${timestamp()}`,
+    `- Reviewer: ${reviewer}`,
+    `- Review summary: ${summary}`,
+    `- Verification: ${verification}`,
+    "- Further review: no further review needed",
+  ].join("\n");
+}
+
 function writeDecisionFile(root, config, date, fields, entry) {
   const dir = config.memoryFiles.decisionsDirectory;
   if (!dir) return "";
@@ -1352,6 +1631,7 @@ function validateConfig(config) {
       issues.push(`quality.taskIdPattern is not a valid regex: ${error.message}`);
     }
   }
+  issues.push(...validateMcpConfig(config.mcp));
   issues.push(...validateAdapters(config.adapters));
   return issues;
 }
@@ -1395,6 +1675,21 @@ function parseFlags(args) {
     }
   }
   return result;
+}
+
+function parseQueryLimit(value) {
+  if (value === undefined) return DEFAULT_QUERY_LIMIT;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_QUERY_LIMIT) fail(`query --limit must be an integer from 1 to ${MAX_QUERY_LIMIT}`);
+  return limit;
+}
+
+function parseBriefMode(value) {
+  if (value === undefined) return "auto";
+  if (value === true) fail(`brief --mode must be one of: ${BRIEF_MODES.join(", ")}`);
+  const mode = String(value).trim().toLowerCase();
+  if (!BRIEF_MODES.includes(mode)) fail(`brief --mode must be one of: ${BRIEF_MODES.join(", ")}`);
+  return mode;
 }
 
 function resolveAdaptersOrFail(flags, config) {
@@ -1542,13 +1837,17 @@ Usage:
   guardian init --adapter all
   guardian update "task summary"
   guardian decision add --title "Decision title" --context "Why" --decision "What"
+  guardian reviews
+  guardian reviews due
+  guardian reviews complete memory/decisions/example.md --summary "Still valid" --verification "Checked tests"
   guardian handover
   guardian check
   guardian doctor
   guardian validate-docs
   guardian scan-secrets
   guardian verify
-  guardian query "question"
+  guardian brief "task or question" --mode auto
+  guardian query "question" --limit 3
   guardian conflicts
   guardian install-adapters --adapter cursor,copilot
   guardian adapters doctor
@@ -1560,12 +1859,14 @@ Commands:
   init           Create standard project memory files, AI rules, and config. Default language is zh-CN; use --language en for English templates.
   update         Append an AI-assisted change record and refresh the state memory file.
   decision add   Append a structured decision entry.
+  reviews       List scheduled decision reviews, fail on due reviews, or mark a review completed.
   handover      Generate the configured handover memory file from current memory and project files.
   check         Fail when code changed but memory was not updated or is low quality.
   doctor        Audit memory files, AI rules, config, and git change state.
   validate-docs Fail when memory docs are missing required substance.
   scan-secrets  Scan memory files for likely secrets without printing full values.
   verify        Run doctor, check, validate-docs, and configured security scans.
+  brief         Print a budget-aware reading plan and token estimate. Use --mode quick, deep, full, or auto.
   query         Search project memory, source files, and git history.
   conflicts     Show Git merge conflicts and memory conflict resolution advice.
   install-adapters Install AI-tool rule adapters: ${SUPPORTED_ADAPTERS.join(", ")}, or all.

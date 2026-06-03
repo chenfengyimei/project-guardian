@@ -8,7 +8,8 @@ Project Guardian 要解决的不是“多写几篇文档”，而是把 AI 辅�
 
 ```text
 接手项目
-  -> 读取项目记忆
+  -> 生成读取计划
+  -> 按需读取项目记忆
   -> 明确本轮任务
   -> 使用 AI 编码
   -> 记录修改原因
@@ -34,21 +35,24 @@ Project Guardian 要解决的不是“多写几篇文档”，而是把 AI 辅�
 
 ### 当前开发者
 
-- 每天开发前读取项目记忆。
+- 每天开发前先运行 `guardian brief "今天要做什么"`，再读取本轮必要的项目记忆。
 - AI 改代码后运行 `update`。
 - 提交前运行 `check`。
 - 遇到重要业务规则或技术取舍时更新 `memory/DECISIONS.md`。
 
 ### 新接手开发者
 
-- 先读 `memory/HANDOVER.md`。
-- 再读 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`。
-- 使用 `query` 连续提问，确认模块入口、历史原因和风险点。
+- 先运行 `guardian brief "新人接手"`，判断本轮需要读哪些文件。
+- 默认先读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`。
+- 需要交接细节时读 `memory/HANDOVER.md`，需要历史原因或决策时再读 `memory/DECISIONS.md` 和 `memory/AI_CHANGELOG.md`。
+- 使用 `query --limit 3` 连续提问，确认模块入口、历史原因和风险点。
 - 只接一个小任务开始，不要上来大改核心模块。
 
 ### AI 助手
 
-- 修改前读取项目记忆。
+- 修改前先做读取计划，默认只读取核心记忆，按任务需要读取历史和交接记忆。
+- 按需读取不是硬限制；遇到 bug、回归、测试失败、历史不清楚、高风险模块或准备重构时升级到 `guardian brief "任务" --mode deep`。
+- 新人接手、交接、上线、审计、大范围重构或用户要求完整上下文时升级到 `guardian brief "任务" --mode full`。
 - 回答时说明依据来自哪个记忆文件或代码文件。
 - 修改后协助更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`。
 - 发现记忆缺失时提醒补齐。
@@ -189,7 +193,7 @@ guardian init --adapter all
 
 这些适配规则只告诉不同 AI 工具如何读取 Project Guardian 记忆，不会覆盖已有项目记忆文件。
 
-如果 AI IDE 支持 MCP，也可以接入 `guardian mcp`，让 IDE 直接调用查询、更新、验证、交接和安全扫描工具。MCP 不会生成额外记忆文件，仍然读取和维护 `memory/` 目录下的标准项目记忆。
+如果 AI IDE 支持 MCP，也可以接入 `guardian mcp`，让 IDE 直接调用查询、更新、验证、交接和安全扫描工具。MCP 不会生成额外记忆文件，仍然读取和维护 `memory/` 目录下的标准项目记忆。查询工具支持 `limit` 参数控制返回片段数量，日常答疑建议先用 2 到 3 个片段。
 
 ### 4.1 init 不会覆盖已有记忆
 
@@ -229,6 +233,7 @@ npm run guardian:doctor
 npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
+npm run guardian:brief -- "任务说明"
 npm run guardian:query
 npm run guardian:mcp
 ```
@@ -242,19 +247,21 @@ npm run guardian:mcp
 ```bash
 git pull
 node plugins/project-guardian/scripts/guardian.js doctor
+node plugins/project-guardian/scripts/guardian.js brief "今天继续开发"
 ```
 
-然后阅读：
+然后按 `brief` 输出阅读。默认先读：
 
-1. `memory/STATE.md`
-2. `memory/PROJECT_CONTEXT.md`
-3. `memory/DECISIONS.md`
-4. `memory/AI_CHANGELOG.md` 最近几条
+1. `memory/PROJECT_CONTEXT.md`
+2. `memory/STATE.md`
+
+如果任务涉及历史原因、决策或回归，再读 `memory/DECISIONS.md` 和 `memory/AI_CHANGELOG.md`。
+如果任务涉及 bug、测试失败、高风险模块或大改动，直接运行 `guardian brief "今天继续开发" --mode deep`。
 
 建议问 AI：
 
 ```text
-请先读取 memory/PROJECT_CONTEXT.md、memory/STATE.md、memory/DECISIONS.md 和 memory/AI_CHANGELOG.md，然后总结当前项目状态、今天适合继续做什么、哪些地方有风险。
+请先运行 guardian brief "今天继续开发"，再按读取计划总结当前项目状态、今天适合继续做什么、哪些地方有风险。
 ```
 
 ## 6. 一次标准任务循环
@@ -266,7 +273,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 先在对话里告诉 AI：
 
 ```text
-我要实现登录验证码。请先读取项目记忆文件，再告诉我登录模块入口、相关文件、历史风险和建议修改方案。先不要改代码。
+我要实现登录验证码。请先运行 guardian brief "实现登录验证码"，再用 guardian query "登录验证码" --limit 3 查询相关上下文，然后告诉我登录模块入口、相关文件、历史风险和建议修改方案。先不要改代码。
 ```
 
 确认方案后再让 AI 改代码。
@@ -315,12 +322,29 @@ memory/AI_CHANGELOG.md
 - `Risks`：有哪些风险。
 - `Next step`：下一个人要注意什么。
 
+记录标题时间必须使用真实本地时间，格式为 `YYYY-MM-DD HH:mm`。不要把 `00:00` 当作占位时间写入最新记录。
+
 如果这次引入了重要规则，还要更新 `memory/DECISIONS.md`。
 推荐使用命令生成结构化决策：
 
 ```bash
 node plugins/project-guardian/scripts/guardian.js decision add --title "决策标题" --context "背景" --decision "决定"
 ```
+
+如果这次修改属于临时方案、安全权限、登录支付、质量闸门、CI、MCP 工具权限或 AI 工作流规则变化，建议设置复审时间：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js decision add --title "决策标题" --context "背景" --decision "决定" --review-after "2026-07-01"
+```
+
+复审到期后运行：
+
+```bash
+node plugins/project-guardian/scripts/guardian.js reviews due
+node plugins/project-guardian/scripts/guardian.js reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
+```
+
+复审完成后会在决策文件里标记“正常”和“无需继续复审”，后续 `verify` 不会再因为该决策失败。
 
 ### 6.5 提交前检查
 
@@ -421,14 +445,20 @@ Gitee 最新提交：
 ```bash
 git pull
 node plugins/project-guardian/scripts/guardian.js doctor
+node plugins/project-guardian/scripts/guardian.js brief "新人接手"
 ```
 
-然后阅读：
+然后按读取计划阅读。默认先读：
+
+```text
+memory/PROJECT_CONTEXT.md
+memory/STATE.md
+```
+
+如果 `brief` 推荐交接、历史或决策上下文，再继续读：
 
 ```text
 memory/HANDOVER.md
-memory/STATE.md
-memory/PROJECT_CONTEXT.md
 memory/DECISIONS.md
 memory/AI_CHANGELOG.md
 ```
@@ -436,7 +466,7 @@ memory/AI_CHANGELOG.md
 接着运行多轮查询：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js query
+node plugins/project-guardian/scripts/guardian.js query "新人接手" --limit 3
 ```
 
 推荐连续提问：
@@ -494,6 +524,7 @@ PR 合并前检查：
 ```bash
 git pull
 node plugins/project-guardian/scripts/guardian.js doctor
+node plugins/project-guardian/scripts/guardian.js brief "每周项目记忆维护"
 node plugins/project-guardian/scripts/guardian.js handover
 ```
 
@@ -548,7 +579,8 @@ node plugins/project-guardian/scripts/guardian.js check
 先看 `memory/STATE.md` 的 `Next Steps`。如果仍不清楚，运行：
 
 ```bash
-node plugins/project-guardian/scripts/guardian.js query
+node plugins/project-guardian/scripts/guardian.js brief "新人下一步"
+node plugins/project-guardian/scripts/guardian.js query "新人下一步" --limit 3
 ```
 
 然后问：

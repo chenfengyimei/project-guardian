@@ -106,8 +106,8 @@ project_ai/
 | `README.md` | 仓库入口文档 | 第一次打开项目的人需要先知道这是什么、怎么开始 | 插件介绍、适用场景、安装方式、快速使用、常用命令、推荐工作流 | 安装方式、命令、目录、主要能力或用户入口变化时 |
 | `零基础超简单入门.md` | 小白教程 | 给完全没编程基础的人按步骤照做 | 从 0 开始使用插件、初始化、记录、验证、提交的傻瓜式流程 | 新手反馈看不懂、命令变化、接入步骤变化时 |
 | `LICENSE` | 开源许可证 | 明确代码使用、复制、分发和修改规则 | Apache-2.0 许可证文本 | 基本不修改；只有更换许可证时才改 |
-| `AGENTS.md` | 通用 AI Agent 规则 | 让 Codex 或其它通用 AI Agent 知道本项目使用 Project Guardian 记忆 | 修改前要读哪些记忆文件、修改后更新哪些记忆、禁止写入密钥 | AI 工作规则、记忆文件路径或质量要求变化时 |
-| `.cursorrules` | Cursor 旧版规则文件 | 兼容仍读取 `.cursorrules` 的 Cursor 版本 | 要求 Cursor 先读项目记忆，修改后更新记忆 | Cursor 兼容规则变化；可长期保留作为兼容层 |
+| `AGENTS.md` | 通用 AI Agent 规则 | 让 Codex 或其它通用 AI Agent 知道本项目使用 Project Guardian 记忆 | 修改前先做 `brief` 读取计划、按需读记忆、修改后更新记忆、禁止写入密钥 | AI 工作规则、记忆文件路径或质量要求变化时 |
+| `.cursorrules` | Cursor 旧版规则文件 | 兼容仍读取 `.cursorrules` 的 Cursor 版本 | 要求 Cursor 先做读取计划、按需读项目记忆，修改后更新记忆 | Cursor 兼容规则变化；可长期保留作为兼容层 |
 | `.cursor/rules/project-guardian.mdc` | Cursor 新版规则文件 | 适配 Cursor rules 目录机制 | Cursor 中的 Project Guardian 必读和更新规则 | Cursor 新规则格式、项目记忆规则变化时 |
 | `memory/PROJECT_CONTEXT.md` | 项目长期上下文 | AI 和新人需要稳定理解项目为什么存在、怎么运行、核心流程是什么 | 项目概览、技术栈、核心业务流程、依赖、数据模型、运行方式、约束 | 项目目标、技术栈、核心流程、运行方式、重要约束变化时 |
 | `memory/STATE.md` | 当前状态文件 | 接手者需要知道现在做到哪里、下一步是什么、有什么风险 | 当前状态、已完成、进行中、下一步、已知问题、风险区域、最新 AI 协助变更 | 每次阶段状态变化、AI 协助改动后、交接前 |
@@ -122,7 +122,7 @@ project_ai/
 | `plugins/project-guardian/docs/STANDARD.md` | 使用规范文档 | 统一团队怎么写、怎么审、怎么维护项目记忆 | 标准目录、记忆文件职责、记录质量、AI 使用规则、提交规范、配置标准 | 团队规范、目录标准、记录字段、配置项变化时 |
 | `plugins/project-guardian/docs/WORKFLOW.md` | 工作流文档 | 解释完整闭环，不只是单条命令 | 接手项目、初始化、日常开发、记录、提交、交接、新人接手、每周维护 | 团队协作流程、Gitee 分支流程、交接流程变化时 |
 | `plugins/project-guardian/docs/CLI_AND_CI.md` | 命令行和 CI 文档 | 专门说明 CLI、Git hook 和 Gitee Go CI | 所有 `guardian` 命令、verify、hook、CI 模板、失败处理 | CLI 命令新增/修改、CI 模板或 hook 行为变化时 |
-| `plugins/project-guardian/skills/project-guardian/SKILL.md` | Codex skill 说明 | Codex 插件需要一个可读取的技能入口 | 必读顺序、记忆更新规则、自助知识查询循环、记录标准 | Codex 使用规则、技能描述、项目记忆流程变化时 |
+| `plugins/project-guardian/skills/project-guardian/SKILL.md` | Codex skill 说明 | Codex 插件需要一个可读取的技能入口 | 预算友好读取顺序、记忆更新规则、自助知识查询循环、记录标准 | Codex 使用规则、技能描述、项目记忆流程变化时 |
 | `plugins/project-guardian/assets/templates/PROJECT_CONTEXT.md` | 英文项目上下文模板 | 英文项目执行 `guardian init --language en` 时生成 | 英文版项目长期上下文模板 | 英文上下文字段标准变化时 |
 | `plugins/project-guardian/assets/templates/STATE.md` | 英文状态模板 | 英文项目初始化 `memory/STATE.md` 用 | 英文当前状态、下一步、已知问题模板 | 状态记录标准变化时 |
 | `plugins/project-guardian/assets/templates/DECISIONS.md` | 英文决策模板 | 英文项目初始化 `memory/DECISIONS.md` 用 | 英文决策字段模板 | 决策字段或决策结构变化时 |
@@ -138,7 +138,7 @@ project_ai/
 | `plugins/project-guardian/assets/templates/continue-rule.md` | 英文 Continue 规则模板 | 英文项目生成 `.continue/rules/project-guardian.md` 用 | Continue 英文项目记忆规则 | Continue 规则格式或项目规则变化时 |
 | `plugins/project-guardian/assets/templates/CLAUDE.md` | 英文 Claude Code 规则模板 | 英文项目生成 `CLAUDE.md` 用 | Claude Code 英文项目记忆指令 | Claude Code 记忆文件约定变化时 |
 | `plugins/project-guardian/assets/templates/GEMINI.md` | 英文 Gemini CLI 规则模板 | 英文项目生成 `GEMINI.md` 用 | Gemini CLI 英文项目记忆指令 | Gemini CLI 记忆文件约定变化时 |
-| `plugins/project-guardian/assets/templates/vscode-tasks.json` | 英文 VS Code tasks 模板 | 英文项目生成 `.vscode/tasks.json` 用 | Verify、Update Memory、Query、Handover 任务 | VS Code task 命令或字段变化时 |
+| `plugins/project-guardian/assets/templates/vscode-tasks.json` | 英文 VS Code tasks 模板 | 英文项目生成 `.vscode/tasks.json` 用 | Verify、Update Memory、Brief、Query、Handover 任务 | VS Code task 命令或字段变化时 |
 | `plugins/project-guardian/assets/templates/gitee-go-project-guardian.yml` | Gitee Go CI 模板 | `guardian install-ci` 生成流水线用 | Gitee Go 中运行 Project Guardian 检查的 YAML 模板 | CI 命令、默认分支、Node 版本或流水线结构变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/PROJECT_CONTEXT.md` | 中文项目上下文模板 | 默认 `guardian init` 生成项目上下文 | 中文项目概览、技术栈、核心业务流程模板 | 中文上下文字段标准变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/STATE.md` | 中文状态模板 | 默认初始化 `memory/STATE.md` | 中文当前状态、下一步、已知问题模板 | 中文状态记录标准变化时 |
@@ -155,7 +155,7 @@ project_ai/
 | `plugins/project-guardian/assets/templates/zh-CN/continue-rule.md` | 中文 Continue 规则模板 | 默认生成 `.continue/rules/project-guardian.md` | Continue 中文项目记忆规则 | Continue 中文适配变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/CLAUDE.md` | 中文 Claude Code 规则模板 | 默认生成 `CLAUDE.md` | Claude Code 中文项目记忆指令 | Claude Code 中文适配变化时 |
 | `plugins/project-guardian/assets/templates/zh-CN/GEMINI.md` | 中文 Gemini CLI 规则模板 | 默认生成 `GEMINI.md` | Gemini CLI 中文项目记忆指令 | Gemini CLI 中文适配变化时 |
-| `plugins/project-guardian/assets/templates/zh-CN/vscode-tasks.json` | 中文 VS Code tasks 模板 | 默认生成 `.vscode/tasks.json` | 中文输入提示的 Verify、Update Memory、Query、Handover 任务 | VS Code 中文任务模板变化时 |
+| `plugins/project-guardian/assets/templates/zh-CN/vscode-tasks.json` | 中文 VS Code tasks 模板 | 默认生成 `.vscode/tasks.json` | 中文输入提示的 Verify、Update Memory、Brief、Query、Handover 任务 | VS Code 中文任务模板变化时 |
 
 ## 代码、配置、资源和测试文件
 
@@ -163,13 +163,13 @@ project_ai/
 | --- | --- | --- | --- | --- |
 | `package.json` | npm 包和脚本配置 | 让项目能作为 CLI package 使用并运行测试 | 包名、版本、license、bin、files、engines、scripts | CLI 入口、版本、发布范围、测试脚本变化时 |
 | `package-lock.json` | npm 锁定文件 | 让 `npm audit` 和安装元数据可重复验证 | 当前 package 的锁定元数据；本项目暂无第三方依赖 | package 元数据、依赖或 npm 审计流程变化时 |
-| `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、language、adapters、ignore | 记忆路径、语言、适配器、CI 分支、扫描规则变化时 |
+| `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、MCP 权限、language、adapters、ignore | 记忆路径、语言、适配器、MCP 工具权限、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
-| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、query、decision、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
+| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
-| `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、CLI 子命令转发 | MCP 协议工具、暴露命令或安全策略变化时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、query、mcp、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |
@@ -182,7 +182,7 @@ project_ai/
 | 英文模板和 `zh-CN` 中文模板 | 默认中文项目使用 `zh-CN`；英文团队使用 `guardian init --language en`。 |
 | `memory/DECISIONS.md` 和 `memory/decisions/*.md` | 前者是总索引和兼容入口；后者是一条决策一个文件，降低多人协作冲突。 |
 | `AGENTS.md`、Cursor 规则、Copilot 指令 | 它们分别服务不同 AI 工具，不是给同一个工具重复读取。 |
-| 规则文件适配器和 `guardian mcp` | 前者让 AI 读取项目记忆规则，后者让支持 MCP 的 AI IDE 直接调用查询、更新、验证等工具。 |
+| 规则文件适配器和 `guardian mcp` | 前者让 AI 按预算读取项目记忆规则，后者让支持 MCP 的 AI IDE 直接调用 brief、查询、更新、验证等工具。 |
 
 ## 新增或修改文件的判断标准
 

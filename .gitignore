@@ -7,3 +7,4 @@ Thumbs.db
 tests/.tmp-*/
 .env
 .env.*
+docs/ip/

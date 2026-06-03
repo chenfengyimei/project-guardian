@@ -99,7 +99,72 @@
 - 影响文件/模块：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/*`。
 - 关联变更：MCP 暴露 `guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts` 和 `guardian_adapters_doctor`。
 - 验证方式：运行 lint、Node 测试套件、MCP initialize/tools/list/tools/call 冒烟测试和完整 `guardian verify`。
-- 风险：当前 MCP 没有独立权限系统，工具调用会执行本地 Guardian 命令；接入时必须依赖本地仓库权限、Git 权限、代码评审和密钥扫描。
+- 风险：当时 MCP 尚无工具限制，工具调用会执行本地 Guardian 命令；2026-06-02 已新增 `mcp.readOnly` 和 `mcp.allowedTools` 缓解误调用风险，但接入时仍必须依赖本地仓库权限、Git 权限、代码评审和密钥扫描。
 - 复审时间：2026-06-28。
 - 后续动作：观察真实 IDE 接入反馈，再考虑 MCP prompts/resources、权限细化或官方 SDK 集成。
 - 决策文件：`memory/decisions/2026-05-28-mcp.md`
+
+### 2026-06-02 - Add MCP tool gating before deeper IDE integrations
+
+- 背景：`guardian mcp` 已经能让 AI IDE 直接调用本地 Project Guardian 命令，其中 `guardian_update`、`guardian_decision_add` 和 `guardian_handover` 会写入项目记忆。
+- 决策：新增项目级 MCP 工具限制，默认保持全部工具可用；通过 `mcp.readOnly` 隐藏并阻止写入类工具，通过 `mcp.allowedTools` 只暴露指定工具，并允许 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 临时强制只读。
+- 备选方案：默认只读；为 MCP 做完整身份认证；继续只依赖文档提醒和代码评审。
+- 影响文件/模块：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`project-guardian.config.json`、`tests/guardian.test.js`、Project Guardian 文档和记忆文件。
+- 关联变更：MCP `tools/list` 会按配置返回工具，`tools/call` 会拒绝被禁用工具；`doctor` 会校验 `mcp.readOnly` 和 `mcp.allowedTools`。
+- 验证方式：运行 lint、Node 测试套件、MCP 只读/允许列表回归测试、完整 `guardian verify` 和 MCP 只读冒烟测试。
+- 风险：这是工具过滤，不是身份认证或逐次审批；接入高风险环境仍要保留仓库权限、Git 权限、代码评审和安全扫描。
+- 复审时间：2026-07-02。
+- 后续动作：真实 MCP 客户端接入后，评估是否需要 prompts/resources、权限细化、审计日志或官方 SDK 集成。
+- 决策文件：`memory/decisions/2026-06-02-mcp-tool-gating.md`
+
+### 2026-06-02 - Reject placeholder midnight time in the latest AI changelog entry
+
+- 背景：项目记忆中多条 AI 变更日志被手写为 `00:00`，导致交接时难以判断真实修改时间和先后顺序。
+- 决策：不批量重写旧历史；从本次修复开始，`validate-docs` 只检查最新一条 changelog，如果标题时间是 `00:00` 则失败。最新记录按文件顶部第一条 `###` 记录判断。
+- 备选方案：批量修改全部旧记录；完全依赖人工注意；只修 `timestamp()` 而不加质量闸门。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`memory/AI_CHANGELOG.md` 和 Project Guardian 文档。
+- 关联变更：`latestChangelogText` 改为取第一条记录；新增 `hasMidnightTimestamp` 校验；文档说明新记录必须使用真实本地 `YYYY-MM-DD HH:mm` 时间。
+- 验证方式：运行新增回归测试和完整 `guardian verify`。
+- 风险：真实 00:00 整点生成的记录也会被要求人工修正为更可区分的时间。
+- 复审时间：2026-07-02。
+- 后续动作：观察团队是否还会手写占位时间，必要时在 `guardian update` 输出中增加更明显提示。
+- 决策文件：`memory/decisions/2026-06-02-precise-changelog-time.md`
+
+### 2026-06-02 - Add decision review detection and completion workflow
+
+- 背景：决策文件已经有 `Review after` / `复审时间` 字段，但没有自动发现到期复审、完成复审和停止后续提醒的机制。
+- 决策：新增 `guardian reviews`、`guardian reviews due` 和 `guardian reviews complete`，扫描 `memory/decisions/*.md` 的复审时间；到期未完成时 `guardian verify` 失败；复审完成后在对应决策文件追加复审结果，并写明“无需继续复审”。
+- 备选方案：继续只靠人工查看决策文件；把复审做成复杂数据库任务系统；只在文档里提醒但不进入质量闸门。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`tests/guardian.test.js`、README、Project Guardian 文档和项目记忆文件。
+- 关联变更：MCP 新增 `guardian_reviews_due` 和 `guardian_review_complete`；package scripts 新增 `guardian:reviews`；`verify` 新增 `reviews` 步骤。
+- 验证方式：新增回归测试覆盖到期复审阻塞 `verify`、完成复审后恢复通过、MCP 只读隐藏写入工具和 package scripts；运行 lint、测试和完整 verify。
+- 风险：复审检测依赖标准字段名和日期格式；手工写坏字段时仍可能需要人工修正或后续增强解析。
+- 复审时间：2026-07-02。
+- 后续动作：观察真实团队是否需要交互式复审、复审责任人字段、复审历史列表或配置化提前提醒。
+- 决策文件：`memory/decisions/2026-06-02-decision-review-workflow.md`
+
+### 2026-06-02 - Add strict MCP schema validation and query limit
+
+- 背景：MCP 客户端如果传入多余参数或错误类型，旧实现会让 CLI 静默忽略部分无效字段；如果 `mcp.allowedTools` 配置写错，`doctor` 能发现，但直接启动 MCP 时仍有配置误用风险。`guardian_query` 固定返回 6 个片段，也不利于控制 token 成本。
+- 决策：MCP server 启动时强校验 `mcp` 配置；工具调用时按 schema 拒绝多余参数、错误类型和越界值；`guardian query` 和 MCP `guardian_query` 增加 `limit`，范围 1 到 10。
+- 备选方案：继续只依赖 `doctor`；只在文档提示参数格式；把查询结果固定缩短但不提供用户控制。
+- 影响文件/模块：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、README、Project Guardian 文档和项目记忆文件。
+- 关联变更：`guardian_query.limit` 映射到 CLI `--limit`；`guardian.js` 复用 MCP 配置校验；新增 MCP 环境只读、参数校验、启动失败和 query limit 回归测试。
+- 验证方式：运行 lint、Node 测试套件、完整 `guardian verify`、审计、diff check 和 package dry-run。
+- 风险：这仍是本地工具边界，不是身份认证；`limit` 只能减少返回片段，不能保证语义命中率。
+- 复审时间：2026-07-02。
+- 后续动作：真实 MCP 客户端接入后，观察是否需要默认更小的 MCP limit、分页查询、摘要模式或 MCP prompts/resources。
+- 决策文件：`memory/decisions/2026-06-02-mcp-schema-and-query-limit.md`
+
+### 2026-06-03 - Add budget-aware memory briefing before full reads
+
+- 背景：如果 AI 每轮都读取 `PROJECT_CONTEXT`、`STATE`、`DECISIONS`、`AI_CHANGELOG` 和 `HANDOVER`，其它项目接入后会持续增加 token 成本；但完全不读记忆又会破坏 Project Guardian 的交接价值。
+- 决策：新增 `guardian brief` 和 MCP `guardian_brief`，在 AI 打开大型历史记忆前先输出读取计划、推荐文件、建议 `query --limit` 和粗略 token 估算。规则模板改为默认先读 `memory/PROJECT_CONTEXT.md` 与 `memory/STATE.md`，再按任务需要读取决策、变更日志或交接指南。2026-06-03 复核后新增 `--mode quick|deep|full` 和 MCP `guardian_brief.mode`，把“风险升高时升级读取”固化为工具能力。
+- 备选方案：新增向量数据库/RAG；让 AI 每轮全量读取所有记忆；只依赖人工少读文件；创建复杂权限系统或 IDE 原生扩展。
+- 影响文件/模块：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`tests/guardian.test.js`、AI 规则模板、VS Code tasks、README、Project Guardian 文档、`零基础超简单入门.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
+- 关联变更：`guardian brief "token 成本控制" --limit 2` 实测推荐核心两份和决策，估算约节省 51%；`guardian brief "新人接手" --limit 2` 推荐核心两份和交接，估算约节省 63%；`quick`、`deep`、`full` 模式分别覆盖低风险日常、历史/回归/高风险、交接/上线/审计/全量上下文场景。
+- 验证方式：运行 lint、Node 测试套件、`guardian brief` 冒烟测试、完整 `guardian verify`、审计和 diff check。
+- 风险：`brief` 的 token 估算基于字符数近似，不等同于模型 tokenizer；核心记忆继续膨胀时仍可能偏大；关键词路由可能漏掉语义相关历史，因此所有规则模板都必须说明按需读取不是硬限制，证据不足或风险升高时必须升级到 `deep` 或 `full`。
+- 复审时间：2026-07-03。
+- 后续动作：真实 AI IDE 接入后观察是否需要短摘要文件、MCP resources、分页查询、缓存摘要或向量检索。
+- 决策文件：`memory/decisions/2026-06-03-token-budget-briefing.md`

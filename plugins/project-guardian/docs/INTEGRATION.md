@@ -158,9 +158,9 @@ guardian init
 
 ### 3.4 AI IDE 适配方式
 
-Project Guardian 的最稳定调用方式是 CLI：任何能打开终端并运行 Node.js 的 IDE 都能执行 `guardian init`、`guardian update`、`guardian verify` 和 `guardian query`。支持 MCP 的 AI IDE 还可以通过 `guardian mcp` 直接调用 Project Guardian 工具。
+Project Guardian 的最稳定调用方式是 CLI：任何能打开终端并运行 Node.js 的 IDE 都能执行 `guardian init`、`guardian brief`、`guardian update`、`guardian verify` 和 `guardian query`。支持 MCP 的 AI IDE 还可以通过 `guardian mcp` 直接调用 Project Guardian 工具。
 
-规则文件适配器用于让不同 AI IDE 在回答或修改代码前自动读取项目记忆：
+规则文件适配器用于让不同 AI IDE 在回答或修改代码前自动读取项目记忆。新版模板默认采用预算友好的读取方式：先 `brief`，再读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`，其它较大的历史文件按任务需要再读。按需读取不是硬限制；bug、回归、测试失败、历史不清楚、高风险模块或准备重构时使用 `guardian brief "任务" --mode deep`，新人接手、交接、上线、审计、大范围重构或用户要求完整上下文时使用 `--mode full`。
 
 | 适配器 | 面向工具 | 生成文件 |
 | --- | --- | --- |
@@ -217,7 +217,24 @@ VS Code tasks 默认调用 `guardian`，所以在 VS Code 里运行任务前要�
 }
 ```
 
-第一次接入后，先让 AI 调用 `guardian_doctor` 或 `guardian_query`，确认 MCP server 已经能读取当前项目。
+第一次接入后，先让 AI 调用 `guardian_brief` 和 `guardian_doctor`，确认 MCP server 已经能读取当前项目，并且知道本轮任务该读哪些记忆文件。查询时可以给 `guardian_query` 传 `limit`，范围 1 到 10；小白接入和日常答疑建议先用 2 到 3，减少上下文噪声和 token 消耗。
+
+MCP `guardian_brief` 也支持 `mode` 参数：`quick`、`deep`、`full` 或默认 `auto`。高风险任务不要只依赖 `auto`，应主动传 `mode: "deep"` 或 `mode: "full"`。
+
+多人协作、公开仓库或不确定 MCP 客户端行为时，建议先使用只读 MCP：
+
+```json
+{
+  "mcp": {
+    "readOnly": true,
+    "allowedTools": ["guardian_brief", "guardian_query", "guardian_verify", "guardian_doctor", "guardian_scan_secrets"]
+  }
+}
+```
+
+MCP 会在启动时校验配置；如果 `mcp.readOnly`、`mcp.allowedTools` 写错，server 会拒绝启动。工具调用也会拒绝多余参数、错误类型和越界 `limit`，避免无效参数被静默忽略。
+
+确认工作流稳定后，再按团队需要开放 `guardian_update`、`guardian_decision_add` 或 `guardian_handover`。
 
 ### 3.6 运行体检
 
@@ -232,7 +249,7 @@ node plugins/project-guardian/scripts/guardian.js doctor
 推荐让 AI 先读代码后补齐：
 
 ```text
-请阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 memory/PROJECT_CONTEXT.md、memory/STATE.md 和 memory/DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
+请先运行 guardian brief "补齐第一版项目记忆"，再阅读当前项目代码，不要修改业务代码。请按照 Project Guardian 标准补齐 memory/PROJECT_CONTEXT.md、memory/STATE.md 和 memory/DECISIONS.md，重点写清楚项目目标、技术栈、运行方式、核心业务流程、当前状态、已知问题和风险区域。
 ```
 
 然后由项目负责人复核。

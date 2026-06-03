@@ -57,6 +57,6 @@
 
 ## AI 注意事项
 
-- AI 修改代码前必须先阅读本文件和其他项目记忆文件。
+- AI 修改代码前必须先阅读本文件和 `memory/STATE.md`，再通过 `guardian brief` 或 `guardian query --limit 3` 按需读取其它较大的历史记忆。首轮证据不足或风险升高时，使用 `guardian brief --mode deep` 或 `--mode full` 升级读取。
 - 长期稳定的业务背景、技术背景和运行方式写在这里。
 - 不要把生产密码、真实 token、客户隐私或其他敏感信息写入项目记忆。

@@ -1,11 +1,15 @@
 This project uses Project Guardian memory.
 
-Before editing code or answering project-specific questions, read:
-- memory/PROJECT_CONTEXT.md
-- memory/STATE.md
-- memory/DECISIONS.md
-- memory/AI_CHANGELOG.md
-- memory/HANDOVER.md
+Before editing code or answering project-specific questions, use budget-aware memory reading:
+- Run guardian brief "task or question" first when the CLI or MCP tool is available.
+- Always read memory/PROJECT_CONTEXT.md and memory/STATE.md.
+- Read memory/DECISIONS.md only for architecture, workflow, dependency, security, compatibility, or review decisions.
+- Read memory/AI_CHANGELOG.md only for recent history, regression context, risk, or "why changed".
+- Read memory/HANDOVER.md only for handoff, onboarding, release, or first-day guidance.
+- Use guardian query "question" --limit 3 before opening large history files.
+- Use guardian brief "task or question" --mode deep for bugs, regressions, unclear history, or high-risk modules.
+- Use guardian brief "task or question" --mode full for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.
+- Budget-aware reading is a starting point, not a hard restriction. If evidence is weak, conflicting, or risky, escalate before editing.
 
 After AI-assisted code changes:
 - Update memory/STATE.md with current status, known issues, next steps, and latest change.

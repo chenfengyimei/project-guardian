@@ -83,7 +83,34 @@ project-guardian/
 
 ## 一句话工作循环
 
-新项目先 `init` 建立记忆文件；每天开发前读 `memory/STATE.md`；AI 改完代码后运行 `update`；提交前运行 `check`；换人或阶段结束运行 `handover`；新人接手先读 `memory/HANDOVER.md`，再用 `query` 多轮提问。
+新项目先 `init` 建立记忆文件；每天开发前先用 `brief` 判断该读哪些记忆，再读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`；AI 改完代码后运行 `update`；提交前运行 `verify`；换人或阶段结束运行 `handover`；新人接手先用 `brief` 和 `query --limit 3` 定向了解项目。
+
+## Token 成本控制
+
+Project Guardian 不要求 AI 每轮都把所有记忆文件塞进上下文。推荐使用分层读取：
+
+1. 先运行 `guardian brief "当前任务或问题"`，让 CLI 给出推荐读取文件和粗略 token 预算。
+2. 默认只读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`。
+3. 涉及架构、依赖、安全、兼容性、工作流或复审时再读 `memory/DECISIONS.md`。
+4. 需要排查历史原因、最近改动、回归或风险时再读 `memory/AI_CHANGELOG.md`。
+5. 新人接手、交接、上线准备时再读 `memory/HANDOVER.md`。
+6. 查询历史时优先用 `guardian query "问题" --limit 3`，先拿少量片段，不够再提高到 5 或 10。
+
+接入 MCP 的 AI IDE 可以调用 `guardian_brief` 获取同样的读取计划，再用 `guardian_query` 的 `limit` 参数控制返回片段数量。
+
+`brief` 支持三档手动升级，避免按需读取误判：
+
+```bash
+guardian brief "普通小改动" --mode quick
+guardian brief "修复登录回归" --mode deep
+guardian brief "新人接手项目" --mode full
+```
+
+- `quick`：只读项目长期上下文和当前状态，适合低风险日常小任务。
+- `deep`：额外读取决策和 AI 变更日志，适合 bug、回归、历史不清楚、高风险模块、测试失败或准备重构。
+- `full`：读取全部核心记忆，适合新人接手、交接、上线、审计、大范围重构，或用户明确要求完整上下文。
+
+按需读取不是硬限制。只要证据不足、查询结果冲突、任务风险变高，Agent 必须升级到 `deep` 或 `full` 后再修改。
 
 ## 快速使用
 
@@ -163,7 +190,7 @@ guardian adapters doctor
 
 | 工具 | 当前支持方式 | 生成文件 | 使用建议 |
 | --- | --- | --- | --- |
-| 任意 IDE 终端 | CLI | 无额外文件 | 只要能运行 Node.js，就能运行 `guardian init/update/verify/query` |
+| 任意 IDE 终端 | CLI | 无额外文件 | 只要能运行 Node.js，就能运行 `guardian init/brief/update/verify/query` |
 | 支持 MCP 的 AI IDE | stdio MCP | 无额外文件 | 使用 `guardian mcp` 暴露查询、更新、验证、决策等工具 |
 | Codex | 插件元数据 + AGENTS | `.codex-plugin/plugin.json`、`AGENTS.md`、`SKILL.md` | 当前支持度最高 |
 | Cursor | Project Rules | `.cursor/rules/project-guardian.mdc`、`.cursorrules` | 推荐安装 `cursor` 适配器 |
@@ -218,13 +245,29 @@ guardian mcp
 }
 ```
 
-当前 MCP 暴露工具：`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`。
+当前 MCP 暴露工具：`guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due`、`guardian_review_complete`。`guardian_brief` 用于生成预算友好的读取计划；`guardian_query` 支持可选 `limit` 参数，范围 1 到 10，用来控制返回片段数量。
+
+如果团队担心 MCP 客户端误调用写入类工具，可以在 `project-guardian.config.json` 收紧权限：
+
+```json
+{
+  "mcp": {
+    "readOnly": true,
+    "allowedTools": ["guardian_brief", "guardian_query", "guardian_verify", "guardian_doctor"]
+  }
+}
+```
+
+`readOnly: true` 会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete` 和 `guardian_handover`。`allowedTools` 为空数组时表示允许全部标准工具；写入高风险场景建议只开放查询、体检、复审查看和验证工具。也可以临时设置环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 强制只读。MCP 启动时会校验配置，工具调用时会拒绝多余参数、错误类型和越界 `limit`。
 
 ## 常用命令
 
 ```bash
 # 检查项目是否已经正确接入
 guardian doctor
+
+# 先判断本轮任务应该读取哪些记忆文件，并估算 token
+guardian brief "修复登录验证码校验失败"
 
 # 记录一次 AI 辅助开发
 guardian update "修复登录验证码校验失败"
@@ -241,11 +284,19 @@ guardian verify
 # 记录一条结构化决策
 guardian decision add --title "采用配置文件" --context "需要跨项目适配" --decision "使用 project-guardian.config.json"
 
+# 查看决策复审状态；到期复审会让 verify 失败
+guardian reviews
+guardian reviews due
+guardian reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
+
 # 查看 Git 冲突，尤其是记忆文件冲突
 guardian conflicts
 
 # 进入多轮项目知识查询
 guardian query
+
+# 非交互查询并限制返回片段数量
+guardian query "登录流程" --limit 3
 
 # 启动 MCP server，给支持 MCP 的 AI IDE 调用
 guardian mcp
@@ -262,6 +313,7 @@ npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:query
+npm run guardian:reviews
 npm run guardian:mcp
 ```
 
@@ -279,6 +331,7 @@ guardian verify
 doctor
 check
 validate-docs
+reviews
 scan-secrets
 ```
 
@@ -289,7 +342,9 @@ scan-secrets
 运行：
 
 ```bash
+guardian brief "登录逻辑在哪里"
 guardian query
+guardian query "登录逻辑在哪里" --limit 3
 ```
 
 示例问题：
@@ -302,7 +357,7 @@ guardian> 哪些地方风险最高？
 guardian> exit
 ```
 
-查询会优先检索标准记忆文件，再检索常见源码文件。它是本地轻量查询，不依赖外部模型 API；在 Codex 中使用时，`SKILL.md` 会让 AI 先读记忆文件再回答。
+查询会优先检索标准记忆文件，再检索常见源码文件。它是本地轻量查询，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
 
 ## 推荐工作流
 
@@ -311,7 +366,7 @@ guardian> exit
 3. 每次 AI 辅助改代码后运行 `update`，补全 TODO 字段。
 4. 每次提交前运行 `verify`，或安装 `install-hooks` 自动检查。
 5. 换人、离职、暂停超过一周或版本交付前运行 `handover`。
-6. 新人接手时先读 `memory/HANDOVER.md`，再用 `query` 连续提问。
+6. 新人接手时先运行 `brief`，再按结果读取 `memory/HANDOVER.md` 或其它记忆，并用 `query --limit 3` 连续提问。
 
 ## 新增质量检查命令
 

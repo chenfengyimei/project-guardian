@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-05-28
+最后更新：2026-06-03
 
 ## 当前状态
 
@@ -12,6 +12,12 @@
 - 适配器解析已经拆分到 `plugins/project-guardian/scripts/lib/adapters.js`，并扩展到 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 和 VS Code。
 - CLI 现在默认生成中文项目记忆模板，也可以通过 `guardian init --language en` 生成英文模板。
 - CLI 默认项目记忆路径已经集中到根目录 `memory/`，新项目运行 `guardian init` 会创建 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 和 `memory/HANDOVER.md`。
+- MCP 已支持 `readOnly`、`allowedTools` 和 `PROJECT_GUARDIAN_MCP_READ_ONLY=1`，团队可以把 MCP 客户端限制为只读或指定工具集合。
+- MCP 启动和工具调用已增加强校验：配置写错会拒绝启动，工具入参多传、类型错误或 query limit 越界会被拒绝。
+- 决策复审机制已接入 CLI、verify 和 MCP：到期未完成复审会被拦截，完成复审后会在对应决策文件中标记正常和无需继续复审。
+- 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
+- AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
+- `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -32,16 +38,24 @@
 - Continue 规则模板已经补充规则头，VS Code tasks 和跨 IDE 适配限制已经在 README、CLI/CI、接入和标准文档中说明。
 - 新增 `package-lock.json`，让 `npm audit` 可以稳定运行；当前项目没有第三方运行依赖，审计结果为 0 个漏洞。
 - 新增 `guardian mcp` stdio MCP server，支持 MCP 的 AI IDE 可以直接调用 query、update、decision、verify、doctor、scan-secrets、handover、conflicts 和 adapters doctor。
+- 新增 MCP 工具权限控制，`doctor` 会校验错误的 MCP 配置，测试覆盖只读模式、工具允许列表和配置错误。
+- 新增本地软著申请材料包 `docs/ip/`，包含申请信息准备表、软件说明书、提交清单、源程序整理指南和质量报告；该目录已加入 `.gitignore`，默认不上传到 Gitee。
+- 新增 `docs/ip/Project_Guardian_软著申请材料包.docx`，把软著申请需要的材料整理成 Word 版材料包，并确认该文件被 Git 忽略。
+- 新增 AI 变更日志时间精度校验，后续最新 changelog 记录不能继续使用 `00:00` 占位时间。
+- 新增 `guardian reviews`、`guardian reviews due` 和 `guardian reviews complete`，并让 `guardian verify` 自动检测到期未完成的决策复审。
+- 新增 `guardian query --limit` 和 MCP `guardian_query.limit`，用于控制查询返回片段数量，降低 MCP 接入后的上下文和 token 成本。
+- 新增 `guardian brief`、MCP `guardian_brief`、VS Code Brief task 和 `guardian:brief` package script，用于在查询或读取记忆前做 token 预算路由。
+- 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
 
 ## 进行中
 
-- MCP 功能、文档同步和最终验证已完成，当前等待提交到 Gitee。
+- Token 预算读取机制和升级模式已完成代码、规则模板和文档更新，并已通过最终验证；复审机制、时间精度修复、MCP 强校验、query limit 和软著材料仍保持在当前未提交工作区中。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 `plugins/project-guardian/scripts/lib/mcp.js`、文档、测试和记忆一起提交。
-2. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
-3. 根据真实 IDE 反馈，再考虑 MCP prompts/resources、权限细化、VS Code 原生扩展、JetBrains 插件和 RAG/向量检索。
+1. 提交到 Gitee 前复查 `git status`，确认 MCP 权限代码、MCP 强校验、query limit、token 预算读取机制、复审机制、时间精度修复、文档、测试、记忆和 `.gitignore` 一起提交，且 `docs/ip/` 不被 Git 跟踪。
+2. 软著申请前由人工确认著作权人、申请版本、软件完成日期、首次发表日期和权属方式，并更新 `docs/ip/` 下的待填写字段。
+3. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
 
 ## 已知问题
 
@@ -52,7 +66,9 @@
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
 | 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 本次保持尊重显式配置；旧项目迁移时应同步更新 `project-guardian.config.json` |
 | AI IDE 规则格式会变化 | 某些适配器模板未来可能失效 | 维护者 | 已新增 `adapters doctor` 帮助发现缺失文件；仍需定期复核官方规则格式 |
-| MCP 当前没有独立权限系统 | 支持 MCP 的 IDE 可以执行本地 Guardian 命令 | 维护者 | 依赖本地仓库权限、Git 权限和代码评审；不要把生产密钥写入记忆 |
+| MCP 不做身份认证或逐次审批 | 支持 MCP 的 IDE 仍能调用已开放的本地 Guardian 命令 | 维护者 | 已新增 `mcp.readOnly` 和 `mcp.allowedTools` 降低误调用风险；仍需依赖仓库权限、Git 权限和代码评审 |
+| 记忆读取仍会消耗模型上下文 | 其它项目接入后，AI 读取规则、核心记忆和查询片段会增加少量 token | 维护者 | 使用 `guardian brief` / `guardian_brief` 先做读取计划，再用 `guardian_query.limit` 或 `guardian query --limit` 控制返回片段数；风险升高时用 `--mode deep` 或 `--mode full`，默认不做 RAG 全量注入 |
+| 复审检测依赖标准字段 | 手工改坏 `复审时间` 或完成标记会导致漏检或误报 | 维护者 | 使用 `guardian decision add --review-after` 和 `guardian reviews complete` 生成标准内容 |
 
 ## 风险区域
 
@@ -63,8 +79,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：扩展 AI IDE 适配能力并新增适配器体检。
-- 总结：在已有多 AI IDE 规则适配基础上新增 `guardian mcp`，让支持 MCP 的 IDE 可以直接调用 Project Guardian 工具；补充 MCP 文档、测试和文件总览。
-- 文件：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`plugins/project-guardian/docs/*`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/STATE.md`。
-- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和真实 stdio MCP 冒烟测试；MCP initialize、tools/list 和 guardian_query 工具测试通过。
-- 后续：真实接入支持 MCP 的 IDE 后，再评估 MCP prompts/resources、权限细化、VS Code 扩展、JetBrains 插件和 RAG/向量检索。
+- 任务：建立 token 预算控制和按需读取机制。
+- 总结：新增 `guardian brief` 和 MCP `guardian_brief`，输出必读文件、按需文件、建议查询命令和粗略 token 预算；所有主要 AI 规则模板和使用文档已改为预算友好读取；现已补充 `quick`、`deep` 和 `full` 升级模式，避免按需读取误判。
+- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`tests/guardian.test.js`、AI 规则模板、README、Project Guardian 文档、`零基础超简单入门.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run`、`guardian brief "普通小改动" --mode quick --limit 2`、`guardian brief "修复登录回归" --mode deep --limit 2` 和 `guardian brief "新人接手" --mode full --limit 2`；当前 47 个测试通过，审计 0 漏洞，发布 dry-run 包含 CLI、MCP、规则模板、Skill 和文档。
+- 后续：观察真实 AI IDE 是否仍倾向全量读取；如果核心记忆继续变大，再考虑生成更短的 `memory/SUMMARY.md` 或 MCP resources。

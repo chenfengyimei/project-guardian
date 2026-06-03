@@ -26,9 +26,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Project Guardian: Brief",
+      "type": "shell",
+      "command": "guardian brief \"${input:guardianQuestion}\"",
+      "problemMatcher": []
+    },
+    {
       "label": "Project Guardian: Query",
       "type": "shell",
-      "command": "guardian query \"${input:guardianQuestion}\"",
+      "command": "guardian query \"${input:guardianQuestion}\" --limit 3",
       "problemMatcher": []
     },
     {

@@ -21,6 +21,10 @@
   "security": {
     "scanSecrets": true
   },
+  "mcp": {
+    "readOnly": false,
+    "allowedTools": []
+  },
   "language": "zh-CN",
   "adapters": [
     "generic",

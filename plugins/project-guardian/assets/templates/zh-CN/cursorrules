@@ -1,11 +1,15 @@
 本项目使用 Project Guardian 项目记忆。
 
-修改代码或回答项目相关问题前，先阅读：
-- memory/PROJECT_CONTEXT.md
-- memory/STATE.md
-- memory/DECISIONS.md
-- memory/AI_CHANGELOG.md
-- memory/HANDOVER.md
+修改代码或回答项目相关问题前，使用预算友好的项目记忆读取方式：
+- CLI 或 MCP 工具可用时，先运行 guardian brief "任务或问题"。
+- 始终读取 memory/PROJECT_CONTEXT.md 和 memory/STATE.md。
+- 只有涉及架构、工作流、依赖、安全、兼容性或复审决策时，才读取 memory/DECISIONS.md。
+- 只有需要最近历史、回归背景、风险或“为什么这样改”时，才读取 memory/AI_CHANGELOG.md。
+- 只有交接、接手、上线或新人第一天指导时，才读取 memory/HANDOVER.md。
+- 打开大型历史文件前，优先用 guardian query "问题" --limit 3 做定向查询。
+- bug、回归、历史不清楚或高风险模块使用 guardian brief "任务或问题" --mode deep。
+- 新人接手、交接、上线、审计、大重构或用户明确要求完整上下文时使用 guardian brief "任务或问题" --mode full。
+- 预算友好读取只是起点，不是硬限制。证据不足、结果冲突或风险较高时，必须先升级读取再修改。
 
 AI 协助代码修改后：
 - 更新 memory/STATE.md，写清当前状态、已知问题、下一步和最新变更。

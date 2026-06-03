@@ -26,9 +26,9 @@ function run(cwd, args) {
   });
 }
 
-function runMcpSession(cwd, messages, expectedResponses) {
+function runMcpSession(cwd, messages, expectedResponses, extraEnv = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawnMcp(cwd);
+    const child = spawnMcp(cwd, extraEnv);
     const responses = [];
     let stderr = "";
     const timer = setTimeout(() => {
@@ -75,11 +75,11 @@ function runMcpSession(cwd, messages, expectedResponses) {
   });
 }
 
-function spawnMcp(cwd) {
+function spawnMcp(cwd, extraEnv = {}) {
   return spawn(process.execPath, [guardian, "mcp"], {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, NO_COLOR: "1", ...extraEnv },
     stdio: ["pipe", "pipe", "pipe"],
   });
 }
@@ -129,6 +129,11 @@ function defaultConfig(overrides = {}) {
     security: {
       scanSecrets: true,
       ...(overrides.security || {}),
+    },
+    mcp: {
+      readOnly: false,
+      allowedTools: [],
+      ...(overrides.mcp || {}),
     },
     language: overrides.language || "zh-CN",
     adapters: overrides.adapters || ["generic", "cursor"],
@@ -278,7 +283,7 @@ This file records AI-assisted development context that should survive beyond a c
 
 ## 2026 Entries
 
-### 2026-05-14 00:00 - Prepare test project memory
+### 2026-05-14 10:30 - Prepare test project memory
 
 - Human request: Create a valid Project Guardian test fixture.
 - AI summary: Filled durable memory files with concrete, non-sensitive test content.
@@ -435,8 +440,10 @@ test("init adds portable package scripts when CLI is external to the target proj
 
     const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
     assert.equal(pkg.scripts["guardian:verify"], "guardian verify");
+    assert.equal(pkg.scripts["guardian:brief"], "guardian brief");
     assert.equal(pkg.scripts["guardian:adapters-doctor"], "guardian adapters doctor");
     assert.equal(pkg.scripts["guardian:mcp"], "guardian mcp");
+    assert.equal(pkg.scripts["guardian:reviews"], "guardian reviews");
     assert.doesNotMatch(pkg.scripts["guardian:verify"], /\.\.\//);
   } finally {
     cleanup(root);
@@ -532,6 +539,8 @@ test("vscode adapter creates VS Code tasks and Copilot instructions", () => {
     const tasks = fs.readFileSync(path.join(root, ".vscode", "tasks.json"), "utf8");
     assert.doesNotThrow(() => JSON.parse(tasks));
     assert.match(tasks, /Project Guardian: Verify/);
+    assert.match(tasks, /Project Guardian: Brief/);
+    assert.match(tasks, /guardian query .*--limit 3/);
     assert.ok(fs.existsSync(path.join(root, ".github", "copilot-instructions.md")));
 
     const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
@@ -559,6 +568,7 @@ test("adapter templates render configured memory paths", () => {
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     const claude = fs.readFileSync(path.join(root, "CLAUDE.md"), "utf8");
     assert.match(claude, /project-memory\/CONTEXT\.md/);
+    assert.match(claude, /guardian brief/);
     assert.doesNotMatch(claude, /memory\/PROJECT_CONTEXT\.md/);
     assert.ok(fs.existsSync(path.join(root, "project-memory", "CONTEXT.md")));
   } finally {
@@ -591,6 +601,7 @@ test("mcp server exposes Project Guardian tools", async () => {
     ], 2);
     assert.equal(responses[0].result.serverInfo.name, "project-guardian");
     const toolNames = responses[1].result.tools.map((tool) => tool.name);
+    assert.ok(toolNames.includes("guardian_brief"));
     assert.ok(toolNames.includes("guardian_query"));
     assert.ok(toolNames.includes("guardian_verify"));
     assert.ok(toolNames.includes("guardian_adapters_doctor"));
@@ -606,11 +617,148 @@ test("mcp query tool returns CLI output", async () => {
     const responses = await runMcpSession(root, [
       { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
       { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
-      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "guardian_query", arguments: { question: "memory workflow" } } },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "guardian_query", arguments: { question: "memory workflow", limit: 2 } } },
     ], 2);
     assert.equal(responses[1].result.isError, false);
     assert.match(responses[1].result.content[0].text, /Source:/);
     assert.match(responses[1].result.content[0].text, /memory\/PROJECT_CONTEXT\.md/);
+    assert.ok((responses[1].result.content[0].text.match(/Source:/g) || []).length <= 2);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp brief tool returns budget-aware reading plan", async () => {
+  const root = tempDir("mcp-brief");
+  try {
+    writeValidMemory(root);
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "guardian_brief", arguments: { question: "handover onboarding", limit: 2, mode: "full" } } },
+    ], 2);
+    assert.equal(responses[1].result.isError, false);
+    const text = responses[1].result.content[0].text;
+    assert.match(text, /Project Guardian brief/);
+    assert.match(text, /memory\/PROJECT_CONTEXT\.md/);
+    assert.match(text, /memory\/STATE\.md/);
+    assert.match(text, /memory\/HANDOVER\.md/);
+    assert.match(text, /Mode: full/);
+    assert.match(text, /--limit 2/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp read-only config hides and blocks write tools", async () => {
+  const root = tempDir("mcp-read-only");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ mcp: { readOnly: true } }));
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "guardian_update", arguments: { task: "blocked write" } } },
+    ], 3);
+    const toolNames = responses[1].result.tools.map((tool) => tool.name);
+    assert.ok(toolNames.includes("guardian_query"));
+    assert.ok(toolNames.includes("guardian_verify"));
+    assert.ok(!toolNames.includes("guardian_update"));
+    assert.ok(!toolNames.includes("guardian_decision_add"));
+    assert.ok(!toolNames.includes("guardian_review_complete"));
+    assert.ok(!toolNames.includes("guardian_handover"));
+    assert.match(responses[2].error.message, /Tool disabled by MCP configuration/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp allowedTools config limits exposed tools", async () => {
+  const root = tempDir("mcp-allowed-tools");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ mcp: { allowedTools: ["guardian_query"] } }));
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "guardian_verify", arguments: {} } },
+    ], 3);
+    const toolNames = responses[1].result.tools.map((tool) => tool.name);
+    assert.deepEqual(toolNames, ["guardian_query"]);
+    assert.match(responses[2].error.message, /Tool disabled by MCP configuration/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp environment read-only mode hides write tools", async () => {
+  const root = tempDir("mcp-env-read-only");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig());
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "guardian_review_complete", arguments: { file: "x.md", summary: "ok", verification: "checked" } } },
+    ], 3, { PROJECT_GUARDIAN_MCP_READ_ONLY: "1" });
+    const toolNames = responses[1].result.tools.map((tool) => tool.name);
+    assert.ok(toolNames.includes("guardian_query"));
+    assert.ok(!toolNames.includes("guardian_update"));
+    assert.ok(!toolNames.includes("guardian_review_complete"));
+    assert.match(responses[2].error.message, /Tool disabled by MCP configuration/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp validates tool arguments before running commands", async () => {
+  const root = tempDir("mcp-argument-validation");
+  try {
+    writeValidMemory(root);
+    const responses = await runMcpSession(root, [
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "guardian_query", arguments: { question: "memory workflow", extra: "ignored?" } } },
+      { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "guardian_query", arguments: { question: 42 } } },
+      { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "guardian_query", arguments: { question: "memory workflow", limit: 11 } } },
+      { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "guardian_verify", arguments: { extra: "nope" } } },
+      { jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "guardian_brief", arguments: { question: "memory workflow", mode: "unsafe" } } },
+    ], 6);
+    assert.match(responses[1].error.message, /Unsupported argument for guardian_query: extra/);
+    assert.match(responses[2].error.message, /Invalid argument type for guardian_query\.question/);
+    assert.match(responses[3].error.message, /guardian_query\.limit must be at most 10/);
+    assert.match(responses[4].error.message, /Unsupported argument for guardian_verify: extra/);
+    assert.match(responses[5].error.message, /guardian_brief\.mode must be one of: auto, quick, deep, full/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("mcp refuses to start with invalid mcp config", () => {
+  const root = tempDir("mcp-start-invalid-config");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({
+      mcp: { readOnly: false, allowedTools: ["guardian_query", "unknown_tool"] },
+    }));
+    const result = run(root, ["mcp"]);
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /Invalid MCP configuration/);
+    assert.match(`${result.stdout}\n${result.stderr}`, /unsupported tool: unknown_tool/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("doctor validates mcp config", () => {
+  const root = tempDir("mcp-config-invalid");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({
+      mcp: { readOnly: "yes", allowedTools: ["guardian_query", "unknown_tool"] },
+    }));
+    const result = run(root, ["doctor"]);
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /mcp\.readOnly must be a boolean/);
+    assert.match(`${result.stdout}\n${result.stderr}`, /mcp\.allowedTools contains unsupported tool: unknown_tool/);
   } finally {
     cleanup(root);
   }
@@ -668,6 +816,36 @@ test("validate-docs accepts filled memory, including CRLF files", () => {
     }
     const result = run(root, ["validate-docs"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("validate-docs rejects latest changelog entry with placeholder midnight time", () => {
+  const root = tempDir("midnight-changelog");
+  try {
+    writeValidMemory(root);
+    const changelogPath = path.join(root, "memory", "AI_CHANGELOG.md");
+    const current = fs.readFileSync(changelogPath, "utf8");
+    fs.writeFileSync(changelogPath, current.replace("### 2026-05-14 10:30 - Prepare test project memory", "### 2026-05-14 00:00 - Prepare test project memory"), "utf8");
+    const result = run(root, ["validate-docs"]);
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /current local HH:mm time, not 00:00/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("validate-docs checks the first changelog entry as the latest entry", () => {
+  const root = tempDir("latest-changelog-first");
+  try {
+    writeValidMemory(root);
+    const changelogPath = path.join(root, "memory", "AI_CHANGELOG.md");
+    const current = fs.readFileSync(changelogPath, "utf8");
+    fs.writeFileSync(changelogPath, current.replace("### 2026-05-14 10:30 - Prepare test project memory", "### 2026-05-15 11:45 - Newest test entry\n\n- Human request: TODO fill latest entry.\n\n### 2026-05-14 10:30 - Prepare test project memory"), "utf8");
+    const result = run(root, ["validate-docs"]);
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /latest changelog entry must not contain TODO/);
   } finally {
     cleanup(root);
   }
@@ -984,6 +1162,64 @@ test("decision add uses Chinese fields for Chinese projects", () => {
   }
 });
 
+test("reviews due blocks verify until review is completed", () => {
+  const root = tempDir("reviews-due");
+  try {
+    writeValidMemory(root);
+    const reviewFile = path.join(root, "memory", "decisions", "2026-05-01-risk-review.md");
+    writeFile(
+      reviewFile,
+      `# Risk review
+
+Date: 2026-05-01
+
+## Decision Record
+
+### 2026-05-01 - Risk review
+
+- Context: A risky workflow changed and needs follow-up.
+- Decision: Schedule a review to verify the workflow remains valid.
+- Alternatives considered: No review.
+- Affected files/modules: src/risk.js
+- Related change: test change
+- Verification: Run guardian verify.
+- Risks: The workflow may no longer be valid.
+- Review after: 2026-05-01.
+- Follow-up: Complete the review when due.
+`,
+    );
+
+    const due = run(root, ["reviews", "due"]);
+    assert.notEqual(due.status, 0, `${due.stdout}\n${due.stderr}`);
+    assert.match(`${due.stdout}\n${due.stderr}`, /review due since 2026-05-01|Decision review check failed/);
+
+    const failedVerify = run(root, ["verify"]);
+    assert.notEqual(failedVerify.status, 0, `${failedVerify.stdout}\n${failedVerify.stderr}`);
+    assert.match(`${failedVerify.stdout}\n${failedVerify.stderr}`, /review due since 2026-05-01/);
+
+    const complete = run(root, [
+      "reviews",
+      "complete",
+      "2026-05-01-risk-review.md",
+      "--summary",
+      "Still valid after review.",
+      "--verification",
+      "Ran guardian verify.",
+      "--reviewer",
+      "AI reviewer",
+    ]);
+    assert.equal(complete.status, 0, `${complete.stdout}\n${complete.stderr}`);
+    const updated = fs.readFileSync(reviewFile, "utf8");
+    assert.match(updated, /Review status: completed/);
+    assert.match(updated, /Further review: no further review needed/);
+
+    assert.equal(run(root, ["reviews", "due"]).status, 0);
+    assert.equal(run(root, ["verify"]).status, 0);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("install-hooks appends checks without removing an existing hook", () => {
   const root = tempDir("hooks");
   try {
@@ -1054,6 +1290,79 @@ test("query supports non-interactive questions and source output", () => {
     const result = run(root, ["query", "Node.js memory"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /Source:/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("brief recommends relevant memory files and token budget", () => {
+  const root = tempDir("brief");
+  try {
+    writeValidMemory(root);
+    const result = run(root, ["brief", "MCP security history", "--limit", "2"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /Project Guardian brief/);
+    assert.match(result.stdout, /memory\/PROJECT_CONTEXT\.md/);
+    assert.match(result.stdout, /memory\/STATE\.md/);
+    assert.match(result.stdout, /memory\/DECISIONS\.md/);
+    assert.match(result.stdout, /memory\/AI_CHANGELOG\.md/);
+    assert.match(result.stdout, /Estimated savings/);
+    assert.match(result.stdout, /guardian query "MCP security history" --limit 2/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("brief supports quick deep and full reading modes", () => {
+  const root = tempDir("brief-modes");
+  try {
+    writeValidMemory(root);
+    const quick = run(root, ["brief", "routine status", "--mode", "quick"]);
+    assert.equal(quick.status, 0, `${quick.stdout}\n${quick.stderr}`);
+    assert.match(quick.stdout, /Mode: quick/);
+    assert.doesNotMatch(quick.stdout.split("Recommended for this task:")[1], /memory\/AI_CHANGELOG\.md/);
+
+    const deep = run(root, ["brief", "routine status", "--mode", "deep"]);
+    assert.equal(deep.status, 0, `${deep.stdout}\n${deep.stderr}`);
+    assert.match(deep.stdout, /Mode: deep/);
+    assert.match(deep.stdout.split("Recommended for this task:")[1], /memory\/DECISIONS\.md/);
+    assert.match(deep.stdout.split("Recommended for this task:")[1], /memory\/AI_CHANGELOG\.md/);
+
+    const full = run(root, ["brief", "routine status", "--mode", "full"]);
+    assert.equal(full.status, 0, `${full.stdout}\n${full.stderr}`);
+    assert.match(full.stdout, /Mode: full/);
+    assert.match(full.stdout.split("Recommended for this task:")[1], /memory\/HANDOVER\.md/);
+    assert.match(full.stdout, /Escalate to deep\/full when/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("brief rejects unsupported or missing reading mode values", () => {
+  const root = tempDir("brief-mode-invalid");
+  try {
+    writeValidMemory(root);
+    const unsupported = run(root, ["brief", "memory", "--mode", "unsafe"]);
+    assert.notEqual(unsupported.status, 0, `${unsupported.stdout}\n${unsupported.stderr}`);
+    assert.match(`${unsupported.stdout}\n${unsupported.stderr}`, /brief --mode must be one of: auto, quick, deep, full/);
+
+    const missing = run(root, ["brief", "memory", "--mode"]);
+    assert.notEqual(missing.status, 0, `${missing.stdout}\n${missing.stderr}`);
+    assert.match(`${missing.stdout}\n${missing.stderr}`, /brief --mode must be one of: auto, quick, deep, full/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("query limit controls source output count", () => {
+  const root = tempDir("query-limit");
+  try {
+    writeValidMemory(root);
+    const result = run(root, ["query", "memory", "--limit", "2"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const sourceCount = (result.stdout.match(/Source:/g) || []).length;
+    assert.ok(sourceCount > 0, result.stdout);
+    assert.ok(sourceCount <= 2, result.stdout);
   } finally {
     cleanup(root);
   }
