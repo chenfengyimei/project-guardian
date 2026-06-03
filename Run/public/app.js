@@ -10,6 +10,17 @@ const commandLabels = {
   "adapters-doctor": "Adapters Doctor",
 };
 
+const viewTitles = {
+  overview: ["状态概览", "插件状态概览"],
+  memory: ["核心记忆", "核心记忆文件"],
+  init: ["插件初始化", "初始化 Project Guardian"],
+  append: ["追加记忆", "手动追加项目记忆"],
+  brief: ["读取计划", "生成记忆读取计划"],
+  query: ["知识查询", "查询本地项目知识"],
+  checks: ["检查命令", "运行检查命令"],
+  output: ["输出记录", "命令输出记录"],
+};
+
 const state = {
   actions: [],
   features: {
@@ -23,13 +34,20 @@ const state = {
   },
   memoryFiles: [],
   selectedMemory: "",
+  currentView: "overview",
 };
 
-const nodes = {
+const nodes = typeof document === "undefined" ? {} : {
+  navButtons: document.querySelectorAll(".nav-button"),
+  views: document.querySelectorAll(".view"),
+  viewEyebrow: document.querySelector("#viewEyebrow"),
+  viewTitle: document.querySelector("#viewTitle"),
   serverBadge: document.querySelector("#serverBadge"),
   projectRoot: document.querySelector("#projectRoot"),
   nodeVersion: document.querySelector("#nodeVersion"),
   guardianState: document.querySelector("#guardianState"),
+  memoryCount: document.querySelector("#memoryCount"),
+  actionCount: document.querySelector("#actionCount"),
   memoryFiles: document.querySelector("#memoryFiles"),
   memoryViewerTitle: document.querySelector("#memoryViewerTitle"),
   memoryViewer: document.querySelector("#memoryViewer"),
@@ -48,66 +66,72 @@ const nodes = {
   queryForm: document.querySelector("#queryForm"),
 };
 
-nodes.refreshStatus.addEventListener("click", loadStatus);
-nodes.reloadMemory.addEventListener("click", async () => {
-  if (state.selectedMemory) await loadMemoryFile(state.selectedMemory);
-});
-nodes.clearOutput.addEventListener("click", () => {
-  nodes.output.textContent = "等待操作...";
-});
-nodes.initForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const payload = {
-    language: document.querySelector("#initLanguage").value,
-    adapter: document.querySelector("#initAdapter").value,
-    confirm: nodes.initConfirm.value,
-  };
-  const result = await postAndRender("/api/init", payload, "guardian init");
-  if (result && result.ok) {
-    nodes.initConfirm.value = "";
-    await loadStatus();
-  }
-});
-nodes.appendMemoryForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const payload = {
-    name: nodes.appendMemoryName.value,
-    content: nodes.appendMemoryContent.value,
-    confirm: nodes.appendConfirm.value,
-  };
+if (typeof document !== "undefined") {
+  nodes.navButtons.forEach((button) => {
+    button.addEventListener("click", () => showView(button.dataset.view));
+  });
+  nodes.refreshStatus.addEventListener("click", loadStatus);
+  nodes.reloadMemory.addEventListener("click", async () => {
+    if (state.selectedMemory) await loadMemoryFile(state.selectedMemory);
+  });
+  nodes.clearOutput.addEventListener("click", () => {
+    nodes.output.textContent = "等待操作...";
+  });
+  nodes.initForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      language: document.querySelector("#initLanguage").value,
+      adapter: document.querySelector("#initAdapter").value,
+      confirm: nodes.initConfirm.value,
+    };
+    const result = await postAndRender("/api/init", payload, "guardian init");
+    if (result && result.ok) {
+      nodes.initConfirm.value = "";
+      await loadStatus();
+    }
+  });
+  nodes.appendMemoryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      name: nodes.appendMemoryName.value,
+      content: nodes.appendMemoryContent.value,
+      confirm: nodes.appendConfirm.value,
+    };
 
-  setBusy(true);
-  appendOutput("追加记忆", true, "写入中...", "");
-  try {
-    const result = await postJson("/api/memory/append", payload);
-    appendOutput("追加记忆", true, `已写入 ${result.path}，当前大小 ${result.size} bytes。`, "");
-    nodes.appendMemoryContent.value = "";
-    nodes.appendConfirm.value = "";
-    await loadStatus();
-    await loadMemoryFile(result.name);
-  } catch (error) {
-    appendOutput("追加记忆", false, "", error.message);
-  } finally {
-    setBusy(false);
-  }
-});
-nodes.briefForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const payload = {
-    question: document.querySelector("#briefQuestion").value,
-    mode: document.querySelector("#briefMode").value,
-    limit: Number(document.querySelector("#briefLimit").value),
-  };
-  await postAndRender("/api/brief", payload, "guardian brief");
-});
-nodes.queryForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const payload = {
-    question: document.querySelector("#queryQuestion").value,
-    limit: Number(document.querySelector("#queryLimit").value),
-  };
-  await postAndRender("/api/query", payload, "guardian query");
-});
+    setBusy(true);
+    appendOutput("追加记忆", true, "写入中...", "");
+    try {
+      const result = await postJson("/api/memory/append", payload);
+      appendOutput("追加记忆", true, `已写入 ${result.path}，当前大小 ${result.size} bytes。`, "");
+      nodes.appendMemoryContent.value = "";
+      nodes.appendConfirm.value = "";
+      await loadStatus();
+      await loadMemoryFile(result.name);
+      showView("memory");
+    } catch (error) {
+      appendOutput("追加记忆", false, "", error.message);
+    } finally {
+      setBusy(false);
+    }
+  });
+  nodes.briefForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      question: document.querySelector("#briefQuestion").value,
+      mode: document.querySelector("#briefMode").value,
+      limit: Number(document.querySelector("#briefLimit").value),
+    };
+    await postAndRender("/api/brief", payload, "guardian brief");
+  });
+  nodes.queryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      question: document.querySelector("#queryQuestion").value,
+      limit: Number(document.querySelector("#queryLimit").value),
+    };
+    await postAndRender("/api/query", payload, "guardian query");
+  });
+}
 
 async function loadStatus() {
   setBadge("加载中", false);
@@ -120,6 +144,8 @@ async function loadStatus() {
     nodes.projectRoot.textContent = payload.projectRoot || "-";
     nodes.nodeVersion.textContent = payload.nodeVersion || "-";
     nodes.guardianState.textContent = payload.guardianAvailable ? "已找到 CLI" : "未找到 CLI";
+    nodes.memoryCount.textContent = `${state.memoryFiles.filter((file) => file.exists).length}/${state.memoryFiles.length}`;
+    nodes.actionCount.textContent = String(state.actions.length);
     nodes.initConfirm.placeholder = `输入 ${state.confirmations.init}`;
     nodes.appendConfirm.placeholder = `输入 ${state.confirmations.appendMemory}`;
     setBadge(payload.guardianAvailable ? "可用" : "缺少 CLI", !payload.guardianAvailable);
@@ -132,6 +158,20 @@ async function loadStatus() {
     setBadge("连接失败", true);
     appendOutput("status", false, "", error.message);
   }
+}
+
+function showView(viewName) {
+  const nextView = viewTitles[viewName] ? viewName : "overview";
+  state.currentView = nextView;
+  nodes.navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === nextView);
+  });
+  nodes.views.forEach((view) => {
+    view.classList.toggle("active", view.id === `view-${nextView}`);
+  });
+  const [eyebrow, title] = viewTitles[nextView];
+  nodes.viewEyebrow.textContent = eyebrow;
+  nodes.viewTitle.textContent = title;
 }
 
 function renderCompatibilityWarning(payload) {
@@ -190,19 +230,19 @@ async function loadMemoryFile(name) {
   setBusy(true);
   state.selectedMemory = name;
   nodes.memoryViewerTitle.textContent = `${name} 内容预览`;
-  nodes.memoryViewer.textContent = "读取中...";
+  renderPlainMemory("读取中...");
   try {
     const result = await requestJson(`/api/memory?name=${encodeURIComponent(name)}`);
     if (!result.exists) {
-      nodes.memoryViewer.textContent = `${result.path} 不存在。可以先运行 guardian init。`;
+      renderPlainMemory(`${result.path} 不存在。可以先运行 guardian init。`);
     } else if (result.tooLarge) {
-      nodes.memoryViewer.textContent = `${result.path} 文件过大，已超过网页预览上限。`;
+      renderPlainMemory(`${result.path} 文件过大，已超过网页预览上限。`);
     } else {
-      nodes.memoryViewer.textContent = result.content || "(空文件)";
+      renderMarkdownMemory(result.content || "(空文件)");
     }
     renderMemoryFiles(state.memoryFiles);
   } catch (error) {
-    nodes.memoryViewer.textContent = error.message;
+    renderPlainMemory(error.message);
     appendOutput("读取记忆", false, "", error.message);
   } finally {
     setBusy(false);
@@ -237,6 +277,7 @@ async function postAndRender(route, payload, label) {
   try {
     const result = await postJson(route, payload);
     appendOutput(label, result.ok, result.stdout || "", result.stderr || "");
+    showView("output");
     return result;
   } catch (error) {
     appendOutput(label, false, "", error.message);
@@ -275,6 +316,139 @@ function appendOutput(label, ok, stdout, stderr) {
   nodes.output.scrollTop = nodes.output.scrollHeight;
 }
 
+function renderPlainMemory(text) {
+  nodes.memoryViewer.textContent = text;
+}
+
+function renderMarkdownMemory(markdown) {
+  nodes.memoryViewer.innerHTML = renderMarkdown(markdown);
+}
+
+function renderMarkdown(markdown) {
+  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+  const html = [];
+  let paragraph = [];
+  let index = 0;
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    html.push(`<p>${renderInline(paragraph.join(" "))}</p>`);
+    paragraph = [];
+  };
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("```")) {
+      flushParagraph();
+      const codeLines = [];
+      index += 1;
+      while (index < lines.length && !lines[index].trim().startsWith("```")) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      if (index < lines.length) index += 1;
+      html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    if (isTableStart(lines, index)) {
+      flushParagraph();
+      const table = collectTable(lines, index);
+      html.push(renderTable(table.rows));
+      index = table.nextIndex;
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
+    if (heading) {
+      flushParagraph();
+      const level = Math.min(heading[1].length + 1, 6);
+      html.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+      index += 1;
+      continue;
+    }
+
+    const unordered = /^[-*]\s+(.+)$/.exec(trimmed);
+    const ordered = /^\d+\.\s+(.+)$/.exec(trimmed);
+    if (unordered || ordered) {
+      flushParagraph();
+      const orderedList = Boolean(ordered);
+      const items = [];
+      while (index < lines.length) {
+        const itemMatch = orderedList
+          ? /^\s*\d+\.\s+(.+)$/.exec(lines[index])
+          : /^\s*[-*]\s+(.+)$/.exec(lines[index]);
+        if (!itemMatch) break;
+        items.push(itemMatch[1]);
+        index += 1;
+      }
+      const tag = orderedList ? "ol" : "ul";
+      html.push(`<${tag}>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</${tag}>`);
+      continue;
+    }
+
+    paragraph.push(trimmed);
+    index += 1;
+  }
+
+  flushParagraph();
+  return html.join("\n");
+}
+
+function isTableStart(lines, index) {
+  return isTableRow(lines[index]) && isTableSeparator(lines[index + 1] || "");
+}
+
+function isTableRow(line) {
+  return /^\s*\|.+\|\s*$/.test(line || "");
+}
+
+function isTableSeparator(line) {
+  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line || "");
+}
+
+function collectTable(lines, startIndex) {
+  const rows = [parseTableRow(lines[startIndex])];
+  let index = startIndex + 2;
+  while (index < lines.length && isTableRow(lines[index])) {
+    rows.push(parseTableRow(lines[index]));
+    index += 1;
+  }
+  return { rows, nextIndex: index };
+}
+
+function parseTableRow(line) {
+  return String(line || "")
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderTable(rows) {
+  const [head = [], ...body] = rows;
+  const header = `<thead><tr>${head.map((cell) => `<th>${renderInline(cell)}</th>`).join("")}</tr></thead>`;
+  const bodyRows = body
+    .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join("")}</tr>`)
+    .join("");
+  return `<div class="table-wrap"><table>${header}<tbody>${bodyRows}</tbody></table></div>`;
+}
+
+function renderInline(value) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
 function setBadge(text, bad) {
   nodes.serverBadge.textContent = text;
   nodes.serverBadge.classList.toggle("bad", Boolean(bad));
@@ -297,4 +471,12 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-loadStatus();
+if (typeof module !== "undefined") {
+  module.exports = {
+    renderMarkdown,
+    renderTable,
+    parseTableRow,
+  };
+}
+
+if (typeof document !== "undefined") loadStatus();

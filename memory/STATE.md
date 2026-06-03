@@ -18,7 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
-- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、点击预览核心记忆文件、运行 `guardian init`、手动追加记忆、生成 brief、query 和只读检查命令。
+- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、手动追加记忆、生成 brief、query 和只读检查命令。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -81,8 +81,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：修复 Run 读取记忆时的 `Method not allowed` 体验问题。
-- 总结：确认该现象通常来自新版前端连接旧版 Run server 进程；新增 `/api/status` 能力标记，前端检测不到 `memoryRead` 能力时禁用记忆、初始化和追加按钮，并提示用户重启 Run 服务。
-- 文件：`Run/server.js`、`Run/public/app.js`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `npm.cmd run lint` 和 `npm.cmd test`，当前 50 个测试通过；本轮结束前继续运行完整 `guardian verify`。
-- 后续：如果真实使用中仍出现读取失败，需要让用户确认浏览器地址对应的端口和当前启动的 `node Run/server.js` 进程一致。
+- 任务：优化 Run 控制台布局和 Markdown 记忆预览。
+- 总结：Run 控制台改为左侧侧边栏选择功能，主页只保留插件状态概览；核心记忆预览从原始 `<pre>` 文本改为轻量 Markdown 渲染，表格会显示为真正的文档表格。
+- 文件：`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`tests/guardian.test.js`、`memory/*`。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test` 和最小 Markdown 表格渲染检查，当前 51 个测试通过；本轮结束前继续运行完整 `guardian verify`。
+- 后续：真实浏览器中继续观察小屏幕侧边栏和长表格横向滚动体验。

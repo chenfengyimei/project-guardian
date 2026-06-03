@@ -125,7 +125,7 @@ project_ai/
 | `memory/decisions/2026-05-15-ai-ide.md` | 单条决策文件 | 记录扩展 AI IDE 适配器的原因和范围 | 支持矩阵、CLI 通用层、适配器扩展、验证方式、风险和后续动作 | AI IDE 兼容策略调整或新增适配器时复审 |
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
-| `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、记忆预览、初始化、手动追加记忆、白名单命令、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
+| `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、侧边栏功能区、Markdown 记忆预览、初始化、手动追加记忆、白名单命令、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
 | `plugins/project-guardian/docs/STANDARD.md` | 使用规范文档 | 统一团队怎么写、怎么审、怎么维护项目记忆 | 标准目录、记忆文件职责、记录质量、AI 使用规则、提交规范、配置标准 | 团队规范、目录标准、记录字段、配置项变化时 |
 | `plugins/project-guardian/docs/WORKFLOW.md` | 工作流文档 | 解释完整闭环，不只是单条命令 | 接手项目、初始化、日常开发、记录、提交、交接、新人接手、每周维护 | 团队协作流程、Gitee 分支流程、交接流程变化时 |
@@ -178,9 +178,9 @@ project_ai/
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
 | `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、手动追加记忆 API、brief/query API、只读命令白名单、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
-| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 项目状态、核心记忆文件、记忆内容预览、插件初始化、手动追加记忆、brief、query、检查命令和输出区域 | 页面结构、控件或用户操作入口变化时 |
-| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 布局、面板、按钮、状态、表单、记忆预览、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
-| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 状态加载、记忆文件点击预览、初始化提交、手动追加记忆、命令按钮渲染、brief/query 提交、输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
+| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 左侧侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、手动追加记忆、brief、query、检查命令和输出页面 | 页面结构、控件或用户操作入口变化时 |
+| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局、面板、按钮、状态、表单、Markdown 记忆预览、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
+| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、手动追加记忆、命令按钮渲染、brief/query 提交、输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
 | `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |

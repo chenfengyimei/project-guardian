@@ -60,6 +60,29 @@ function requestJson(server, route, payload) {
   });
 }
 
+function requestText(server, route) {
+  return new Promise((resolve, reject) => {
+    const address = server.address();
+    const req = http.request({
+      host: "127.0.0.1",
+      port: address.port,
+      path: route,
+      method: "GET",
+    }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        text += chunk;
+      });
+      res.on("end", () => {
+        resolve({ status: res.statusCode, body: text });
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 function listen(server) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -474,6 +497,24 @@ test("package exposes guardian CLI bin entries", () => {
   assert.equal(pkg.scripts.ui, "node Run/server.js");
 });
 
+test("Run frontend includes local Markdown table rendering", () => {
+  const runApp = require(path.join(repoRoot, "Run", "public", "app.js"));
+  const html = runApp.renderMarkdown([
+    "## 外部依赖",
+    "",
+    "| 依赖 | 用途 |",
+    "| --- | --- |",
+    "| Node.js | 运行 CLI |",
+    "",
+    "<script>alert(1)</script>",
+  ].join("\n"));
+  assert.match(html, /<h3>外部依赖<\/h3>/);
+  assert.match(html, /<div class="table-wrap"><table>/);
+  assert.match(html, /<th>依赖<\/th>/);
+  assert.match(html, /<td>Node\.js<\/td>/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
@@ -481,6 +522,14 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
   try {
     writeValidMemory(root);
     await listen(server);
+
+    const page = await requestText(server, "/");
+    assert.equal(page.status, 200);
+    assert.match(page.body, /class="sidebar"/);
+    assert.match(page.body, /data-view="memory"/);
+    assert.match(page.body, /id="view-overview" class="view active"/);
+    assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
+    assert.doesNotMatch(page.body, /<pre id="memoryViewer"/);
 
     const status = await requestJson(server, "/api/status");
     assert.equal(status.status, 200);

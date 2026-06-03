@@ -5,8 +5,9 @@
 ## 当前能力
 
 - 启动一个本地网页控制台。
+- 左侧侧边栏选择功能；首页只显示插件状态概览，不把所有功能挤在一个页面。
 - 查看当前项目根目录、Node 版本、CLI 是否可用。
-- 查看核心记忆文件是否存在，并点击预览文件内容。
+- 查看核心记忆文件是否存在，并点击预览文件内容；预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。
 - 在新项目中通过界面运行 `guardian init`，初始化语言和适配器范围由固定选项控制。
 - 手动追加一段新记忆到核心记忆文件，写入前必须输入确认词。
 - 运行 `guardian brief` 和 `guardian query`。
@@ -89,9 +90,9 @@ Run/
 ```
 
 - `server.js`：本地 HTTP server、静态文件服务、只读命令 API、记忆读取 API 和受控写入 API。
-- `public/index.html`：页面结构。
-- `public/styles.css`：页面样式。
-- `public/app.js`：浏览器端交互逻辑。
+- `public/index.html`：页面结构，包含侧边栏导航和各功能页面。
+- `public/styles.css`：页面样式，包含侧边栏布局、Markdown 文档预览和表格样式。
+- `public/app.js`：浏览器端交互逻辑，包含功能页切换、记忆预览和轻量 Markdown 渲染。
 
 ## 后续扩展方向
 

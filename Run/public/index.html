@@ -7,148 +7,197 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Project Guardian</p>
-        <h1>Run 可视化控制台</h1>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="eyebrow">Project Guardian</p>
+          <h1>Run 控制台</h1>
+        </div>
+        <nav class="sidebar-nav" aria-label="功能导航">
+          <button class="nav-button active" type="button" data-view="overview">状态概览</button>
+          <button class="nav-button" type="button" data-view="memory">核心记忆</button>
+          <button class="nav-button" type="button" data-view="init">插件初始化</button>
+          <button class="nav-button" type="button" data-view="append">追加记忆</button>
+          <button class="nav-button" type="button" data-view="brief">读取计划</button>
+          <button class="nav-button" type="button" data-view="query">知识查询</button>
+          <button class="nav-button" type="button" data-view="checks">检查命令</button>
+          <button class="nav-button" type="button" data-view="output">输出记录</button>
+        </nav>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div>
+            <p id="viewEyebrow" class="eyebrow">状态概览</p>
+            <h2 id="viewTitle">插件状态概览</h2>
+          </div>
+          <button id="refreshStatus" class="ghost-button" type="button">刷新状态</button>
+        </header>
+
+        <main class="content">
+          <section id="view-overview" class="view active">
+            <div class="overview-grid">
+              <article class="panel metric">
+                <span class="metric-label">运行状态</span>
+                <strong id="serverBadge" class="badge">加载中</strong>
+              </article>
+              <article class="panel metric">
+                <span class="metric-label">CLI 状态</span>
+                <strong id="guardianState">-</strong>
+              </article>
+              <article class="panel metric">
+                <span class="metric-label">记忆文件</span>
+                <strong id="memoryCount">-</strong>
+              </article>
+              <article class="panel metric">
+                <span class="metric-label">可用命令</span>
+                <strong id="actionCount">-</strong>
+              </article>
+            </div>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>基础信息</h3>
+              </div>
+              <dl class="status-grid">
+                <div>
+                  <dt>项目根目录</dt>
+                  <dd id="projectRoot">-</dd>
+                </div>
+                <div>
+                  <dt>Node 版本</dt>
+                  <dd id="nodeVersion">-</dd>
+                </div>
+              </dl>
+            </section>
+          </section>
+
+          <section id="view-memory" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>核心记忆文件</h3>
+                <span class="muted">点击文件查看渲染后的内容</span>
+              </div>
+              <div id="memoryFiles" class="memory-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3 id="memoryViewerTitle">记忆内容预览</h3>
+                <button id="reloadMemory" class="ghost-button" type="button" disabled>重新读取</button>
+              </div>
+              <article id="memoryViewer" class="markdown-viewer">请选择一个核心记忆文件。</article>
+            </section>
+          </section>
+
+          <section id="view-init" class="view">
+            <section class="panel narrow">
+              <div class="panel-head">
+                <h3>插件初始化</h3>
+                <span class="muted">用于新项目首次接入</span>
+              </div>
+              <form id="initForm" class="stacked-form">
+                <label>
+                  初始化语言
+                  <select id="initLanguage" name="language">
+                    <option value="zh-CN">中文 zh-CN</option>
+                    <option value="en">English en</option>
+                  </select>
+                </label>
+                <label>
+                  AI 工具适配
+                  <select id="initAdapter" name="adapter">
+                    <option value="default">默认适配器</option>
+                    <option value="all">生成全部适配器</option>
+                  </select>
+                </label>
+                <label>
+                  写入确认
+                  <input id="initConfirm" name="confirm" type="text" autocomplete="off" placeholder="输入 RUN_INIT">
+                </label>
+                <button type="submit">运行 guardian init</button>
+              </form>
+            </section>
+          </section>
+
+          <section id="view-append" class="view">
+            <section class="panel narrow">
+              <div class="panel-head">
+                <h3>手动追加记忆</h3>
+                <span class="muted">只写入白名单文件</span>
+              </div>
+              <form id="appendMemoryForm" class="stacked-form">
+                <label>
+                  目标文件
+                  <select id="appendMemoryName" name="name"></select>
+                </label>
+                <label>
+                  记录内容
+                  <textarea id="appendMemoryContent" name="content" maxlength="8000" rows="7" placeholder="写清楚发生了什么、为什么重要、谁需要知道。不要写密码、密钥、真实 token 或客户隐私。"></textarea>
+                </label>
+                <label>
+                  写入确认
+                  <input id="appendConfirm" name="confirm" type="text" autocomplete="off" placeholder="输入 APPEND_MEMORY">
+                </label>
+                <button type="submit">追加到记忆文件</button>
+              </form>
+            </section>
+          </section>
+
+          <section id="view-brief" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>读取计划</h3>
+                <span class="muted">先 brief，再按需打开记忆</span>
+              </div>
+              <form id="briefForm" class="form-row">
+                <input id="briefQuestion" name="question" type="text" maxlength="500" value="我要接手这个项目" aria-label="读取计划问题">
+                <select id="briefMode" name="mode" aria-label="读取深度">
+                  <option value="auto">auto</option>
+                  <option value="quick">quick</option>
+                  <option value="deep">deep</option>
+                  <option value="full">full</option>
+                </select>
+                <input id="briefLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
+                <button type="submit">生成 brief</button>
+              </form>
+            </section>
+          </section>
+
+          <section id="view-query" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>知识查询</h3>
+                <span class="muted">默认限制 3 个片段</span>
+              </div>
+              <form id="queryForm" class="form-row query-row">
+                <input id="queryQuestion" name="question" type="text" maxlength="500" value="当前项目风险有哪些？" aria-label="查询问题">
+                <input id="queryLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
+                <button type="submit">查询</button>
+              </form>
+            </section>
+          </section>
+
+          <section id="view-checks" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>检查命令</h3>
+                <span class="muted">白名单执行，不开放任意 shell</span>
+              </div>
+              <div id="commandButtons" class="button-grid"></div>
+            </section>
+          </section>
+
+          <section id="view-output" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>输出记录</h3>
+                <button id="clearOutput" class="ghost-button" type="button">清空</button>
+              </div>
+              <pre id="output" class="output" aria-live="polite">等待操作...</pre>
+            </section>
+          </section>
+        </main>
       </div>
-      <button id="refreshStatus" class="ghost-button" type="button">刷新状态</button>
-    </header>
-
-    <main class="layout">
-      <section class="panel">
-        <div class="panel-head">
-          <h2>项目状态</h2>
-          <span id="serverBadge" class="badge">加载中</span>
-        </div>
-        <dl class="status-grid">
-          <div>
-            <dt>项目根目录</dt>
-            <dd id="projectRoot">-</dd>
-          </div>
-          <div>
-            <dt>Node 版本</dt>
-            <dd id="nodeVersion">-</dd>
-          </div>
-          <div>
-            <dt>CLI 状态</dt>
-            <dd id="guardianState">-</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2>核心记忆文件</h2>
-          <span class="muted">点击文件查看内容</span>
-        </div>
-        <div id="memoryFiles" class="memory-list"></div>
-      </section>
-
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2 id="memoryViewerTitle">记忆内容预览</h2>
-          <button id="reloadMemory" class="ghost-button" type="button" disabled>重新读取</button>
-        </div>
-        <pre id="memoryViewer" class="memory-viewer">请选择一个核心记忆文件。</pre>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2>插件初始化</h2>
-          <span class="muted">用于新项目首次接入</span>
-        </div>
-        <form id="initForm" class="stacked-form">
-          <label>
-            初始化语言
-            <select id="initLanguage" name="language">
-              <option value="zh-CN">中文 zh-CN</option>
-              <option value="en">English en</option>
-            </select>
-          </label>
-          <label>
-            AI 工具适配
-            <select id="initAdapter" name="adapter">
-              <option value="default">默认适配器</option>
-              <option value="all">生成全部适配器</option>
-            </select>
-          </label>
-          <label>
-            写入确认
-            <input id="initConfirm" name="confirm" type="text" autocomplete="off" placeholder="输入 RUN_INIT">
-          </label>
-          <button type="submit">运行 guardian init</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <h2>手动追加记忆</h2>
-          <span class="muted">只写入白名单文件</span>
-        </div>
-        <form id="appendMemoryForm" class="stacked-form">
-          <label>
-            目标文件
-            <select id="appendMemoryName" name="name"></select>
-          </label>
-          <label>
-            记录内容
-            <textarea id="appendMemoryContent" name="content" maxlength="8000" rows="7" placeholder="写清楚发生了什么、为什么重要、谁需要知道。不要写密码、密钥、真实 token 或客户隐私。"></textarea>
-          </label>
-          <label>
-            写入确认
-            <input id="appendConfirm" name="confirm" type="text" autocomplete="off" placeholder="输入 APPEND_MEMORY">
-          </label>
-          <button type="submit">追加到记忆文件</button>
-        </form>
-      </section>
-
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2>读取计划</h2>
-          <span class="muted">先 brief，再按需打开记忆</span>
-        </div>
-        <form id="briefForm" class="form-row">
-          <input id="briefQuestion" name="question" type="text" maxlength="500" value="我要接手这个项目" aria-label="读取计划问题">
-          <select id="briefMode" name="mode" aria-label="读取深度">
-            <option value="auto">auto</option>
-            <option value="quick">quick</option>
-            <option value="deep">deep</option>
-            <option value="full">full</option>
-          </select>
-          <input id="briefLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
-          <button type="submit">生成 brief</button>
-        </form>
-      </section>
-
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2>知识查询</h2>
-          <span class="muted">默认限制 3 个片段</span>
-        </div>
-        <form id="queryForm" class="form-row">
-          <input id="queryQuestion" name="question" type="text" maxlength="500" value="当前项目风险有哪些？" aria-label="查询问题">
-          <input id="queryLimit" name="limit" type="number" min="1" max="10" value="3" aria-label="返回数量">
-          <button type="submit">查询</button>
-        </form>
-      </section>
-
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2>检查命令</h2>
-          <span class="muted">白名单执行，不开放任意 shell</span>
-        </div>
-        <div id="commandButtons" class="button-grid"></div>
-      </section>
-
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2>输出</h2>
-          <button id="clearOutput" class="ghost-button" type="button">清空</button>
-        </div>
-        <pre id="output" class="output" aria-live="polite">等待操作...</pre>
-      </section>
-    </main>
+    </div>
 
     <script src="./app.js"></script>
   </body>

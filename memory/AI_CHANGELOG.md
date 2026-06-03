@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-03 17:19 - 优化 Run 侧边栏和 Markdown 表格预览
+
+- 用户需求：核心记忆内容中的 Markdown 表格现在按原文显示，没有文档表格效果；Run 控制台功能都挤在一个页面里，需要左侧侧边栏选择功能，主页只保留插件状态概览。
+- AI 总结：Run 页面改为左侧侧边栏导航和右侧单功能视图，默认首页只显示状态概览；核心记忆预览从 `<pre>` 原文改为轻量 Markdown 渲染，支持标题、列表、代码块和表格。
+- 变更文件：`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`tests/guardian.test.js`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-03-run-visual-layer.md`。
+- 业务原因：记忆文件本身是 Markdown，用户在可视化控制台里应该看到接近文档的阅读效果；功能分区能降低零基础用户的认知负担。
+- 技术说明：新增侧边栏 `data-view` 页面切换；`memoryViewer` 改为 `markdown-viewer`；前端新增可测试的 `renderMarkdown`、`renderTable` 和表格解析函数；Markdown 渲染先转义 HTML，再处理行内 code 和粗体，降低本地文档预览的注入风险。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test` 和最小 Markdown 表格渲染检查；当前 51 个测试通过，新增测试覆盖首页侧边栏结构、Markdown viewer 容器和表格渲染结果。
+- 风险：当前 Markdown 渲染器是轻量实现，不是完整 CommonMark；复杂嵌套表格、脚注、任务列表等不会完整渲染，但核心记忆常用标题、列表、代码块和表格已经覆盖。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：最终提交前继续运行完整 `guardian verify`，真实浏览器里观察小屏幕侧边栏和长表格横向滚动体验。
+
 ### 2026-06-03 17:04 - 修复 Run 读取记忆旧后端提示
 
 - 用户需求：Run 控制台点击读取记忆时连续失败，输出 `Method not allowed`，需要解释原因并解决。
