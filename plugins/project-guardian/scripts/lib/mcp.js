@@ -1,8 +1,29 @@
+const fs = require("fs");
 const { spawn } = require("child_process");
 const readline = require("readline");
 
 const PROTOCOL_VERSION = "2025-06-18";
+const COMMAND_TIMEOUT_MS = 90_000;
+const MAX_OUTPUT_BYTES = 512 * 1024;
+const MAX_CONCURRENT_READS = 3;
 const WRITE_TOOL_NAMES = new Set(["guardian_update", "guardian_decision_add", "guardian_review_complete", "guardian_handover"]);
+
+const STRING_MAX_LENGTHS = {
+  question: 2000,
+  task: 500,
+  title: 200,
+  context: 2000,
+  decision: 2000,
+  alternatives: 2000,
+  files: 1000,
+  verification: 2000,
+  risks: 2000,
+  followUp: 2000,
+  reviewAfter: 50,
+  file: 500,
+  summary: 2000,
+  reviewer: 200,
+};
 
 const TOOLS = [
   {
@@ -11,7 +32,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        question: { type: "string", description: "Task, question, or context to route memory reading." },
+        question: { type: "string", description: "Task, question, or context to route memory reading.", maxLength: STRING_MAX_LENGTHS.question },
         limit: { type: "number", minimum: 1, maximum: 10, description: "Suggested query snippet limit. Defaults to 3." },
         mode: { type: "string", enum: ["auto", "quick", "deep", "full"], description: "Reading depth. auto routes by task; quick reads core memory; deep adds decisions and changelog; full reads all core memory." },
       },
@@ -24,7 +45,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        question: { type: "string", description: "Question or keywords to search for." },
+        question: { type: "string", description: "Question or keywords to search for.", maxLength: STRING_MAX_LENGTHS.question },
         limit: { type: "number", minimum: 1, maximum: 10, description: "Maximum source snippets to return, from 1 to 10. Defaults to 6." },
       },
       required: ["question"],
@@ -37,7 +58,7 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        task: { type: "string", description: "Short task summary." },
+        task: { type: "string", description: "Short task summary.", maxLength: STRING_MAX_LENGTHS.task },
       },
       required: ["task"],
       additionalProperties: false,
@@ -49,15 +70,15 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        title: { type: "string" },
-        context: { type: "string" },
-        decision: { type: "string" },
-        alternatives: { type: "string" },
-        files: { type: "string" },
-        verification: { type: "string" },
-        risks: { type: "string" },
-        followUp: { type: "string" },
-        reviewAfter: { type: "string" },
+        title: { type: "string", maxLength: STRING_MAX_LENGTHS.title },
+        context: { type: "string", maxLength: STRING_MAX_LENGTHS.context },
+        decision: { type: "string", maxLength: STRING_MAX_LENGTHS.decision },
+        alternatives: { type: "string", maxLength: STRING_MAX_LENGTHS.alternatives },
+        files: { type: "string", maxLength: STRING_MAX_LENGTHS.files },
+        verification: { type: "string", maxLength: STRING_MAX_LENGTHS.verification },
+        risks: { type: "string", maxLength: STRING_MAX_LENGTHS.risks },
+        followUp: { type: "string", maxLength: STRING_MAX_LENGTHS.followUp },
+        reviewAfter: { type: "string", maxLength: STRING_MAX_LENGTHS.reviewAfter },
       },
       required: ["title", "context", "decision"],
       additionalProperties: false,
@@ -104,10 +125,10 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        file: { type: "string", description: "Decision review file path or filename." },
-        summary: { type: "string", description: "Review conclusion." },
-        verification: { type: "string", description: "How the review was checked." },
-        reviewer: { type: "string", description: "AI or human reviewer name." },
+        file: { type: "string", description: "Decision review file path or filename.", maxLength: STRING_MAX_LENGTHS.file },
+        summary: { type: "string", description: "Review conclusion.", maxLength: STRING_MAX_LENGTHS.summary },
+        verification: { type: "string", description: "How the review was checked.", maxLength: STRING_MAX_LENGTHS.verification },
+        reviewer: { type: "string", description: "AI or human reviewer name.", maxLength: STRING_MAX_LENGTHS.reviewer },
       },
       required: ["file", "summary", "verification"],
       additionalProperties: false,
@@ -121,19 +142,114 @@ function runMcpServer(options) {
   server.start();
 }
 
+class TaskQueue {
+  constructor(options = {}) {
+    this.maxConcurrentReads = options.maxConcurrentReads || MAX_CONCURRENT_READS;
+    this.pending = [];
+    this.active = new Map();
+    this.runningReads = 0;
+    this.nextId = 0;
+  }
+
+  enqueue(job, isWrite) {
+    return new Promise((resolve, reject) => {
+      const id = ++this.nextId;
+      this.pending.push({ id, job, isWrite, resolve, reject });
+      this.flush();
+    });
+  }
+
+  flush() {
+    while (this.pending.length > 0) {
+      let nextIdx = -1;
+      for (let index = 0; index < this.pending.length; index += 1) {
+        const entry = this.pending[index];
+        if (entry.isWrite) {
+          if (this.active.size > 0) continue;
+        } else {
+          if (this.runningReads >= this.maxConcurrentReads) continue;
+        }
+        nextIdx = index;
+        break;
+      }
+      if (nextIdx === -1) return;
+
+      const task = this.pending.splice(nextIdx, 1)[0];
+      if (task.isWrite) {
+        this.runTask(task);
+        return;
+      }
+      this.runningReads += 1;
+      this.runTask(task);
+    }
+  }
+
+  async runTask(task) {
+    this.active.set(task.id, task);
+    try {
+      const result = await task.job();
+      task.resolve(result);
+    } catch (error) {
+      task.reject(error);
+    } finally {
+      const isWrite = task.isWrite;
+      this.active.delete(task.id);
+      if (!isWrite) this.runningReads -= 1;
+      this.flush();
+    }
+  }
+
+  runningCount() {
+    return this.active.size;
+  }
+
+  abortAll(message) {
+    for (const task of this.active.values()) {
+      task.reject(new Error(message));
+      this.active.delete(task.id);
+    }
+    this.runningReads = 0;
+    for (const task of this.pending) {
+      task.reject(new Error(message));
+    }
+    this.pending = [];
+  }
+}
+
 class McpServer {
   constructor(options) {
     this.root = options.root;
     this.node = options.node || process.execPath;
     this.guardianScript = options.guardianScript;
+    if (!this.guardianScript || !fs.existsSync(this.guardianScript)) {
+      const hint = this.guardianScript ? `File not found: ${this.guardianScript}` : "guardianScript is not set";
+      throw new Error(`Project Guardian CLI script is missing. ${hint}`);
+    }
     this.mcpConfig = normalizeMcpConfig(options.mcpConfig || {});
     this.enabledToolNames = enabledToolNames(this.mcpConfig);
     this.tools = TOOLS.filter((tool) => this.enabledToolNames.has(tool.name));
+    this.queue = new TaskQueue({ maxConcurrentReads: MAX_CONCURRENT_READS });
+    this.shuttingDown = false;
   }
 
   start() {
     const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
     rl.on("line", (line) => this.handleLine(line));
+
+    this.shuttingDown = false;
+    process.on("SIGTERM", () => this.shutdown());
+    process.on("SIGINT", () => this.shutdown());
+  }
+
+  shutdown() {
+    if (this.shuttingDown) return;
+    this.shuttingDown = true;
+    const active = this.queue.runningCount();
+    if (active > 0) {
+      process.stderr.write(`Project Guardian MCP: shutting down, waiting for ${active} active task(s)...\n`);
+    }
+    this.queue.abortAll("MCP server shutting down.");
+    process.exit(0);
   }
 
   async handleLine(line) {
@@ -143,7 +259,7 @@ class McpServer {
     try {
       message = JSON.parse(trimmed);
     } catch (error) {
-      this.respondError(null, -32700, `Parse error: ${error.message}`);
+      this.respondError(null, -32700, "Parse error: invalid JSON.");
       return;
     }
 
@@ -151,7 +267,8 @@ class McpServer {
       const response = await this.handleMessage(message);
       if (response) this.write(response);
     } catch (error) {
-      this.respondError(message.id ?? null, -32603, error.message);
+      process.stderr.write(`Project Guardian MCP internal error: ${error.message}\n`);
+      this.respondError(message.id ?? null, -32603, "Internal server error.");
     }
   }
 
@@ -208,15 +325,27 @@ class McpServer {
     }
 
     const command = commandForTool(name, args);
-    const result = await this.runGuardian(command);
-    return {
-      jsonrpc: "2.0",
-      id: message.id,
-      result: {
-        content: [{ type: "text", text: result.text }],
-        isError: result.code !== 0,
-      },
-    };
+    const isWrite = WRITE_TOOL_NAMES.has(name);
+    try {
+      const result = await this.queue.enqueue(() => this.runGuardian(command), isWrite);
+      return {
+        jsonrpc: "2.0",
+        id: message.id,
+        result: {
+          content: [{ type: "text", text: result.text }],
+          isError: result.code !== 0,
+        },
+      };
+    } catch (error) {
+      return {
+        jsonrpc: "2.0",
+        id: message.id,
+        result: {
+          content: [{ type: "text", text: `Tool execution failed: ${error.message}` }],
+          isError: true,
+        },
+      };
+    }
   }
 
   runGuardian(args) {
@@ -228,17 +357,33 @@ class McpServer {
       });
       let stdout = "";
       let stderr = "";
+      let timedOut = false;
+      let outputTruncated = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        child.kill();
+      }, COMMAND_TIMEOUT_MS);
+
       child.stdout.on("data", (chunk) => {
-        stdout += chunk.toString();
+        stdout = appendLimited(stdout, chunk.toString());
+        if (Buffer.byteLength(stdout, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
       });
       child.stderr.on("data", (chunk) => {
-        stderr += chunk.toString();
+        stderr = appendLimited(stderr, chunk.toString());
+        if (Buffer.byteLength(stderr, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
       });
       child.on("error", (error) => {
+        clearTimeout(timer);
         resolve({ code: 1, text: error.message });
       });
       child.on("close", (code) => {
-        resolve({ code, text: trimOutput(stdout, stderr, code) });
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve({ code: 1, text: `Command timed out after ${COMMAND_TIMEOUT_MS / 1000}s.` });
+          return;
+        }
+        const text = trimOutput(stdout, stderr, outputTruncated, code);
+        resolve({ code: code === null ? 1 : code, text });
       });
     });
   }
@@ -254,6 +399,13 @@ class McpServer {
   write(message) {
     process.stdout.write(`${JSON.stringify(message)}\n`);
   }
+}
+
+function appendLimited(current, addition) {
+  if (Buffer.byteLength(current, "utf8") >= MAX_OUTPUT_BYTES) return current;
+  const next = current + addition;
+  if (Buffer.byteLength(next, "utf8") <= MAX_OUTPUT_BYTES) return next;
+  return `${next.slice(0, MAX_OUTPUT_BYTES)}\n[output truncated]`;
 }
 
 function normalizeMcpConfig(config = {}) {
@@ -286,13 +438,12 @@ function validateMcpConfig(config = {}) {
   return issues;
 }
 
-function enabledToolNames(config = {}) {
-  const normalized = normalizeMcpConfig(config);
+function enabledToolNames(normalizedConfig) {
   const all = new Set(SUPPORTED_MCP_TOOLS);
-  const configured = normalized.allowedTools.length
-    ? new Set(normalized.allowedTools)
+  const configured = normalizedConfig.allowedTools.length
+    ? new Set(normalizedConfig.allowedTools)
     : all;
-  if (normalized.readOnly || process.env.PROJECT_GUARDIAN_MCP_READ_ONLY === "1") {
+  if (normalizedConfig.readOnly || process.env.PROJECT_GUARDIAN_MCP_READ_ONLY === "1") {
     for (const name of WRITE_TOOL_NAMES) configured.delete(name);
   }
   return configured;
@@ -305,13 +456,17 @@ function validateToolArguments(tool, args) {
   const propertyNames = new Set(Object.keys(properties));
   for (const name of Object.keys(args)) {
     if (!propertyNames.has(name)) return `Unsupported argument for ${tool.name}: ${name}`;
-    const expected = properties[name].type;
+    const prop = properties[name];
+    const expected = prop.type;
     if (expected === "number" && !Number.isFinite(args[name])) return `Invalid argument type for ${tool.name}.${name}: expected number`;
     if (expected && typeof args[name] !== expected) return `Invalid argument type for ${tool.name}.${name}: expected ${expected}`;
-    if (properties[name].enum && !properties[name].enum.includes(args[name])) return `${tool.name}.${name} must be one of: ${properties[name].enum.join(", ")}`;
+    if (prop.enum && !prop.enum.includes(args[name])) return `${tool.name}.${name} must be one of: ${prop.enum.join(", ")}`;
     if (typeof args[name] === "number") {
-      if (properties[name].minimum !== undefined && args[name] < properties[name].minimum) return `${tool.name}.${name} must be at least ${properties[name].minimum}`;
-      if (properties[name].maximum !== undefined && args[name] > properties[name].maximum) return `${tool.name}.${name} must be at most ${properties[name].maximum}`;
+      if (prop.minimum !== undefined && args[name] < prop.minimum) return `${tool.name}.${name} must be at least ${prop.minimum}`;
+      if (prop.maximum !== undefined && args[name] > prop.maximum) return `${tool.name}.${name} must be at most ${prop.maximum}`;
+    }
+    if (expected === "string" && typeof args[name] === "string" && prop.maxLength !== undefined) {
+      if (args[name].length > prop.maxLength) return `${tool.name}.${name} exceeds maximum length of ${prop.maxLength}`;
     }
   }
   for (const name of schema.required || []) {
@@ -407,8 +562,13 @@ function requiredString(value, label) {
   return value.trim();
 }
 
-function trimOutput(stdout, stderr, code) {
-  const output = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
+function trimOutput(stdout, stderr, truncated, code) {
+  const parts = [
+    stdout.trim() ? stdout.trim() : "",
+    stderr.trim() ? `[stderr]\n${stderr.trim()}` : "",
+  ];
+  if (truncated) parts.push("[output truncated — exceeded 512KB limit]");
+  const output = parts.filter(Boolean).join("\n");
   if (output) return output;
   return code === 0 ? "Command completed." : `Command failed with exit code ${code}.`;
 }
@@ -420,4 +580,5 @@ module.exports = {
   enabledToolNames,
   validateMcpConfig,
   runMcpServer,
+  TaskQueue,
 };
