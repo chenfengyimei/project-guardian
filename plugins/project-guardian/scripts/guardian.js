@@ -7,6 +7,13 @@ const readline = require("readline");
 const { execFileSync } = require("child_process");
 const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters, validateAdapters } = require("./lib/adapters");
 const { runMcpServer, validateMcpConfig } = require("./lib/mcp");
+const {
+  buildManualMemoryContent,
+  buildManualMemoryEntry,
+  normalizeMemoryName,
+  publicMemoryAppendTemplates,
+  resolveMemoryTarget: resolveManualMemoryTarget,
+} = require("./lib/manual-memory");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -81,6 +88,9 @@ async function main() {
       break;
     case "update":
       update(root, args.join(" ").trim());
+      break;
+    case "append-memory":
+      appendMemory(root, args);
       break;
     case "handover":
       handover(root);
@@ -203,6 +213,56 @@ function update(root, task) {
   refreshStateLatestChange(root, config, title, changedFiles);
   console.log(`Updated ${config.memoryFiles.changelog} and ${config.memoryFiles.state}.`);
   console.log(isChinese(config) ? "提交前请把待填写字段补充完整。" : "Please replace TODO fields before committing.");
+}
+
+function appendMemory(root, args = []) {
+  const config = loadConfig(root);
+  ensureInitialized(root, config);
+  const flags = parseFlags(args);
+
+  if (flags.templates) {
+    printAppendMemoryTemplates(flags.file || flags.name || "");
+    return;
+  }
+
+  const memoryName = flags.file || flags.name || flags.target;
+  if (!memoryName) fail("Missing memory file. Use: guardian append-memory --file STATE --template state-progress");
+
+  let target;
+  try {
+    target = resolveManualMemoryTarget(root, config.memoryFiles, memoryName);
+  } catch (error) {
+    fail(error.message);
+  }
+
+  let content;
+  try {
+    content = buildManualMemoryContent(target.name, flags.template, flags, flags.content);
+  } catch (error) {
+    fail(error.message);
+  }
+
+  fs.appendFileSync(path.join(root, target.relativePath), buildManualMemoryEntry(target.name, content, {
+    source: isChinese(config) ? "Project Guardian CLI 手动追加。" : "Project Guardian CLI manual append.",
+    titlePrefix: isChinese(config) ? "CLI 手动记录" : "CLI manual note",
+  }), "utf8");
+  console.log(`Appended memory to ${target.relativePath}.`);
+}
+
+function printAppendMemoryTemplates(fileName = "") {
+  const normalized = fileName ? normalizeMemoryName(fileName) : "";
+  const templates = publicMemoryAppendTemplates().filter((item) => !normalized || item.target === normalized || item.target === "*");
+  console.log("Project Guardian memory append templates");
+  console.log("");
+  for (const item of templates) {
+    console.log(`${item.id} (${item.target}) - ${item.label}`);
+    console.log(`  ${item.description}`);
+    for (const field of item.fields) {
+      const required = field.required ? "required" : "optional";
+      console.log(`  --${field.name} <text> (${required}) ${field.label}`);
+    }
+    console.log("");
+  }
 }
 
 function buildHandover(config, data) {
@@ -880,6 +940,7 @@ function addPackageScripts(packagePath) {
     const scripts = {
       "guardian:init": `${runner} init`,
       "guardian:update": `${runner} update`,
+      "guardian:append-memory": `${runner} append-memory`,
       "guardian:handover": `${runner} handover`,
       "guardian:check": `${runner} check`,
       "guardian:doctor": `${runner} doctor`,
@@ -1854,6 +1915,8 @@ Usage:
   guardian init --language en
   guardian init --adapter all
   guardian update "task summary"
+  guardian append-memory --file STATE --template state-progress --task "Task" --current-status "Status" --next-step "Next" --verification "Checks"
+  guardian append-memory --templates
   guardian decision add --title "Decision title" --context "Why" --decision "What"
   guardian reviews
   guardian reviews due
@@ -1876,6 +1939,7 @@ Usage:
 Commands:
   init           Create standard project memory files, AI rules, and config. Default language is zh-CN; use --language en for English templates.
   update         Append an AI-assisted change record and refresh the state memory file.
+  append-memory  Append a guarded manual memory note using templates shared with the Run UI.
   decision add   Append a structured decision entry.
   reviews       List scheduled decision reviews, fail on due reviews, or mark a review completed.
   handover      Generate the configured handover memory file from current memory and project files.

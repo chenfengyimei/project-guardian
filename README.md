@@ -140,7 +140,7 @@ node Run/server.js
 http://127.0.0.1:4357
 ```
 
-这个界面是可选层，不替代 CLI/MCP。它使用可收起的左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、在知识查询模块独立查看 query 输出、在命令操作模块查看 CLI 全量指令目录，也可以通过固定表单运行 `guardian init` 或手动追加一段记忆。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`，命令操作里的写入类 CLI 输入 `RUN_COMMAND`。
+这个界面是可选层，不替代 CLI/MCP。它使用可收起的左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、在知识查询模块独立查看 query 输出、在命令操作模块查看 CLI 全量指令目录，也可以通过固定表单运行 `guardian init`。命令操作里需要参数的命令会先打开弹窗，用户在弹窗里填写参数后再确认运行或取消。手动追加记忆提供预设模板，用户只填写任务、状态、验证、风险、下一步等关键字段，不需要自己组织整段 Markdown。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`，命令操作里的写入类 CLI 输入 `RUN_COMMAND`。
 
 Run 不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，`update`、`handover`、`decision add`、`reviews complete`、`install-adapters`、`install-hooks`、`install-ci` 等写入类命令必须输入 `RUN_COMMAND`；`init`、`brief`、`query` 使用各自专用模块，`mcp` 需要在终端或 AI IDE 配置中启动。
 
@@ -313,6 +313,9 @@ guardian brief "修复登录验证码校验失败"
 
 # 记录一次 AI 辅助开发
 guardian update "修复登录验证码校验失败"
+
+# 按模板手动追加一条记忆，字段模板和 Run 控制台一致
+guardian append-memory --file STATE --template state-progress --task "修复登录验证码校验失败" --current-status "已定位问题" --next-step "补充测试" --verification "本地冒烟检查"
 
 # 生成或刷新新人交接文档
 guardian handover

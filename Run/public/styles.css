@@ -472,20 +472,30 @@ button:disabled {
   white-space: nowrap;
 }
 
-.command-card-form {
+.command-card-form,
+.template-fields {
   display: grid;
   gap: 8px;
 }
 
-.command-card-form label {
+.command-card-form label,
+.template-fields label,
+.modal-confirm {
   display: grid;
   gap: 5px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.command-card-form textarea {
+.command-card-form textarea,
+.template-fields textarea {
   min-height: 84px;
+}
+
+.form-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .stacked-form {
@@ -613,6 +623,42 @@ button:disabled {
   font-size: 13px;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 18, 26, 0.45);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal {
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(10, 18, 26, 0.22);
+}
+
+.modal-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 @media (max-width: 780px) {

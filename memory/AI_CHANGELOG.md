@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-04 10:16 - 完善 Run 命令弹窗和模板化追加记忆
+
+- 用户需求：按顺序完成三个任务：命令操作模块里需要参数的命令改为点击按钮后弹窗输入并确认或取消；追加记忆模块预设模板和字段，让用户只填关键信息；完善 CLI 系统、修复风险，并与控制台系统同步。
+- AI 总结：Run 命令操作卡片不再内联展示大量参数字段，写入类或带参数命令会打开弹窗填写参数和确认词；追加记忆模块改为从后端获取模板，根据目标记忆文件展示关键字段；新增共享 `manual-memory.js` 模块和 CLI `guardian append-memory`，让网页和命令行共用模板、核心记忆白名单、追加格式和基础敏感词拦截。
+- 变更文件：`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-manual-memory-template-sync.md`。
+- 业务原因：零基础用户不适合在狭小命令卡片里填写复杂参数，也不应该自己组织整段 Markdown 记忆；模板化字段可以降低漏写“为什么改、如何验证、风险、下一步”的概率，同时让 CLI 和网页能力保持一致。
+- 技术说明：`Run/server.js` 的 `/api/status` 现在暴露 `memoryAppendTemplates` 和 `templateMemoryAppend`；`Run/public/app.js` 新增命令参数弹窗、模板字段渲染和模板字段收集；`guardian append-memory` 支持 `--file`、`--template`、`--content` 和 `--templates`；`manual-memory.js` 负责模板定义、字段校验、敏感词拦截、路径解析和追加记录生成。
+- 验证方式：已运行 `npm.cmd run lint` 和 `npm.cmd test`；当前 55 个测试通过。新增测试覆盖 Run 模板状态接口、模板化追加记忆、CLI `append-memory` 成功写入、模板列表输出和错误复审日期拦截。
+- 风险：Run 仍没有内置登录鉴权，不能公网暴露；模板化追加记忆只能降低漏写风险，不能替代代码评审、`guardian verify` 和人工安全检查；复杂重大决策仍应优先使用 `guardian decision add`。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据；新增模板字段和自由文本入口都会做基础敏感词拦截。
+- 下一步：真实使用后观察是否需要命令搜索、写入前 diff 预览、操作审计、更多模板或 MCP 追加记忆工具。
+
 ### 2026-06-04 09:43 - 修复 Run 知识查询输出和源码噪音
 
 - 用户需求：Run 知识查询输出中出现两条 `guardian query OK`，并把 `运行中...` 当成历史记录保留下来；查询结果还混入 `Run/public/index.html` 的 HTML 片段，显示效果像是错误内容。

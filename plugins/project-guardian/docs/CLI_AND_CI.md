@@ -31,6 +31,8 @@ guardian init --language zh-CN
 guardian init --language en
 guardian doctor
 guardian update "任务说明"
+guardian append-memory --file STATE --template state-progress --task "任务说明" --current-status "当前状态" --next-step "下一步" --verification "验证方式"
+guardian append-memory --templates
 guardian handover
 guardian check
 guardian validate-docs
@@ -55,6 +57,7 @@ guardian install-ci
 ```bash
 npm run guardian:doctor
 npm run guardian:update -- "任务说明"
+npm run guardian:append-memory -- --file STATE --content "补充一条项目记忆"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:validate-docs
@@ -220,7 +223,7 @@ MCP 权限可以通过 `project-guardian.config.json` 限制：
 
 ### 2.3.1 本地可视化界面
 
-`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、查看核心记忆内容、运行体检、初始化项目、手动追加记忆、生成 brief 和做本地知识查询。界面使用可收起的左侧侧边栏切换功能，首页只显示插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式；知识查询模块拥有独立输出记录，命令操作模块集中展示 CLI 全量指令目录和通用命令输出。
+`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、查看核心记忆内容、运行体检、初始化项目、手动追加记忆、生成 brief 和做本地知识查询。界面使用可收起的左侧侧边栏切换功能，首页只显示插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式；知识查询模块拥有独立输出记录，命令操作模块集中展示 CLI 全量指令目录和通用命令输出。需要参数或确认词的命令会先弹出参数窗口，用户在弹窗里填写后再确定运行或取消，避免字段都挤在命令卡片里。
 
 在仓库根目录运行：
 
@@ -252,7 +255,7 @@ node Run/server.js --cwd D:\your-project
 Run 现在有三类受控写入入口：
 
 - 插件初始化：输入确认词 `RUN_INIT` 后，调用固定的 `guardian init --language ...` 参数。
-- 手动追加记忆：输入确认词 `APPEND_MEMORY` 后，只能追加到核心记忆文件白名单，并会先做基础敏感词拦截。
+- 手动追加记忆：输入确认词 `APPEND_MEMORY` 后，只能追加到核心记忆文件白名单，并会先做基础敏感词拦截。界面会按目标记忆文件显示预设模板，用户只填写任务、状态、验证、风险、下一步等关键字段。
 - 命令操作里的写入类 CLI：输入确认词 `RUN_COMMAND` 后，才会运行 `update`、`handover`、`decision add`、`reviews complete`、`install-adapters`、`install-hooks` 和 `install-ci` 等固定命令。
 
 如果目标项目在 `project-guardian.config.json` 中自定义了核心记忆文件路径，Run 会按配置读取和写入；没有配置时使用默认 `memory/` 目录。
@@ -320,6 +323,23 @@ guardian update "实现登录验证码"
 - `Verification`
 - `Risks`
 - `Next step`
+
+### 4.1 模板化追加记忆
+
+如果只需要补一条人工记忆，不想运行完整 `update` 模板，可以使用：
+
+```bash
+guardian append-memory --file STATE --template state-progress --task "整理 Run 控制台" --current-status "已完成主要功能" --next-step "运行 verify" --verification "本地测试通过"
+```
+
+常用参数：
+
+- `--file`：目标核心记忆，支持 `PROJECT_CONTEXT`、`STATE`、`DECISIONS`、`AI_CHANGELOG`、`HANDOVER`，也支持 `context`、`state`、`changelog` 等别名。
+- `--template`：模板 ID，例如 `state-progress`、`change-log-note`、`handover-note`。
+- `--content`：不使用模板时的自由文本内容。
+- `--templates`：查看可用模板和字段名。
+
+这个命令和 Run 控制台的“追加记忆”模块使用同一套模板和敏感词拦截。重大架构或流程决策仍推荐使用 `guardian decision add`，因为它会同步创建单独决策文件并接入复审机制。
 
 ## 5. 交接命令
 

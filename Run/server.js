@@ -6,22 +6,29 @@ const http = require("node:http");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { URL } = require("node:url");
+const {
+  MEMORY_FILE_CONFIG,
+  SENSITIVE_TEXT_PATTERN,
+  buildManualMemoryContent,
+  buildManualMemoryEntry,
+  memoryFilesForConfig,
+  publicMemoryAppendTemplates,
+  resolveMemoryTarget: resolveConfiguredMemoryTarget,
+} = require("../plugins/project-guardian/scripts/lib/manual-memory");
 
 const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4357;
 const CONFIG_FILE = "project-guardian.config.json";
-const API_VERSION = 2;
+const API_VERSION = 3;
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 512 * 1024;
 const MAX_MEMORY_FILE_BYTES = 256 * 1024;
-const MAX_MANUAL_MEMORY_BYTES = 16 * 1024;
 const BRIEF_MODES = new Set(["auto", "quick", "deep", "full"]);
 const INIT_LANGUAGES = new Set(["zh-CN", "en"]);
 const INIT_ADAPTERS = new Set(["default", "all"]);
-const SENSITIVE_TEXT_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(authorization|bearer)\b|\b(password|passwd|secret|token|api[_-]?key|private\s+key)\b\s*[:=：]|(密码|密钥|令牌|私钥)\s*[:=：]/i;
 const COMMAND_CONFIRMATION = "RUN_COMMAND";
 const INSTALL_ADAPTERS = new Set([
   "generic",
@@ -51,6 +58,7 @@ const COMMAND_DEFINITIONS = [
   readCommand("conflicts", "Conflicts 冲突", ["conflicts"], "查看 Git 合并冲突和记忆文件冲突处理建议。"),
   readCommand("adapters-doctor", "Adapters Doctor", ["adapters", "doctor"], "检查各 AI IDE 适配器文件是否已安装。"),
   linkedCommand("init", "Init 初始化", "init", "使用插件初始化页面运行 guardian init。", "guardian init --language zh-CN"),
+  linkedCommand("append-memory", "Append Memory", "append", "使用追加记忆页面按模板补充核心项目记忆。", "guardian append-memory --file STATE --template state-progress"),
   linkedCommand("brief", "Brief 读取计划", "brief", "使用读取计划页面生成预算友好的记忆读取计划。", "guardian brief \"任务\" --mode auto --limit 3"),
   linkedCommand("query", "Query 知识查询", "query", "使用知识查询页面查询项目记忆、源码和最近 Git 历史。", "guardian query \"问题\" --limit 3"),
   writeCommand("update", "Update 更新记忆", "追加 AI 协助变更记录，并刷新状态记忆。", "guardian update \"任务摘要\"", [
@@ -85,14 +93,7 @@ const COMMAND_DEFINITIONS = [
 ];
 const COMMANDS = new Map(COMMAND_DEFINITIONS.map((command) => [command.id, command]));
 
-const MEMORY_FILE_CONFIG = [
-  ["PROJECT_CONTEXT", "context", "memory/PROJECT_CONTEXT.md"],
-  ["STATE", "state", "memory/STATE.md"],
-  ["DECISIONS", "decisions", "memory/DECISIONS.md"],
-  ["AI_CHANGELOG", "changelog", "memory/AI_CHANGELOG.md"],
-  ["HANDOVER", "handover", "memory/HANDOVER.md"],
-];
-const MEMORY_FILES = MEMORY_FILE_CONFIG.map(([name, , relativePath]) => [name, relativePath]);
+const MEMORY_FILES = MEMORY_FILE_CONFIG.map((item) => [item.name, item.fallbackPath]);
 
 const WRITE_CONFIRMATIONS = {
   init: "RUN_INIT",
@@ -333,7 +334,7 @@ async function handleApi(req, res, requestUrl, context) {
 
   if (requestUrl.pathname === "/api/memory/append") {
     validateConfirmation(body.confirm, WRITE_CONFIRMATIONS.appendMemory);
-    const result = appendManualMemory(context, body.name, body.content);
+    const result = appendManualMemory(context, body.name, body);
     sendJson(res, 200, result);
     return;
   }
@@ -354,6 +355,7 @@ function statusPayload(context) {
       initProject: true,
       appendMemory: true,
       configuredMemoryPaths: true,
+      templateMemoryAppend: true,
     },
     readOnly: false,
     commandApiReadOnly: false,
@@ -361,6 +363,7 @@ function statusPayload(context) {
     confirmations: WRITE_CONFIRMATIONS,
     actions: COMMAND_DEFINITIONS.map((command) => command.id),
     commands: COMMAND_DEFINITIONS.map(publicCommandDefinition),
+    memoryAppendTemplates: publicMemoryAppendTemplates(),
     memoryFiles: memoryFilesForProject(context.projectRoot).map(([name, relativePath]) => {
       const absolutePath = path.join(context.projectRoot, relativePath);
       return {
@@ -415,28 +418,29 @@ function appendManualMemory(context, name, content) {
     throw badRequest(`Memory file does not exist yet: ${target.relativePath}. Run init first.`);
   }
 
-  const cleanedContent = validateManualMemoryContent(content);
-  fs.appendFileSync(target.absolutePath, buildManualMemoryEntry(target.name, cleanedContent), "utf8");
+  let cleanedContent;
+  try {
+    cleanedContent = buildManualMemoryContent(target.name, content.templateId, content.fields, content.content);
+  } catch (error) {
+    throw badRequest(error.message);
+  }
+  fs.appendFileSync(target.absolutePath, buildManualMemoryEntry(target.name, cleanedContent, {
+    source: "Run 可视化控制台手动追加。",
+    titlePrefix: "Run 手动记录",
+  }), "utf8");
   return readMemoryPayload(context, target.name);
 }
 
 function resolveMemoryTarget(projectRoot, name) {
-  const normalized = String(name || "").trim().toUpperCase();
-  const entry = memoryFilesForProject(projectRoot).find(([memoryName]) => memoryName === normalized);
-  if (!entry) throw badRequest("Unknown memory file. Use one of the core Project Guardian memory names.");
-  return {
-    name: entry[0],
-    relativePath: entry[1],
-    absolutePath: path.join(projectRoot, entry[1]),
-  };
+  try {
+    return resolveConfiguredMemoryTarget(projectRoot, loadProjectMemoryConfig(projectRoot), name);
+  } catch (error) {
+    throw badRequest(error.message);
+  }
 }
 
 function memoryFilesForProject(projectRoot) {
-  const configuredMemoryFiles = loadProjectMemoryConfig(projectRoot);
-  return MEMORY_FILE_CONFIG.map(([name, configKey, fallbackPath]) => [
-    name,
-    sanitizeMemoryPath(configuredMemoryFiles[configKey], fallbackPath),
-  ]);
+  return memoryFilesForConfig(loadProjectMemoryConfig(projectRoot));
 }
 
 function loadProjectMemoryConfig(projectRoot) {
@@ -448,13 +452,6 @@ function loadProjectMemoryConfig(projectRoot) {
   } catch {
     return {};
   }
-}
-
-function sanitizeMemoryPath(value, fallbackPath) {
-  const rawPath = typeof value === "string" && value.trim() ? value.trim() : fallbackPath;
-  const normalized = rawPath.replace(/\\/g, "/");
-  if (path.isAbsolute(normalized) || normalized.split("/").includes("..")) return fallbackPath;
-  return normalized;
 }
 
 function validateQuestion(value) {
@@ -590,55 +587,6 @@ function validateInitAdapter(value) {
 
 function validateConfirmation(value, expected) {
   if (String(value || "").trim() !== expected) throw badRequest(`Type ${expected} to confirm this write operation.`);
-}
-
-function validateManualMemoryContent(value) {
-  const content = String(value || "").replace(/\r\n/g, "\n").trim();
-  if (!content) throw badRequest("Memory content is required.");
-  if (Buffer.byteLength(content, "utf8") > MAX_MANUAL_MEMORY_BYTES) {
-    throw badRequest(`Memory content must be ${MAX_MANUAL_MEMORY_BYTES} bytes or fewer.`);
-  }
-  if (SENSITIVE_TEXT_PATTERN.test(content)) {
-    throw badRequest("Memory content looks like it may contain a password, token, API key, or other secret.");
-  }
-  return content;
-}
-
-function buildManualMemoryEntry(name, content) {
-  const title = `Run 手动记录 - ${localTimestamp()}`;
-  if (name === "AI_CHANGELOG") {
-    const indented = content
-      .split("\n")
-      .map((line) => `  ${line}`)
-      .join("\n");
-    return [
-      "",
-      "",
-      `### ${title}`,
-      "",
-      "- 用户记录：",
-      indented,
-      "- 来源：Run 可视化控制台手动追加。",
-      "- Sensitive data checked: Run 基础敏感词拦截已通过。",
-      "",
-    ].join("\n");
-  }
-
-  return [
-    "",
-    "",
-    `## ${title}`,
-    "",
-    "来源：Run 可视化控制台手动追加。",
-    "",
-    content,
-    "",
-  ].join("\n");
-}
-
-function localTimestamp(date = new Date()) {
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 async function sendCommandResult(res, context, args, action) {

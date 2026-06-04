@@ -88,6 +88,7 @@ project_ai/
         guardian.js
         lib/
           adapters.js
+          manual-memory.js
           mcp.js
       skills/
         project-guardian/
@@ -174,14 +175,15 @@ project_ai/
 | `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、MCP 权限、language、adapters、ignore | 记忆路径、语言、适配器、MCP 工具权限、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
-| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
+| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、append-memory、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
+| `plugins/project-guardian/scripts/lib/manual-memory.js` | 手动记忆模板模块 | 让 CLI 和 Run 控制台共用同一套追加记忆模板、白名单和基础敏感词拦截 | 核心记忆文件配置、追加模板字段、模板渲染、追加记录格式、路径解析和敏感内容拦截 | 追加记忆字段、模板、写入格式或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
-| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、手动追加记忆 API、brief/query API、固定 CLI 命令目录、写入命令确认、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
-| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、手动追加记忆、brief、知识查询独立输出区、命令操作页面 | 页面结构、控件或用户操作入口变化时 |
-| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
-| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、手动追加记忆、命令目录渲染、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、模板化手动追加记忆 API、brief/query API、固定 CLI 命令目录、写入命令确认、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
+| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、模板化手动追加记忆、brief、知识查询独立输出区、命令操作页面和参数弹窗 | 页面结构、控件或用户操作入口变化时 |
+| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、参数弹窗、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
+| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、模板化手动追加记忆、命令目录渲染、命令参数弹窗、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、append-memory、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |

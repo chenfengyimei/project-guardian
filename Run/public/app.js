@@ -29,10 +29,12 @@ const state = {
     appendMemory: "APPEND_MEMORY",
   },
   memoryFiles: [],
+  memoryAppendTemplates: [],
   commands: [],
   selectedMemory: "",
   currentView: "overview",
   sidebarCollapsed: false,
+  activeCommand: null,
 };
 
 const nodes = typeof document === "undefined" ? {} : {
@@ -61,11 +63,23 @@ const nodes = typeof document === "undefined" ? {} : {
   initForm: document.querySelector("#initForm"),
   appendMemoryForm: document.querySelector("#appendMemoryForm"),
   appendMemoryName: document.querySelector("#appendMemoryName"),
-  appendMemoryContent: document.querySelector("#appendMemoryContent"),
+  appendTemplate: document.querySelector("#appendTemplate"),
+  appendTemplateHint: document.querySelector("#appendTemplateHint"),
+  appendTemplateFields: document.querySelector("#appendTemplateFields"),
   appendConfirm: document.querySelector("#appendConfirm"),
   initConfirm: document.querySelector("#initConfirm"),
   briefForm: document.querySelector("#briefForm"),
   queryForm: document.querySelector("#queryForm"),
+  commandModal: document.querySelector("#commandModal"),
+  commandModalForm: document.querySelector("#commandModalForm"),
+  commandModalClose: document.querySelector("#commandModalClose"),
+  commandModalKind: document.querySelector("#commandModalKind"),
+  commandModalTitle: document.querySelector("#commandModalTitle"),
+  commandModalDescription: document.querySelector("#commandModalDescription"),
+  commandModalLine: document.querySelector("#commandModalLine"),
+  commandModalFields: document.querySelector("#commandModalFields"),
+  commandModalConfirmLabel: document.querySelector("#commandModalConfirmLabel"),
+  commandModalConfirm: document.querySelector("#commandModalConfirm"),
 };
 
 if (typeof document !== "undefined") {
@@ -86,6 +100,17 @@ if (typeof document !== "undefined") {
   nodes.clearQueryOutput.addEventListener("click", () => {
     nodes.queryOutput.textContent = "等待查询...";
   });
+  nodes.appendMemoryName.addEventListener("change", renderAppendTemplateOptions);
+  nodes.appendTemplate.addEventListener("change", renderAppendTemplateFields);
+  nodes.commandModalClose.addEventListener("click", closeCommandModal);
+  nodes.commandModal.querySelector("[data-modal-cancel]").addEventListener("click", closeCommandModal);
+  nodes.commandModal.addEventListener("click", (event) => {
+    if (event.target === nodes.commandModal) closeCommandModal();
+  });
+  nodes.commandModalForm.addEventListener("submit", handleCommandModalSubmit);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !nodes.commandModal.hidden) closeCommandModal();
+  });
   nodes.initForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
@@ -103,22 +128,23 @@ if (typeof document !== "undefined") {
     event.preventDefault();
     const payload = {
       name: nodes.appendMemoryName.value,
-      content: nodes.appendMemoryContent.value,
+      templateId: nodes.appendTemplate.value,
+      fields: collectNamedFields(nodes.appendTemplateFields),
       confirm: nodes.appendConfirm.value,
     };
 
     setBusy(true);
-    appendOutput("追加记忆", true, "写入中...", "");
+    setOutputPending(nodes.output, "等待操作...", "写入中...");
     try {
       const result = await postJson("/api/memory/append", payload);
-      appendOutput("追加记忆", true, `已写入 ${result.path}，当前大小 ${result.size} bytes。`, "");
-      nodes.appendMemoryContent.value = "";
+      appendOutput("追加记忆", true, `已写入 ${result.path}，当前大小 ${result.size} bytes。`, "", nodes.output, "等待操作...", "写入中...");
+      clearFields(nodes.appendTemplateFields);
       nodes.appendConfirm.value = "";
       await loadStatus();
       await loadMemoryFile(result.name);
       showView("memory");
     } catch (error) {
-      appendOutput("追加记忆", false, "", error.message);
+      appendOutput("追加记忆", false, "", error.message, nodes.output, "等待操作...", "写入中...");
     } finally {
       setBusy(false);
     }
@@ -155,6 +181,7 @@ async function loadStatus() {
     state.features = payload.features || {};
     state.confirmations = payload.confirmations || state.confirmations;
     state.memoryFiles = payload.memoryFiles || [];
+    state.memoryAppendTemplates = payload.memoryAppendTemplates || [];
     nodes.projectRoot.textContent = payload.projectRoot || "-";
     nodes.nodeVersion.textContent = payload.nodeVersion || "-";
     nodes.guardianState.textContent = payload.guardianAvailable ? "已找到 CLI" : "未找到 CLI";
@@ -167,6 +194,7 @@ async function loadStatus() {
     setWriteFormAvailability();
     renderMemoryFiles(state.memoryFiles);
     renderMemorySelect(state.memoryFiles);
+    renderAppendTemplateOptions();
     renderCommandButtons();
   } catch (error) {
     setBadge("连接失败", true);
@@ -242,6 +270,38 @@ function renderMemorySelect(files) {
   if (previous && files.some((file) => file.name === previous && file.exists)) {
     nodes.appendMemoryName.value = previous;
   }
+  renderAppendTemplateOptions();
+}
+
+function renderAppendTemplateOptions() {
+  const memoryName = nodes.appendMemoryName.value;
+  const previous = nodes.appendTemplate.value;
+  const templates = templatesForMemory(memoryName);
+  nodes.appendTemplate.innerHTML = "";
+  for (const template of templates) {
+    const option = document.createElement("option");
+    option.value = template.id;
+    option.textContent = template.label;
+    nodes.appendTemplate.appendChild(option);
+  }
+  if (previous && templates.some((template) => template.id === previous)) nodes.appendTemplate.value = previous;
+  renderAppendTemplateFields();
+}
+
+function templatesForMemory(memoryName) {
+  const normalized = String(memoryName || "").toUpperCase();
+  return state.memoryAppendTemplates.filter((template) => template.target === normalized || template.target === "*");
+}
+
+function renderAppendTemplateFields() {
+  const template = templatesForMemory(nodes.appendMemoryName.value).find((item) => item.id === nodes.appendTemplate.value);
+  nodes.appendTemplateFields.innerHTML = "";
+  if (!template) {
+    nodes.appendTemplateHint.textContent = "当前记忆文件没有可用模板。";
+    return;
+  }
+  nodes.appendTemplateHint.textContent = template.description || "选择模板后，只填写对应关键信息。";
+  for (const field of template.fields || []) nodes.appendTemplateFields.appendChild(renderFieldControl(field));
 }
 
 async function loadMemoryFile(name) {
@@ -308,23 +368,7 @@ function renderCommandButtons() {
     commandLine.textContent = command.command || `guardian ${command.id}`;
     card.appendChild(commandLine);
 
-    const form = document.createElement("div");
-    form.className = "command-card-form";
     const fields = Array.isArray(command.fields) ? command.fields : [];
-    for (const field of fields) form.appendChild(renderCommandField(command, field));
-
-    let confirmInput = null;
-    if (command.kind === "write") {
-      const label = document.createElement("label");
-      label.textContent = "写入确认";
-      confirmInput = document.createElement("input");
-      confirmInput.type = "text";
-      confirmInput.autocomplete = "off";
-      confirmInput.placeholder = `输入 ${command.confirmation || state.confirmations.command || "RUN_COMMAND"}`;
-      label.appendChild(confirmInput);
-      form.appendChild(label);
-    }
-    if (fields.length || command.kind === "write") card.appendChild(form);
 
     const button = document.createElement("button");
     button.type = "button";
@@ -336,11 +380,11 @@ function renderCommandButtons() {
       button.addEventListener("click", () => showView(command.view));
     } else {
       button.addEventListener("click", async () => {
-        const payload = { action: command.id };
-        for (const field of fields) payload[field.name] = form.querySelector(`[name="${field.name}"]`).value;
-        if (confirmInput) payload.confirm = confirmInput.value;
-        const result = await postAndRender("/api/command", payload, command.command || `guardian ${command.id}`);
-        if (result && result.ok && confirmInput) confirmInput.value = "";
+        if (command.kind === "write" || fields.length) {
+          openCommandModal(command);
+          return;
+        }
+        await postAndRender("/api/command", { action: command.id }, command.command || `guardian ${command.id}`);
       });
     }
     card.appendChild(button);
@@ -348,13 +392,14 @@ function renderCommandButtons() {
   }
 }
 
-function renderCommandField(command, field) {
+function renderFieldControl(field) {
   const label = document.createElement("label");
-  label.textContent = field.label || field.name;
+  const suffix = field.required ? " *" : "";
+  label.textContent = `${field.label || field.name}${suffix}`;
   let control;
   if (field.type === "textarea") {
     control = document.createElement("textarea");
-    control.rows = 3;
+    control.rows = 4;
   } else if (field.type === "select") {
     control = document.createElement("select");
     for (const optionValue of field.options || []) {
@@ -370,16 +415,68 @@ function renderCommandField(command, field) {
   }
   control.name = field.name;
   control.placeholder = field.placeholder || "";
-  control.setAttribute("aria-label", `${command.label || command.id} ${field.label || field.name}`);
+  if (field.maxLength) control.maxLength = field.maxLength;
+  if (field.pattern) control.pattern = field.pattern;
+  if (field.required) control.required = true;
+  control.setAttribute("aria-label", field.label || field.name);
   label.appendChild(control);
   return label;
 }
 
 function commandButtonText(command) {
   if (command.kind === "linked") return "打开模块";
-  if (command.kind === "write") return "确认后运行";
+  if (command.kind === "write") return "填写参数";
   if (command.kind === "terminal") return "需终端运行";
   return "运行";
+}
+
+function openCommandModal(command) {
+  state.activeCommand = command;
+  nodes.commandModalKind.textContent = commandKindLabels[command.kind] || "命令操作";
+  nodes.commandModalTitle.textContent = command.label || command.id;
+  nodes.commandModalDescription.textContent = command.description || "";
+  nodes.commandModalLine.textContent = command.command || `guardian ${command.id}`;
+  nodes.commandModalFields.innerHTML = "";
+  for (const field of command.fields || []) nodes.commandModalFields.appendChild(renderFieldControl(field));
+  const needsConfirmation = command.kind === "write";
+  nodes.commandModalConfirmLabel.hidden = !needsConfirmation;
+  nodes.commandModalConfirm.required = needsConfirmation;
+  nodes.commandModalConfirm.value = "";
+  nodes.commandModalConfirm.placeholder = `输入 ${command.confirmation || state.confirmations.command || "RUN_COMMAND"}`;
+  nodes.commandModal.hidden = false;
+  const firstInput = nodes.commandModal.querySelector("input:not([type='hidden']), textarea, select");
+  if (firstInput) firstInput.focus();
+}
+
+function closeCommandModal() {
+  nodes.commandModal.hidden = true;
+  state.activeCommand = null;
+  nodes.commandModalForm.reset();
+  nodes.commandModalFields.innerHTML = "";
+}
+
+async function handleCommandModalSubmit(event) {
+  event.preventDefault();
+  const command = state.activeCommand;
+  if (!command) return;
+  const payload = { action: command.id, ...collectNamedFields(nodes.commandModalFields) };
+  if (command.kind === "write") payload.confirm = nodes.commandModalConfirm.value;
+  const result = await postAndRender("/api/command", payload, command.command || `guardian ${command.id}`);
+  if (result) closeCommandModal();
+}
+
+function collectNamedFields(container) {
+  const values = {};
+  container.querySelectorAll("input[name], textarea[name], select[name]").forEach((control) => {
+    values[control.name] = control.value;
+  });
+  return values;
+}
+
+function clearFields(container) {
+  container.querySelectorAll("input[name], textarea[name], select[name]").forEach((control) => {
+    control.value = "";
+  });
 }
 
 async function postAndRender(route, payload, label, options = {}) {

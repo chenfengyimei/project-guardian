@@ -132,9 +132,11 @@
                   <select id="appendMemoryName" name="name"></select>
                 </label>
                 <label>
-                  记录内容
-                  <textarea id="appendMemoryContent" name="content" maxlength="8000" rows="7" placeholder="写清楚发生了什么、为什么重要、谁需要知道。不要写密码、密钥、真实 token 或客户隐私。"></textarea>
+                  记录模板
+                  <select id="appendTemplate" name="template"></select>
                 </label>
+                <p id="appendTemplateHint" class="form-hint">选择模板后，只填写对应关键信息。</p>
+                <div id="appendTemplateFields" class="template-fields"></div>
                 <label>
                   写入确认
                   <input id="appendConfirm" name="confirm" type="text" autocomplete="off" placeholder="输入 APPEND_MEMORY">
@@ -203,6 +205,31 @@
           </section>
         </main>
       </div>
+    </div>
+
+    <div id="commandModal" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="commandModalTitle">
+        <form id="commandModalForm" class="modal-form">
+          <div class="panel-head">
+            <div>
+              <p id="commandModalKind" class="eyebrow">命令操作</p>
+              <h3 id="commandModalTitle">命令参数</h3>
+            </div>
+            <button id="commandModalClose" class="ghost-button" type="button">取消</button>
+          </div>
+          <p id="commandModalDescription" class="muted"></p>
+          <code id="commandModalLine" class="command-line"></code>
+          <div id="commandModalFields" class="template-fields"></div>
+          <label id="commandModalConfirmLabel" class="modal-confirm">
+            写入确认
+            <input id="commandModalConfirm" type="text" autocomplete="off">
+          </label>
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" data-modal-cancel>取消</button>
+            <button id="commandModalSubmit" type="submit">确定运行</button>
+          </div>
+        </form>
+      </section>
     </div>
 
     <script src="./app.js"></script>

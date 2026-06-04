@@ -547,6 +547,8 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
     assert.match(page.body, /id="queryOutput" class="output"/);
     assert.match(page.body, /id="commandButtons" class="command-grid"/);
+    assert.match(page.body, /id="appendTemplate"/);
+    assert.match(page.body, /id="commandModal"/);
     assert.doesNotMatch(page.body, /<pre id="memoryViewer"/);
 
     const status = await requestJson(server, "/api/status");
@@ -558,11 +560,15 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.features.memoryRead, true);
     assert.equal(status.body.features.initProject, true);
     assert.equal(status.body.features.appendMemory, true);
+    assert.equal(status.body.features.templateMemoryAppend, true);
     assert.ok(status.body.actions.includes("verify"));
     assert.ok(status.body.commands.some((command) => command.id === "help" && command.kind === "read"));
+    assert.ok(status.body.commands.some((command) => command.id === "append-memory" && command.kind === "linked"));
     assert.ok(status.body.commands.some((command) => command.id === "update" && command.kind === "write"));
     assert.ok(status.body.commands.some((command) => command.id === "query" && command.kind === "linked"));
     assert.ok(status.body.commands.some((command) => command.id === "mcp" && command.kind === "terminal"));
+    assert.ok(status.body.memoryAppendTemplates.some((template) => template.id === "state-progress" && template.target === "STATE"));
+    assert.ok(status.body.memoryAppendTemplates.some((template) => template.id === "custom-note" && template.target === "*"));
     assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
 
     const memory = await requestJson(server, "/api/memory?name=STATE");
@@ -603,6 +609,22 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(appended.body.ok, true);
     assert.match(appended.body.content, /Run 手动记录/);
     assert.match(appended.body.content, /Manual note with verification evidence/);
+
+    const templated = await requestJson(server, "/api/memory/append", {
+      name: "STATE",
+      templateId: "state-progress",
+      fields: {
+        task: "模板化追加记忆",
+        "current-status": "Run 可以按模板收集关键字段。",
+        completed: "新增模板字段。",
+        "next-step": "继续运行 guardian verify。",
+        verification: "Run API 回归测试。",
+      },
+      confirm: "APPEND_MEMORY",
+    });
+    assert.equal(templated.status, 200);
+    assert.match(templated.body.content, /模板化追加记忆/);
+    assert.match(templated.body.content, /当前状态补充/);
 
     const blocked = await requestJson(server, "/api/command", { action: "update" });
     assert.equal(blocked.status, 400);
@@ -737,6 +759,58 @@ test("Run web server follows configured memory file paths", async () => {
   }
 });
 
+test("append-memory CLI uses the same guarded templates as Run", () => {
+  const root = tempDir("append-memory-cli");
+  try {
+    writeValidMemory(root);
+    const result = run(root, [
+      "append-memory",
+      "--file",
+      "STATE",
+      "--template",
+      "state-progress",
+      "--task",
+      "CLI template append",
+      "--current-status",
+      "The CLI can append structured memory with shared templates.",
+      "--next-step",
+      "Run guardian verify after reviewing the note.",
+      "--verification",
+      "Automated append-memory test.",
+    ]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const state = fs.readFileSync(path.join(root, "memory", "STATE.md"), "utf8");
+    assert.match(state, /CLI template append/);
+    assert.match(state, /当前状态补充/);
+
+    const templates = run(root, ["append-memory", "--templates", "--file", "STATE"]);
+    assert.equal(templates.status, 0, `${templates.stdout}\n${templates.stderr}`);
+    assert.match(templates.stdout, /state-progress/);
+
+    const invalidDate = run(root, [
+      "append-memory",
+      "--file",
+      "DECISIONS",
+      "--template",
+      "decision-note",
+      "--title",
+      "Invalid review date",
+      "--context",
+      "The date must be normalized.",
+      "--decision",
+      "Reject bad dates.",
+      "--verification",
+      "Run append-memory validation.",
+      "--review-after",
+      "06/30/2026",
+    ]);
+    assert.notEqual(invalidDate.status, 0);
+    assert.match(`${invalidDate.stdout}\n${invalidDate.stderr}`, /复审日期 has an invalid format/);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("init adds portable package scripts when CLI is external to the target project", () => {
   const root = tempDir("package-scripts");
   try {
@@ -747,6 +821,7 @@ test("init adds portable package scripts when CLI is external to the target proj
     const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
     assert.equal(pkg.scripts["guardian:verify"], "guardian verify");
     assert.equal(pkg.scripts["guardian:brief"], "guardian brief");
+    assert.equal(pkg.scripts["guardian:append-memory"], "guardian append-memory");
     assert.equal(pkg.scripts["guardian:adapters-doctor"], "guardian adapters doctor");
     assert.equal(pkg.scripts["guardian:mcp"], "guardian mcp");
     assert.equal(pkg.scripts["guardian:reviews"], "guardian reviews");

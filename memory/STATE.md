@@ -18,7 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
-- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；写入类命令必须输入 `RUN_COMMAND`。
+- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、模板化手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；写入类命令必须输入 `RUN_COMMAND`，需要参数的命令会在弹窗里填写后再运行。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -47,11 +47,12 @@
 - 新增 `guardian query --limit` 和 MCP `guardian_query.limit`，用于控制查询返回片段数量，降低 MCP 接入后的上下文和 token 成本。
 - 新增 `guardian brief`、MCP `guardian_brief`、VS Code Brief task 和 `guardian:brief` package script，用于在查询或读取记忆前做 token 预算路由。
 - 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
-- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化、手动追加记忆和命令操作里的写入类 CLI 都需要确认词。
+- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化、模板化手动追加记忆和命令操作里的写入类 CLI 都需要确认词。
+- 新增 `plugins/project-guardian/scripts/lib/manual-memory.js` 和 `guardian append-memory`，让 Run 控制台与 CLI 共用同一套手动追加记忆模板、核心记忆白名单和基础敏感词拦截。
 
 ## 进行中
 
-- `Run/` 控制台全量 CLI 命令目录、知识查询独立输出和侧边栏收起动画已经完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
+- `Run/` 控制台命令参数弹窗、模板化追加记忆和 CLI `append-memory` 已完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
 
 ## 下一步
 
@@ -81,8 +82,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：修复 Run 知识查询输出和 query 结果噪音。
-- 总结：Run 前端不再把“运行中...”写成一条成功日志，查询完成后只保留最终结果；`guardian query` 调整为真实命中后才加记忆权重，并在记忆已有结果时压低偶然命中的 HTML/CSS/页面源码片段，减少 `Run/public/index.html` 这类结果干扰。
-- 文件：`Run/public/app.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `node --check Run/public/app.js`、`node --check plugins/project-guardian/scripts/guardian.js` 和 `npm.cmd test`；当前 54 个测试通过。已用 `guardian query "知识查询" --limit 3` 复现验证，结果只返回记忆文件，不再返回 `Run/public/index.html`。
-- 后续：继续观察真实问题中 query 是否需要增加“只查记忆/查源码”显式模式，或者在 Run 界面增加查询范围选择。
+- 任务：完善 Run 命令参数弹窗、模板化追加记忆和 CLI 同步能力。
+- 总结：命令操作模块不再把参数表单挤在卡片里，写入类或带参数命令会打开弹窗填写并可取消；追加记忆模块改为按目标记忆文件显示预设模板，只需填写关键字段；CLI 新增 `guardian append-memory`，与 Run 共用 `manual-memory.js` 的模板、白名单和敏感内容拦截。
+- 文件：`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`tests/guardian.test.js`、`package.json`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-manual-memory-template-sync.md`。
+- 验证：已运行 `npm.cmd run lint` 和 `npm.cmd test`；当前 55 个测试通过。最终提交前继续运行 `guardian verify`、安全审计、diff check 和 Run API/UI 冒烟。
+- 后续：观察真实用户是否还需要命令搜索、写入前 diff 预览、操作审计或更多追加记忆模板。
