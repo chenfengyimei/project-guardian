@@ -5,15 +5,17 @@
 ## 当前能力
 
 - 启动一个本地网页控制台。
-- 左侧侧边栏选择功能；首页只显示插件状态概览，不把所有功能挤在一个页面。
+- 左侧侧边栏选择功能，支持平滑展开和收起；首页只显示插件状态概览，不把所有功能挤在一个页面。
+- `知识查询` 模块拥有独立输出记录，查询结果不会再混入通用命令输出。
+- `命令操作` 模块集中展示 CLI 全量指令目录和通用命令输出记录。
 - 查看当前项目根目录、Node 版本、CLI 是否可用。
 - 查看核心记忆文件是否存在，并点击预览文件内容；预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。
 - 在新项目中通过界面运行 `guardian init`，初始化语言和适配器范围由固定选项控制。
 - 手动追加一段新记忆到核心记忆文件，写入前必须输入确认词。
-- 运行 `guardian brief` 和 `guardian query`。
-- 运行只读白名单命令：`doctor`、`verify`、`validate-docs`、`reviews`、`reviews due`、`scan-secrets`、`adapters doctor`。
+- 运行 `guardian brief` 和 `guardian query`，其中 `query` 输出留在知识查询模块。
+- 通过受控入口查看和调用所有 CLI 指令：只读命令可直接运行，写入命令必须输入 `RUN_COMMAND`，`init`、`brief`、`query` 使用专用模块，`mcp` 提示到终端或 AI IDE 配置中运行。
 
-当前版本仍然不开放任意 shell，也不提供 `update`、`handover`、`decision add` 等复杂写入命令。可视化写入只包含两个受控入口：初始化和手动追加记忆。
+当前版本仍然不开放任意 shell。可视化写入入口全部由后端固定参数构造，不接受用户输入任意命令。
 
 ## 写入确认
 
@@ -23,6 +25,7 @@ Run 控制台的写入能力必须手动确认：
 | --- | --- | --- |
 | 插件初始化 | `RUN_INIT` | 调用固定的 `guardian init --language ...` 参数，不覆盖已有记忆文件。 |
 | 手动追加记忆 | `APPEND_MEMORY` | 只能追加到核心记忆文件白名单，不能指定任意路径。 |
+| 命令操作里的写入类 CLI | `RUN_COMMAND` | 只允许固定命令目录里的写入命令，例如 `update`、`handover`、`decision add`、`install-hooks` 和 `install-ci`，不开放任意 shell。 |
 
 手动追加记忆会做基础敏感词拦截。如果内容像是密码、密钥、token、API key、Authorization 或私钥，后端会拒绝写入。这个检查不能替代正式安全审查，提交前仍然要运行 `guardian verify`。
 
@@ -59,7 +62,7 @@ http://127.0.0.1:4357
 
 - 默认只监听 `127.0.0.1`。
 - 后端不使用 shell 拼接命令，只通过固定参数调用 Node.js 和 Project Guardian CLI。
-- `/api/command` 只允许只读命令白名单。
+- `/api/command` 只允许固定 CLI 命令目录；只读命令可直接运行，写入命令必须输入 `RUN_COMMAND`，专用模块命令和 `mcp` 不通过通用接口直接启动。
 - `/api/memory` 只读取核心记忆文件白名单，不接受任意文件路径。
 - `/api/init` 和 `/api/memory/append` 必须提供确认词。
 - `brief` 和 `query` 限制问题长度，并限制返回片段数量为 1 到 10。
@@ -89,10 +92,10 @@ Run/
     app.js
 ```
 
-- `server.js`：本地 HTTP server、静态文件服务、只读命令 API、记忆读取 API 和受控写入 API。
-- `public/index.html`：页面结构，包含侧边栏导航和各功能页面。
-- `public/styles.css`：页面样式，包含侧边栏布局、Markdown 文档预览和表格样式。
-- `public/app.js`：浏览器端交互逻辑，包含功能页切换、记忆预览和轻量 Markdown 渲染。
+- `server.js`：本地 HTTP server、静态文件服务、固定命令目录 API、记忆读取 API 和受控写入 API。
+- `public/index.html`：页面结构，包含可收起侧边栏、各功能页面、知识查询独立输出区和命令操作页面。
+- `public/styles.css`：页面样式，包含侧边栏布局与收起动画、Markdown 文档预览、命令卡片和表格样式。
+- `public/app.js`：浏览器端交互逻辑，包含功能页切换、侧边栏状态、记忆预览、轻量 Markdown 渲染、命令目录渲染和分区输出。
 
 ## 后续扩展方向
 

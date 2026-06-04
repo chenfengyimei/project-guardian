@@ -515,6 +515,17 @@ test("Run frontend includes local Markdown table rendering", () => {
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
 
+test("Run output replaces the temporary running placeholder", () => {
+  const runApp = require(path.join(repoRoot, "Run", "public", "app.js"));
+  const outputNode = { textContent: "等待查询...", scrollHeight: 10, scrollTop: 0 };
+  runApp.setOutputPending(outputNode, "等待查询...", "运行中...");
+  assert.equal(outputNode.textContent, "运行中...");
+  runApp.appendOutput("guardian query", true, "query result", "", outputNode, "等待查询...", "运行中...");
+  assert.doesNotMatch(outputNode.textContent, /运行中/);
+  assert.equal((outputNode.textContent.match(/guardian query OK/g) || []).length, 1);
+  assert.match(outputNode.textContent, /query result/);
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
@@ -526,9 +537,16 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     const page = await requestText(server, "/");
     assert.equal(page.status, 200);
     assert.match(page.body, /class="sidebar"/);
+    assert.match(page.body, /id="sidebarToggle"/);
     assert.match(page.body, /data-view="memory"/);
+    assert.match(page.body, /data-view="commands"[^>]*>命令操作/);
+    assert.doesNotMatch(page.body, /data-view="checks"/);
+    assert.doesNotMatch(page.body, /data-view="output"/);
     assert.match(page.body, /id="view-overview" class="view active"/);
+    assert.match(page.body, /id="view-commands" class="view"/);
     assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
+    assert.match(page.body, /id="queryOutput" class="output"/);
+    assert.match(page.body, /id="commandButtons" class="command-grid"/);
     assert.doesNotMatch(page.body, /<pre id="memoryViewer"/);
 
     const status = await requestJson(server, "/api/status");
@@ -541,6 +559,10 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.features.initProject, true);
     assert.equal(status.body.features.appendMemory, true);
     assert.ok(status.body.actions.includes("verify"));
+    assert.ok(status.body.commands.some((command) => command.id === "help" && command.kind === "read"));
+    assert.ok(status.body.commands.some((command) => command.id === "update" && command.kind === "write"));
+    assert.ok(status.body.commands.some((command) => command.id === "query" && command.kind === "linked"));
+    assert.ok(status.body.commands.some((command) => command.id === "mcp" && command.kind === "terminal"));
     assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
 
     const memory = await requestJson(server, "/api/memory?name=STATE");
@@ -584,7 +606,46 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
 
     const blocked = await requestJson(server, "/api/command", { action: "update" });
     assert.equal(blocked.status, 400);
-    assert.match(blocked.body.error, /Unsupported or write-capable action/);
+    assert.match(blocked.body.error, /RUN_COMMAND/);
+
+    const help = await requestJson(server, "/api/command", { action: "help" });
+    assert.equal(help.status, 200);
+    assert.equal(help.body.ok, true);
+    assert.match(help.body.stdout, /Project Guardian/);
+
+    const terminal = await requestJson(server, "/api/command", { action: "mcp" });
+    assert.equal(terminal.status, 400);
+    assert.match(terminal.body.error, /terminal|guardian mcp/i);
+
+    const decision = await requestJson(server, "/api/command", {
+      action: "decision-add",
+      title: "Expose Run command catalog",
+      date: "2026-06-03",
+      context: "The web UI needs a complete CLI command catalog.",
+      decision: "Expose fixed command definitions with confirmation for writes.",
+      alternatives: "Keep only read-only buttons.",
+      files: "Run/server.js, Run/public/app.js",
+      relatedChange: "Run command operation enhancement.",
+      verification: "Run the automated test suite.",
+      risks: "The UI must not become an arbitrary shell.",
+      reviewAfter: "2026-07-03",
+      followUp: "Watch real user feedback.",
+      confirm: "RUN_COMMAND",
+    });
+    assert.equal(decision.status, 200);
+    assert.equal(decision.body.ok, true);
+    assert.ok(decision.body.args.includes("--alternatives"));
+    assert.ok(decision.body.args.includes("--files"));
+    assert.match(decision.body.stdout, /Added decision/);
+
+    const adapters = await requestJson(server, "/api/command", {
+      action: "install-adapters",
+      adapter: "cursor,copilot",
+      confirm: "RUN_COMMAND",
+    });
+    assert.equal(adapters.status, 200);
+    assert.equal(adapters.body.ok, true);
+    assert.deepEqual(adapters.body.args.slice(0, 3), ["install-adapters", "--adapter", "cursor,copilot"]);
 
     const brief = await requestJson(server, "/api/brief", { question: "handover onboarding", mode: "full", limit: 2 });
     assert.equal(brief.status, 200);
@@ -859,6 +920,7 @@ test("mcp query tool returns CLI output", async () => {
   const root = tempDir("mcp-query");
   try {
     writeValidMemory(root);
+    initGit(root);
     const responses = await runMcpSession(root, [
       { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1.0.0" } } },
       { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
@@ -1538,6 +1600,41 @@ test("query supports non-interactive questions and source output", () => {
     const result = run(root, ["query", "Node.js memory"]);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /Source:/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("query prefers memory over incidental UI source snippets", () => {
+  const root = tempDir("query-memory-priority");
+  try {
+    writeValidMemory(root);
+    fs.appendFileSync(
+      path.join(root, "memory", "PROJECT_CONTEXT.md"),
+      "\n## Knowledge Query\n\n知识查询模块用于从项目记忆中回答项目背景、当前状态和交接问题。\n",
+      "utf8",
+    );
+    writeFile(
+      path.join(root, "Run", "public", "index.html"),
+      "<section><h3>知识查询</h3><button>生成 brief</button><pre>知识查询 知识查询 知识查询</pre></section>\n",
+    );
+    const result = run(root, ["query", "知识查询", "--limit", "3"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /memory\/PROJECT_CONTEXT\.md/);
+    assert.doesNotMatch(result.stdout, /Run\/public\/index\.html/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("query still returns source files when memory has no match", () => {
+  const root = tempDir("query-source-fallback");
+  try {
+    writeValidMemory(root);
+    writeFile(path.join(root, "src", "rare.js"), "export const rareSourceOnly = true;\n");
+    const result = run(root, ["query", "rareSourceOnly", "--limit", "2"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /src\/rare\.js/);
   } finally {
     cleanup(root);
   }

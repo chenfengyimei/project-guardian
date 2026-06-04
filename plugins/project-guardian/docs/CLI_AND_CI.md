@@ -220,7 +220,7 @@ MCP 权限可以通过 `project-guardian.config.json` 限制：
 
 ### 2.3.1 本地可视化界面
 
-`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、查看核心记忆内容、运行体检、初始化项目、手动追加记忆、生成 brief 和做本地知识查询。界面使用左侧侧边栏切换功能，首页只显示插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。
+`Run/` 是 Project Guardian 的可选可视化运行层，适合给不熟悉命令行的人查看状态、查看核心记忆内容、运行体检、初始化项目、手动追加记忆、生成 brief 和做本地知识查询。界面使用可收起的左侧侧边栏切换功能，首页只显示插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式；知识查询模块拥有独立输出记录，命令操作模块集中展示 CLI 全量指令目录和通用命令输出。
 
 在仓库根目录运行：
 
@@ -247,16 +247,17 @@ node Run/server.js --port 4358
 node Run/server.js --cwd D:\your-project
 ```
 
-当前 Web 界面不开放任意 shell。`/api/command` 只允许白名单命令：`doctor`、`verify`、`validate-docs`、`reviews`、`reviews due`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`。
+当前 Web 界面不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，写入类命令必须输入 `RUN_COMMAND`，`init`、`brief`、`query` 这类已有专用界面的命令会引导用户打开对应模块，`mcp` 会提示到终端或 AI IDE 配置中启动。
 
-Run 现在有两个受控写入入口：
+Run 现在有三类受控写入入口：
 
 - 插件初始化：输入确认词 `RUN_INIT` 后，调用固定的 `guardian init --language ...` 参数。
 - 手动追加记忆：输入确认词 `APPEND_MEMORY` 后，只能追加到核心记忆文件白名单，并会先做基础敏感词拦截。
+- 命令操作里的写入类 CLI：输入确认词 `RUN_COMMAND` 后，才会运行 `update`、`handover`、`decision add`、`reviews complete`、`install-adapters`、`install-hooks` 和 `install-ci` 等固定命令。
 
 如果目标项目在 `project-guardian.config.json` 中自定义了核心记忆文件路径，Run 会按配置读取和写入；没有配置时使用默认 `memory/` 目录。
 
-`update`、`handover`、`decision add` 等复杂写入仍建议使用 CLI/MCP，方便保留完整参数、diff 和团队审查流程。
+复杂写入仍建议优先在 CLI/MCP 中配合 Git diff 和团队审查流程执行；Run 入口用于降低小白操作门槛，但不替代代码评审、`guardian verify` 和人工安全确认。
 
 默认只监听 `127.0.0.1`。如果使用 `--host 0.0.0.0` 给局域网访问，必须由团队自行增加登录认证、访问控制、反向代理和操作审计。
 
@@ -475,6 +476,7 @@ node plugins/project-guardian/scripts/guardian.js query "登录流程" --limit 3
 - 检索项目源码和 Markdown/YAML 文件。
 - 检索最近 80 条 Git 提交历史。
 - 非交互模式支持 `--limit 1..10`，用于控制返回片段数量和 token 消耗。
+- 如果标准记忆已经命中，源码和 Git 历史只作为补充结果；偶然命中的 HTML/CSS/页面文案不会轻易挤掉项目记忆答案。
 
 示例：
 
@@ -486,7 +488,7 @@ guardian> 哪些地方风险最高？
 guardian> exit
 ```
 
-注意：当前 `query` 是本地轻量关键词检索，不依赖外部模型 API。日常答疑建议先用 `brief` 判断读取范围，再用 `query --limit 2` 或 `--limit 3` 获取少量证据；复杂语义问答后续可以升级为向量检索或 RAG。
+注意：当前 `query` 是本地轻量关键词检索，不依赖外部模型 API。日常答疑建议先用 `brief` 判断读取范围，再用 `query --limit 2` 或 `--limit 3` 获取少量证据；如果目标是查源码，请在问题里写清文件名、路径、函数名、报错文本或模块名；复杂语义问答后续可以升级为向量检索或 RAG。
 
 ## 9. 安装 Git Hook
 

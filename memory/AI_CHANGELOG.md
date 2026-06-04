@@ -4,6 +4,42 @@
 
 ## 2026 记录
 
+### 2026-06-04 09:43 - 修复 Run 知识查询输出和源码噪音
+
+- 用户需求：Run 知识查询输出中出现两条 `guardian query OK`，并把 `运行中...` 当成历史记录保留下来；查询结果还混入 `Run/public/index.html` 的 HTML 片段，显示效果像是错误内容。
+- AI 总结：前端把“运行中...”改为临时占位，最终结果返回时会替换掉占位，不再记录成成功日志；CLI 查询排序改为先确认真实命中再加记忆权重，并在记忆已有命中时压低偶然匹配的源码和页面片段。
+- 变更文件：`Run/public/app.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：知识查询面向零基础用户时，应优先像项目知识问答，而不是把按钮文案、HTML 标签或临时运行状态当作最终答案展示。
+- 技术说明：新增 `setOutputPending()`，`appendOutput()` 会清理临时 `运行中...` 占位；query 索引 chunk 增加 `kind`，`score()` 只有真实命中关键词或路径时才给分，`includeQueryResult()` 在记忆结果存在时只允许强相关源码或路径命中的源码补充进入结果。
+- 验证方式：已运行 `node --check Run/public/app.js`、`node --check plugins/project-guardian/scripts/guardian.js` 和 `npm.cmd test`；当前 54 个测试通过。已用 `guardian query "知识查询" --limit 3` 复核，不再返回 `Run/public/index.html`。
+- 风险：当前 query 仍是本地关键词检索，不是语义 RAG；如果用户确实要查源码，应在问题中带上文件名、路径、函数名、报错文本或模块名。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：后续可在 Run 界面增加查询范围选择，例如“优先记忆 / 包含源码 / 只查源码”。
+
+### 2026-06-03 18:37 - 完善 Run 全量命令操作与查询独立输出
+
+- 用户需求：知识查询模块需要自己单独输出记录；侧边栏需要可以收起并带平滑动画；命令操作模块需要把 CLI 所有指令都集成进去。
+- AI 总结：Run 控制台新增知识查询独立输出区，query 结果不再混入通用命令输出；左侧侧边栏增加收起/展开按钮和过渡动画；命令操作模块改为从后端固定命令目录渲染 Guardian CLI 全量入口。
+- 变更文件：`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-03-run-command-catalog.md`。
+- 业务原因：零基础用户需要在网页里看见完整 CLI 能力，但仍要避免网页变成任意 shell 或把写入类命令误点执行。
+- 技术说明：`Run/server.js` 新增 `COMMAND_DEFINITIONS` 命令目录，按 `read`、`write`、`linked`、`terminal` 分类；只读命令直接运行，写入类命令必须输入 `RUN_COMMAND`，`init`、`brief`、`query` 引导到专用模块，`mcp` 只提示终端运行。`decision add` 表单补齐日期、备选方案、影响文件、关联变更、风险、复审日期和后续动作；`install-adapters` 支持逗号分隔适配器列表。
+- 验证方式：已运行 `node --check Run/server.js`、`node --check Run/public/app.js`、`node --check tests/guardian.test.js`、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check` 和本地 Run UI/API 冒烟；当前 51 个测试通过，审计 0 漏洞，verify 通过。`npm.cmd pack --dry-run` 普通运行被 npm 缓存目录 EPERM 拦截，提权重跑被当前环境额度限制拒绝，需要用户本机补跑。
+- 风险：Run 仍没有内置登录鉴权，不能公网暴露；写入类命令虽然需要确认词，但仍会修改目标项目文件，团队应继续依赖 Git diff、代码评审和 `guardian verify`。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据；后端仍会拦截疑似密钥文本字段。
+- 下一步：真实使用时观察命令卡片数量是否过多，必要时增加搜索、分组折叠、写入前 diff 预览和操作审计。
+
+### 2026-06-03 17:31 - 合并 Run 命令检查与输出记录模块
+
+- 用户需求：Run 可视化控制台里“检查命令”和“输出记录”不需要分成两个模块，两个功能放在一起即可，合并后的新模块命名为“命令操作”。
+- AI 总结：Run 左侧侧边栏移除了单独的“检查命令”和“输出记录”入口，新增统一的“命令操作”入口；该页面上方展示检查命令按钮，下方展示命令输出记录，执行命令后自动停留在“命令操作”页面查看结果。
+- 变更文件：`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：把强相关的命令触发和结果查看放在同一个页面，可以减少零基础用户在侧边栏中来回切换，也让“执行命令后看结果”的操作路径更直接。
+- 技术说明：前端视图从 `checks`/`output` 合并为 `commands`；`postAndRender()` 改为切换到 `commands`；测试断言同步检查旧入口已移除、新入口与合并视图存在；MCP query 测试补充临时 Git 仓库隔离，避免读取父级真实仓库历史导致结果漂移。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、本地 Run UI/API 烟测和 `npm.cmd pack --dry-run`；当前 51 个测试通过，审计 0 漏洞，发布包 dry-run 通过。
+- 风险：这是局部 UI 结构调整，不改变后端 API 和 CLI 行为；浏览器中如果仍看到旧菜单，通常需要刷新页面或重启 `npm run ui` 后重新打开当前端口。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：真实使用时观察“命令操作”页面在窄屏下的按钮区和输出区是否仍然易读，必要时再做移动端布局微调。
+
 ### 2026-06-03 17:19 - 优化 Run 侧边栏和 Markdown 表格预览
 
 - 用户需求：核心记忆内容中的 Markdown 表格现在按原文显示，没有文档表格效果；Run 控制台功能都挤在一个页面里，需要左侧侧边栏选择功能，主页只保留插件状态概览。

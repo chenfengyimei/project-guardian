@@ -175,9 +175,22 @@
 - 决策：新增根目录 `Run/` 作为可选可视化运行层，保存本地 Web server、静态页面、样式、浏览器交互和说明文档。`Run/` 和核心插件代码隔离，但通过 package `files` 随插件一起发布。
 - 备选方案：把可视化代码塞进 `plugins/project-guardian/scripts/guardian.js`；单独做独立仓库；立即做 Electron/VS Code 原生扩展。
 - 影响文件/模块：`Run/*`、`package.json`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/*`。
-- 关联变更：`npm run ui` 启动 `node Run/server.js`；Run server 默认 localhost、`/api/command` 只开放只读白名单，记忆读取和追加只允许核心记忆文件白名单并优先使用 `project-guardian.config.json` 路径；前端使用侧边栏切换功能页，首页只显示状态概览，核心记忆预览用轻量 Markdown 渲染标题、列表、代码块和表格；`init` 必须输入 `RUN_INIT`，手动追加记忆必须输入 `APPEND_MEMORY`，后端拒绝疑似密钥内容，不提供任意 shell。
+- 关联变更：`npm run ui` 启动 `node Run/server.js`；Run server 默认 localhost，记忆读取和追加只允许核心记忆文件白名单并优先使用 `project-guardian.config.json` 路径；前端使用侧边栏切换功能页，首页只显示状态概览，核心记忆预览用轻量 Markdown 渲染标题、列表、代码块和表格；`init` 必须输入 `RUN_INIT`，手动追加记忆必须输入 `APPEND_MEMORY`，后端拒绝疑似密钥内容，不提供任意 shell。2026-06-03 后续增强把 `/api/command` 从只读白名单升级为固定 CLI 命令目录，写入类命令必须输入 `RUN_COMMAND`。
 - 验证方式：运行 lint、测试、完整 verify、审计、diff check 和本地 UI/API 冒烟测试；发布前补跑 package dry-run 确认 `Run/` 被打入包。
 - 风险：当前 Web UI 没有内置认证，不能直接公网暴露；手动追加记忆只有基础敏感词拦截，不能替代 `guardian verify`、代码评审和人工安全审查；后续复杂写入类命令仍应增加预览和审计。
 - 复审时间：2026-07-03。
 - 后续动作：观察真实用户是否需要写入 diff 预览、操作日志、复审日历、记忆搜索或桌面窗口包装。
 - 决策文件：`memory/decisions/2026-06-03-run-visual-layer.md`
+
+### 2026-06-03 - Expand Run command operation with guarded CLI catalog
+
+- 背景：Run 控制台原本只显示少量检查命令，用户需要在网页里看见 Guardian CLI 的完整能力，同时又不能把网页接口开放成任意 shell。
+- 决策：新增后端固定命令目录 `COMMAND_DEFINITIONS`，把 CLI 命令分为 `read`、`write`、`linked` 和 `terminal`。只读命令可直接运行，写入类命令必须输入 `RUN_COMMAND`，`init`、`brief`、`query` 引导到专用模块，`mcp` 提示在终端或 AI IDE 配置中启动。
+- 备选方案：继续只展示少量只读检查命令；开放自定义命令输入框；把全部复杂写入都继续留给 CLI/MCP。
+- 影响文件/模块：`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、Run/README、根 README、CLI/CI 文档和 Run 相关测试。
+- 关联变更：知识查询模块新增独立输出区；侧边栏新增收起/展开按钮和过渡动画；`decision add` 表单补齐决策字段；`install-adapters` 支持逗号分隔适配器列表。
+- 验证方式：运行 `node --check`、`npm.cmd run lint`、`npm.cmd test`、`guardian verify`、安全审计、diff check 和本地 UI/API 冒烟。
+- 风险：`RUN_COMMAND` 是误操作防线，不是权限系统；Web UI 仍默认只适合本机使用，不能直接公网暴露；写入类命令应继续经过 Git diff 和代码评审。
+- 复审时间：2026-07-03。
+- 后续动作：观察真实用户是否需要命令搜索、分类折叠、写入前 diff 预览和操作审计。
+- 决策文件：`memory/decisions/2026-06-03-run-command-catalog.md`

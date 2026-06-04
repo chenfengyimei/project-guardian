@@ -7,21 +7,23 @@
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <p class="eyebrow">Project Guardian</p>
-          <h1>Run 控制台</h1>
+    <div id="appShell" class="app-shell">
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-head">
+          <div class="brand">
+            <p class="eyebrow">Project Guardian</p>
+            <h1>Run 控制台</h1>
+          </div>
+          <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebarNav" aria-expanded="true" title="收起侧边栏">收起</button>
         </div>
-        <nav class="sidebar-nav" aria-label="功能导航">
-          <button class="nav-button active" type="button" data-view="overview">状态概览</button>
-          <button class="nav-button" type="button" data-view="memory">核心记忆</button>
-          <button class="nav-button" type="button" data-view="init">插件初始化</button>
-          <button class="nav-button" type="button" data-view="append">追加记忆</button>
-          <button class="nav-button" type="button" data-view="brief">读取计划</button>
-          <button class="nav-button" type="button" data-view="query">知识查询</button>
-          <button class="nav-button" type="button" data-view="checks">检查命令</button>
-          <button class="nav-button" type="button" data-view="output">输出记录</button>
+        <nav id="sidebarNav" class="sidebar-nav" aria-label="功能导航">
+          <button class="nav-button active" type="button" data-view="overview" data-short="概览" title="状态概览">状态概览</button>
+          <button class="nav-button" type="button" data-view="memory" data-short="记忆" title="核心记忆">核心记忆</button>
+          <button class="nav-button" type="button" data-view="init" data-short="初始" title="插件初始化">插件初始化</button>
+          <button class="nav-button" type="button" data-view="append" data-short="追加" title="追加记忆">追加记忆</button>
+          <button class="nav-button" type="button" data-view="brief" data-short="计划" title="读取计划">读取计划</button>
+          <button class="nav-button" type="button" data-view="query" data-short="查询" title="知识查询">知识查询</button>
+          <button class="nav-button" type="button" data-view="commands" data-short="命令" title="命令操作">命令操作</button>
         </nav>
       </aside>
 
@@ -174,19 +176,23 @@
                 <button type="submit">查询</button>
               </form>
             </section>
-          </section>
-
-          <section id="view-checks" class="view">
             <section class="panel">
               <div class="panel-head">
-                <h3>检查命令</h3>
-                <span class="muted">白名单执行，不开放任意 shell</span>
+                <h3>查询输出记录</h3>
+                <button id="clearQueryOutput" class="ghost-button" type="button">清空</button>
               </div>
-              <div id="commandButtons" class="button-grid"></div>
+              <pre id="queryOutput" class="output" aria-live="polite">等待查询...</pre>
             </section>
           </section>
 
-          <section id="view-output" class="view">
+          <section id="view-commands" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>CLI 指令</h3>
+                <span class="muted">全量命令目录，写入类必须确认</span>
+              </div>
+              <div id="commandButtons" class="command-grid"></div>
+            </section>
             <section class="panel">
               <div class="panel-head">
                 <h3>输出记录</h3>

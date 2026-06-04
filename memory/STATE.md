@@ -18,7 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
-- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、手动追加记忆、生成 brief、query 和只读检查命令。
+- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；写入类命令必须输入 `RUN_COMMAND`。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -47,11 +47,11 @@
 - 新增 `guardian query --limit` 和 MCP `guardian_query.limit`，用于控制查询返回片段数量，降低 MCP 接入后的上下文和 token 成本。
 - 新增 `guardian brief`、MCP `guardian_brief`、VS Code Brief task 和 `guardian:brief` package script，用于在查询或读取记忆前做 token 预算路由。
 - 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
-- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化和手动追加记忆都需要确认词。
+- 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化、手动追加记忆和命令操作里的写入类 CLI 都需要确认词。
 
 ## 进行中
 
-- `Run/` 控制台增强已经完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
+- `Run/` 控制台全量 CLI 命令目录、知识查询独立输出和侧边栏收起动画已经完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
 
 ## 下一步
 
@@ -81,8 +81,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：优化 Run 控制台布局和 Markdown 记忆预览。
-- 总结：Run 控制台改为左侧侧边栏选择功能，主页只保留插件状态概览；核心记忆预览从原始 `<pre>` 文本改为轻量 Markdown 渲染，表格会显示为真正的文档表格。
-- 文件：`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`tests/guardian.test.js`、`memory/*`。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test` 和最小 Markdown 表格渲染检查，当前 51 个测试通过；本轮结束前继续运行完整 `guardian verify`。
-- 后续：真实浏览器中继续观察小屏幕侧边栏和长表格横向滚动体验。
+- 任务：修复 Run 知识查询输出和 query 结果噪音。
+- 总结：Run 前端不再把“运行中...”写成一条成功日志，查询完成后只保留最终结果；`guardian query` 调整为真实命中后才加记忆权重，并在记忆已有结果时压低偶然命中的 HTML/CSS/页面源码片段，减少 `Run/public/index.html` 这类结果干扰。
+- 文件：`Run/public/app.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 验证：已运行 `node --check Run/public/app.js`、`node --check plugins/project-guardian/scripts/guardian.js` 和 `npm.cmd test`；当前 54 个测试通过。已用 `guardian query "知识查询" --limit 3` 复现验证，结果只返回记忆文件，不再返回 `Run/public/index.html`。
+- 后续：继续观察真实问题中 query 是否需要增加“只查记忆/查源码”显式模式，或者在 Run 界面增加查询范围选择。

@@ -140,9 +140,9 @@ node Run/server.js
 http://127.0.0.1:4357
 ```
 
-这个界面是可选层，不替代 CLI/MCP。它使用左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、查询项目知识、运行检查命令，也可以通过固定表单运行 `guardian init` 或手动追加一段记忆。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`。
+这个界面是可选层，不替代 CLI/MCP。它使用可收起的左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、在知识查询模块独立查看 query 输出、在命令操作模块查看 CLI 全量指令目录，也可以通过固定表单运行 `guardian init` 或手动追加一段记忆。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`，命令操作里的写入类 CLI 输入 `RUN_COMMAND`。
 
-Run 不开放任意 shell。`/api/command` 仍然只允许只读白名单命令，例如 `doctor`、`verify`、`validate-docs`、`reviews`、`scan-secrets`、`adapters doctor`、`brief` 和 `query`；`update`、`handover`、`decision add` 这类复杂写入仍建议在 CLI/MCP 中按团队流程执行。
+Run 不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，`update`、`handover`、`decision add`、`reviews complete`、`install-adapters`、`install-hooks`、`install-ci` 等写入类命令必须输入 `RUN_COMMAND`；`init`、`brief`、`query` 使用各自专用模块，`mcp` 需要在终端或 AI IDE 配置中启动。
 
 如果目标项目在 `project-guardian.config.json` 里改过记忆文件路径，Run 会按配置读取和追加；没有配置时使用默认 `memory/` 目录。
 
@@ -399,7 +399,7 @@ guardian> 哪些地方风险最高？
 guardian> exit
 ```
 
-查询会优先检索标准记忆文件，再检索常见源码文件。它是本地轻量查询，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
+查询会优先检索标准记忆文件，再把源码和 Git 历史作为补充证据。普通项目知识问题如果已经命中记忆，query 会压低偶然命中的界面源码片段；确实要查源码时，问题里带上文件名、路径、函数名、报错文本或模块名。它是本地轻量查询，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
 
 ## 推荐工作流
 

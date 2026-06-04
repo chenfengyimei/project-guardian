@@ -1013,20 +1013,20 @@ function buildIndex(root, config) {
   const docs = [];
   for (const file of getKnowledgeFiles(config)) {
     const full = path.join(root, file);
-    if (fs.existsSync(full)) docs.push(...chunks(file, fs.readFileSync(full, "utf8"), 900, 160));
+    if (fs.existsSync(full)) docs.push(...chunks(file, fs.readFileSync(full, "utf8"), 900, 160, "knowledge"));
   }
   docs.push(...buildGitHistoryDocs(root));
   for (const file of collectFiles(root, config, 300)) {
     if (isMemoryFile(file, config) || file.includes("node_modules")) continue;
     const text = readMaybe(path.join(root, file));
-    if (text) docs.push(...chunks(file, text, 700, 120));
+    if (text) docs.push(...chunks(file, text, 700, 120, "source"));
   }
   return docs;
 }
 
 function buildGitHistoryDocs(root) {
   const history = git(root, ["log", "-n", "80", "--date=short", "--pretty=format:%h %ad %an %s", "--name-only"]);
-  return history ? chunks("git-history", history, 1200, 200) : [];
+  return history ? chunks("git-history", history, 1200, 200, "history") : [];
 }
 
 function inspectDoc(root, rule) {
@@ -1122,10 +1122,13 @@ function hasMidnightTimestamp(text) {
 
 function searchIndex(index, question, limit) {
   const terms = tokenize(question);
-  return index
+  const scored = index
     .map((doc) => ({ doc, score: score(doc, terms) }))
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score);
+  const bestKnowledgeScore = Math.max(0, ...scored.filter((item) => item.doc.kind === "knowledge").map((item) => item.score));
+  return scored
+    .filter((item) => includeQueryResult(item, terms, bestKnowledgeScore))
     .slice(0, limit);
 }
 
@@ -1136,8 +1139,23 @@ function score(doc, terms) {
     const matches = haystack.match(new RegExp(escapeRegExp(term.toLowerCase()), "g"));
     if (matches) total += matches.length * Math.min(term.length, 8);
   }
-  if (isMemoryFile(doc.file, DEFAULT_CONFIG)) total += 3;
+  const fileMatched = pathMatchesTerms(doc.file, terms);
+  if (total === 0 && !fileMatched) return 0;
+  if (doc.kind === "knowledge") total += 3;
+  if (fileMatched) total += 12;
   return total;
+}
+
+function includeQueryResult(item, terms, bestKnowledgeScore) {
+  if (item.doc.kind === "knowledge") return true;
+  if (bestKnowledgeScore === 0) return true;
+  if (pathMatchesTerms(item.doc.file, terms)) return true;
+  return item.score >= Math.max(48, bestKnowledgeScore * 4);
+}
+
+function pathMatchesTerms(file, terms) {
+  const normalized = file.toLowerCase().replace(/\\/g, "/");
+  return terms.some((term) => term.length >= 3 && normalized.includes(term.toLowerCase()));
 }
 
 function formatResults(results) {
@@ -1731,11 +1749,11 @@ function areaFor(file) {
   return first === file ? "root" : first;
 }
 
-function chunks(file, text, size, overlap) {
+function chunks(file, text, size, overlap, kind = "source") {
   const clean = text.replace(/\0/g, "");
   const result = [];
   for (let start = 0; start < clean.length; start += size - overlap) {
-    result.push({ file, text: clean.slice(start, start + size) });
+    result.push({ file, kind, text: clean.slice(start, start + size) });
     if (result.length > 20) break;
   }
   return result;

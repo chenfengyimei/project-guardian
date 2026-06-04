@@ -1,13 +1,10 @@
 "use strict";
 
-const commandLabels = {
-  doctor: "Doctor 体检",
-  verify: "Verify 全量检查",
-  "validate-docs": "Validate Docs",
-  reviews: "Reviews 列表",
-  "reviews-due": "Reviews Due",
-  "scan-secrets": "Scan Secrets",
-  "adapters-doctor": "Adapters Doctor",
+const commandKindLabels = {
+  read: "只读",
+  write: "写入",
+  linked: "专用模块",
+  terminal: "终端",
 };
 
 const viewTitles = {
@@ -17,8 +14,7 @@ const viewTitles = {
   append: ["追加记忆", "手动追加项目记忆"],
   brief: ["读取计划", "生成记忆读取计划"],
   query: ["知识查询", "查询本地项目知识"],
-  checks: ["检查命令", "运行检查命令"],
-  output: ["输出记录", "命令输出记录"],
+  commands: ["命令操作", "运行命令与查看输出"],
 };
 
 const state = {
@@ -33,11 +29,15 @@ const state = {
     appendMemory: "APPEND_MEMORY",
   },
   memoryFiles: [],
+  commands: [],
   selectedMemory: "",
   currentView: "overview",
+  sidebarCollapsed: false,
 };
 
 const nodes = typeof document === "undefined" ? {} : {
+  appShell: document.querySelector("#appShell"),
+  sidebarToggle: document.querySelector("#sidebarToggle"),
   navButtons: document.querySelectorAll(".nav-button"),
   views: document.querySelectorAll(".view"),
   viewEyebrow: document.querySelector("#viewEyebrow"),
@@ -54,8 +54,10 @@ const nodes = typeof document === "undefined" ? {} : {
   reloadMemory: document.querySelector("#reloadMemory"),
   commandButtons: document.querySelector("#commandButtons"),
   output: document.querySelector("#output"),
+  queryOutput: document.querySelector("#queryOutput"),
   refreshStatus: document.querySelector("#refreshStatus"),
   clearOutput: document.querySelector("#clearOutput"),
+  clearQueryOutput: document.querySelector("#clearQueryOutput"),
   initForm: document.querySelector("#initForm"),
   appendMemoryForm: document.querySelector("#appendMemoryForm"),
   appendMemoryName: document.querySelector("#appendMemoryName"),
@@ -67,6 +69,10 @@ const nodes = typeof document === "undefined" ? {} : {
 };
 
 if (typeof document !== "undefined") {
+  setSidebarCollapsed(localStorage.getItem("projectGuardianSidebar") === "collapsed");
+  nodes.sidebarToggle.addEventListener("click", () => {
+    setSidebarCollapsed(!state.sidebarCollapsed);
+  });
   nodes.navButtons.forEach((button) => {
     button.addEventListener("click", () => showView(button.dataset.view));
   });
@@ -76,6 +82,9 @@ if (typeof document !== "undefined") {
   });
   nodes.clearOutput.addEventListener("click", () => {
     nodes.output.textContent = "等待操作...";
+  });
+  nodes.clearQueryOutput.addEventListener("click", () => {
+    nodes.queryOutput.textContent = "等待查询...";
   });
   nodes.initForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -129,7 +138,11 @@ if (typeof document !== "undefined") {
       question: document.querySelector("#queryQuestion").value,
       limit: Number(document.querySelector("#queryLimit").value),
     };
-    await postAndRender("/api/query", payload, "guardian query");
+    await postAndRender("/api/query", payload, "guardian query", {
+      outputNode: nodes.queryOutput,
+      emptyText: "等待查询...",
+      nextView: "query",
+    });
   });
 }
 
@@ -138,6 +151,7 @@ async function loadStatus() {
   try {
     const payload = await requestJson("/api/status");
     state.actions = payload.actions || [];
+    state.commands = payload.commands || [];
     state.features = payload.features || {};
     state.confirmations = payload.confirmations || state.confirmations;
     state.memoryFiles = payload.memoryFiles || [];
@@ -158,6 +172,15 @@ async function loadStatus() {
     setBadge("连接失败", true);
     appendOutput("status", false, "", error.message);
   }
+}
+
+function setSidebarCollapsed(collapsed) {
+  state.sidebarCollapsed = Boolean(collapsed);
+  nodes.appShell.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  nodes.sidebarToggle.textContent = state.sidebarCollapsed ? "展开" : "收起";
+  nodes.sidebarToggle.title = state.sidebarCollapsed ? "展开侧边栏" : "收起侧边栏";
+  nodes.sidebarToggle.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  localStorage.setItem("projectGuardianSidebar", state.sidebarCollapsed ? "collapsed" : "expanded");
 }
 
 function showView(viewName) {
@@ -260,27 +283,119 @@ function setWriteFormAvailability() {
 
 function renderCommandButtons() {
   nodes.commandButtons.innerHTML = "";
-  for (const action of state.actions) {
+  const commands = state.commands.length
+    ? state.commands
+    : state.actions.map((action) => ({ id: action, label: action, kind: "read", fields: [], command: `guardian ${action}` }));
+  for (const command of commands) {
+    const card = document.createElement("article");
+    card.className = `command-card command-${command.kind}`;
+
+    const head = document.createElement("div");
+    head.className = "command-card-head";
+    head.innerHTML = [
+      `<strong>${escapeHtml(command.label || command.id)}</strong>`,
+      `<span>${escapeHtml(commandKindLabels[command.kind] || command.kind)}</span>`,
+    ].join("");
+    card.appendChild(head);
+
+    const description = document.createElement("p");
+    description.className = "muted";
+    description.textContent = command.description || "";
+    card.appendChild(description);
+
+    const commandLine = document.createElement("code");
+    commandLine.className = "command-line";
+    commandLine.textContent = command.command || `guardian ${command.id}`;
+    card.appendChild(commandLine);
+
+    const form = document.createElement("div");
+    form.className = "command-card-form";
+    const fields = Array.isArray(command.fields) ? command.fields : [];
+    for (const field of fields) form.appendChild(renderCommandField(command, field));
+
+    let confirmInput = null;
+    if (command.kind === "write") {
+      const label = document.createElement("label");
+      label.textContent = "写入确认";
+      confirmInput = document.createElement("input");
+      confirmInput.type = "text";
+      confirmInput.autocomplete = "off";
+      confirmInput.placeholder = `输入 ${command.confirmation || state.confirmations.command || "RUN_COMMAND"}`;
+      label.appendChild(confirmInput);
+      form.appendChild(label);
+    }
+    if (fields.length || command.kind === "write") card.appendChild(form);
+
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = commandLabels[action] || action;
-    button.addEventListener("click", async () => {
-      await postAndRender("/api/command", { action }, `guardian ${action}`);
-    });
-    nodes.commandButtons.appendChild(button);
+    button.textContent = commandButtonText(command);
+    if (command.kind === "terminal") {
+      button.disabled = true;
+      button.dataset.disabled = "true";
+    } else if (command.kind === "linked") {
+      button.addEventListener("click", () => showView(command.view));
+    } else {
+      button.addEventListener("click", async () => {
+        const payload = { action: command.id };
+        for (const field of fields) payload[field.name] = form.querySelector(`[name="${field.name}"]`).value;
+        if (confirmInput) payload.confirm = confirmInput.value;
+        const result = await postAndRender("/api/command", payload, command.command || `guardian ${command.id}`);
+        if (result && result.ok && confirmInput) confirmInput.value = "";
+      });
+    }
+    card.appendChild(button);
+    nodes.commandButtons.appendChild(card);
   }
 }
 
-async function postAndRender(route, payload, label) {
+function renderCommandField(command, field) {
+  const label = document.createElement("label");
+  label.textContent = field.label || field.name;
+  let control;
+  if (field.type === "textarea") {
+    control = document.createElement("textarea");
+    control.rows = 3;
+  } else if (field.type === "select") {
+    control = document.createElement("select");
+    for (const optionValue of field.options || []) {
+      const option = document.createElement("option");
+      option.value = optionValue;
+      option.textContent = optionValue;
+      control.appendChild(option);
+    }
+    control.value = field.value || "";
+  } else {
+    control = document.createElement("input");
+    control.type = "text";
+  }
+  control.name = field.name;
+  control.placeholder = field.placeholder || "";
+  control.setAttribute("aria-label", `${command.label || command.id} ${field.label || field.name}`);
+  label.appendChild(control);
+  return label;
+}
+
+function commandButtonText(command) {
+  if (command.kind === "linked") return "打开模块";
+  if (command.kind === "write") return "确认后运行";
+  if (command.kind === "terminal") return "需终端运行";
+  return "运行";
+}
+
+async function postAndRender(route, payload, label, options = {}) {
+  const outputNode = options.outputNode || nodes.output;
+  const emptyText = options.emptyText || "等待操作...";
+  const pendingText = options.pendingText || "运行中...";
   setBusy(true);
-  appendOutput(label, true, "运行中...", "");
+  setOutputPending(outputNode, emptyText, pendingText);
   try {
     const result = await postJson(route, payload);
-    appendOutput(label, result.ok, result.stdout || "", result.stderr || "");
-    showView("output");
+    appendOutput(label, result.ok, result.stdout || "", result.stderr || "", outputNode, emptyText, pendingText);
+    if (options.nextView) showView(options.nextView);
+    else showView("commands");
     return result;
   } catch (error) {
-    appendOutput(label, false, "", error.message);
+    appendOutput(label, false, "", error.message, outputNode, emptyText, pendingText);
     return null;
   } finally {
     setBusy(false);
@@ -302,7 +417,13 @@ async function requestJson(route, options) {
   return payload;
 }
 
-function appendOutput(label, ok, stdout, stderr) {
+function setOutputPending(outputNode, emptyText, pendingText) {
+  if (outputNode.textContent === emptyText || !outputNode.textContent.trim()) {
+    outputNode.textContent = pendingText;
+  }
+}
+
+function appendOutput(label, ok, stdout, stderr, outputNode = nodes.output, emptyText = "等待操作...", pendingText = "运行中...") {
   const time = new Date().toLocaleTimeString();
   const status = ok ? "OK" : "FAILED";
   const text = [
@@ -311,9 +432,9 @@ function appendOutput(label, ok, stdout, stderr) {
     stderr ? `\nSTDERR:\n${stderr.trimEnd()}` : "",
   ].join("");
 
-  if (nodes.output.textContent === "等待操作...") nodes.output.textContent = "";
-  nodes.output.textContent += `${text}\n`;
-  nodes.output.scrollTop = nodes.output.scrollHeight;
+  if (outputNode.textContent === emptyText || outputNode.textContent === pendingText) outputNode.textContent = "";
+  outputNode.textContent += `${text}\n`;
+  outputNode.scrollTop = outputNode.scrollHeight;
 }
 
 function renderPlainMemory(text) {
@@ -473,9 +594,11 @@ function escapeHtml(value) {
 
 if (typeof module !== "undefined") {
   module.exports = {
+    appendOutput,
     renderMarkdown,
     renderTable,
     parseTableRow,
+    setOutputPending,
   };
 }
 
