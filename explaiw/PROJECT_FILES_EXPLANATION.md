@@ -4,10 +4,10 @@
 
 当前统计口径：
 
-- 仓库文件总数：70 个。
-- 文档、规则、模板、说明类文件：50 个。
-- 代码、配置、资源、测试和忽略规则等其它文件：20 个。
-- 统计不包含 `.git/` 和 `node_modules/`。
+- 仓库文件总数：82 个。
+- 普通文件清单：76 个。
+- 隐藏配置和隐藏插件元数据：6 个。
+- 统计不包含 `.git/`、`node_modules/` 和被 `.gitignore` 排除的本地材料。
 
 ## 目录结构
 
@@ -34,6 +34,8 @@ project_ai/
   Run/
     README.md
     server.js
+    lib/
+      commands.js
     public/
       index.html
       styles.css
@@ -125,6 +127,7 @@ project_ai/
 | `memory/decisions/2026-05-14-use-per-decision-files.md` | 单条决策文件 | 降低多人同时修改 `memory/DECISIONS.md` 的冲突概率 | “使用单独决策文件”的决策详情 | 每次通过 `guardian decision add` 记录重要决策时可新增类似文件 |
 | `memory/decisions/2026-05-15-ai-ide.md` | 单条决策文件 | 记录扩展 AI IDE 适配器的原因和范围 | 支持矩阵、CLI 通用层、适配器扩展、验证方式、风险和后续动作 | AI IDE 兼容策略调整或新增适配器时复审 |
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
+| `memory/decisions/2026-06-04-run-command-catalog-module.md` | 单条决策文件 | 记录本次把 Run 命令目录从 HTTP server 拆成独立模块的原因 | 背景、决策、备选方案、影响文件、验证方式、风险、复审时间和后续动作 | Run 命令目录继续扩展、API 路由继续拆分或复审该架构选择时 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
 | `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、可收起侧边栏、Markdown 记忆预览、初始化、手动追加记忆、知识查询独立输出、全量 CLI 命令目录、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
@@ -179,7 +182,8 @@ project_ai/
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
 | `plugins/project-guardian/scripts/lib/manual-memory.js` | 手动记忆模板模块 | 让 CLI 和 Run 控制台共用同一套追加记忆模板、白名单和基础敏感词拦截 | 核心记忆文件配置、追加模板字段、模板渲染、追加记录格式、路径解析和敏感内容拦截 | 追加记忆字段、模板、写入格式或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
-| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、模板化手动追加记忆 API、brief/query API、固定 CLI 命令目录、写入命令确认、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
+| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、模板化手动追加记忆 API、brief/query API、命令操作 API、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
+| `Run/lib/commands.js` | Run 命令目录模块 | 把网页控制台的固定 CLI 命令目录从 HTTP server 中拆出来，降低后端主文件耦合 | 命令定义、公开给前端的命令字段、写入命令参数构造、适配器列表校验、复审文件路径校验和基础敏感词拦截 | 命令操作模块新增命令、调整字段、修改确认规则或修复参数校验时 |
 | `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、模板化手动追加记忆、brief、知识查询独立输出区、命令操作页面和参数弹窗 | 页面结构、控件或用户操作入口变化时 |
 | `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、参数弹窗、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
 | `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、模板化手动追加记忆、命令目录渲染、命令参数弹窗、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |

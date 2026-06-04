@@ -49,10 +49,11 @@
 - 新增 brief 三档升级机制：`quick`、`deep`、`full`；MCP `guardian_brief.mode` 会严格校验允许值，CLI 对缺失或错误 mode 会失败。
 - 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化、模板化手动追加记忆和命令操作里的写入类 CLI 都需要确认词。
 - 新增 `plugins/project-guardian/scripts/lib/manual-memory.js` 和 `guardian append-memory`，让 Run 控制台与 CLI 共用同一套手动追加记忆模板、核心记忆白名单和基础敏感词拦截。
+- 新增 `Run/lib/commands.js`，把 Run 控制台的固定 CLI 命令目录、公开命令描述、写入参数构造和字段校验从 `Run/server.js` 中拆出，降低可视化后端主文件耦合。
 
 ## 进行中
 
-- `Run/` 控制台命令分组和追加记忆模板兜底已完成代码、文档和测试接入；本轮提交前需要再次运行完整 `guardian verify`、安全审计和 diff 检查。
+- Run 命令目录模块拆分已通过完整 `npm.cmd run verify`；本轮提交前继续做最终 diff 检查和安全审计确认。
 
 ## 下一步
 
@@ -82,8 +83,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：修复 Run 追加记忆模板不可用提示，并让命令操作按类型分组。
-- 总结：追加记忆模块现在即使模板列表暂时为空，也会保留“自定义完整记录”兜底模板，不再让用户卡在“当前记忆文件没有可用模板”；命令操作模块改为按专用模块、只读检查、写入维护和终端服务分组，降低查找成本。
-- 文件：`Run/public/app.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/README.md`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `node --check Run/public/app.js` 和 `npm.cmd test`；当前 57 个测试通过。最终提交前继续运行完整 `npm.cmd run verify`。
-- 后续：真实使用后观察是否还需要命令搜索、分组折叠、写入前 diff 预览或更多追加记忆模板。
+- 任务：阅读全项目代码并拆分 Run 命令目录模块。
+- 总结：完成 CLI、MCP、适配器、手动记忆、Run 前后端和测试结构复核；新增 `Run/lib/commands.js` 承接 Run 控制台固定命令目录、写入参数构造和校验，`Run/server.js` 回到 HTTP/API/CLI 执行边界。
+- 文件：`Run/lib/commands.js`、`Run/server.js`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-run-command-catalog-module.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd audit --audit-level=moderate` 和 `git diff --check`；当前 58 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，diff 空白检查无错误。`npm.cmd pack --dry-run` 因本机 npm cache `EPERM` 失败，提权重跑被当前环境用量限制拒绝，需要用户本机补跑。
+- 后续：真实使用后观察是否需要命令搜索、写入前 diff 预览、操作日志，或继续把 Run API 路由拆成独立模块。

@@ -551,6 +551,25 @@ test("Run command catalog is grouped for easier scanning", () => {
   assert.deepEqual(groups.map((group) => group.commands[0].id), ["init", "doctor", "update", "mcp"]);
 });
 
+test("Run command module builds guarded command args", () => {
+  const runCommands = require(path.join(repoRoot, "Run", "lib", "commands.js"));
+  const update = runCommands.COMMANDS.get("update");
+  const adapters = runCommands.COMMANDS.get("install-adapters");
+  const reviewsComplete = runCommands.COMMANDS.get("reviews-complete");
+
+  assert.equal(runCommands.COMMAND_DEFINITIONS.length, runCommands.COMMANDS.size);
+  assert.deepEqual(update.buildArgs({ summary: "同步项目记忆" }), ["update", "同步项目记忆"]);
+  assert.deepEqual(adapters.buildArgs({ adapter: "cursor,copilot" }), ["install-adapters", "--adapter", "cursor,copilot"]);
+  assert.throws(() => adapters.buildArgs({ adapter: "all,cursor" }), /Adapter all cannot be combined/);
+  assert.throws(() => adapters.buildArgs({ adapter: "unknown-ai" }), /Adapter must be one of/);
+  assert.throws(() => reviewsComplete.buildArgs({ file: "../DECISIONS.md", summary: "ok", verification: "checked" }), /relative path inside the project/);
+
+  const publicUpdate = runCommands.publicCommandDefinition(update);
+  assert.equal(publicUpdate.kind, "write");
+  assert.equal(publicUpdate.confirmation, "RUN_COMMAND");
+  assert.equal(Object.prototype.hasOwnProperty.call(publicUpdate, "buildArgs"), false);
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));

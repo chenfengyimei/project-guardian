@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-04 11:39 - 拆分 Run 命令目录模块
+
+- 用户需求：阅读项目所有代码文件，分析代码结构与实现目标，把繁琐代码进行多步拆解和分析，并对耦合度较高的地方进行重构解耦、完善项目框架和修复问题。
+- AI 总结：复核了 CLI、MCP、适配器、手动记忆模块、Run 后端、Run 前端和测试结构；新增 `Run/lib/commands.js`，把 Run 控制台固定 CLI 命令目录、公开命令描述、写入类参数构造和字段校验从 `Run/server.js` 中拆出；`Run/server.js` 现在主要保留本地 HTTP server、API 路由、记忆读取/写入边界和 CLI 子进程执行。
+- 变更文件：`Run/lib/commands.js`、`Run/server.js`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-run-command-catalog-module.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：Run 控制台命令数量已经增加，如果命令目录、参数校验和 HTTP server 继续写在同一个文件里，后续新增命令、修改字段或修复安全校验会更难审查，也更容易误伤 API 主流程。
+- 技术说明：新模块导出 `COMMAND_DEFINITIONS`、`COMMANDS`、`COMMAND_CONFIRMATION` 和 `publicCommandDefinition()`；写入命令仍然只允许固定白名单并保留 `RUN_COMMAND` 确认词；新增测试直接覆盖命令参数构造、非法适配器拒绝、越界复审路径拒绝和前端公开命令信息不暴露 `buildArgs`。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd audit --audit-level=moderate` 和 `git diff --check`；当前 58 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，diff 空白检查无错误。`npm.cmd pack --dry-run` 因本机 npm cache `EPERM` 失败，提权重跑被当前环境用量限制拒绝，需要用户本机补跑。
+- 风险：本轮没有拆分 `guardian.js` 主 CLI，核心 CLI 仍是最大文件；Run 命令目录只是固定白名单和确认词防线，不是用户权限系统，不能替代 Git diff、代码评审和 `guardian verify`。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：继续做最终安全审计和 diff 检查；后续可考虑命令搜索、写入前 diff 预览、操作日志，或进一步拆分 Run API 路由。
+
 ### 2026-06-04 10:50 - 修复 Run 模板兜底和命令分组
 
 - 用户需求：追加记忆选择模板时出现“当前记忆文件没有可用模板”；命令操作模块需要把命令分组，例如专用模块单独成组，方便查找和使用。

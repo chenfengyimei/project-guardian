@@ -39,9 +39,9 @@
 
 4. 使用可选 `Run/` 本地可视化层。
    - 入口：`npm run ui` 或 `node Run/server.js`。
-   - 重要文件：`Run/server.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`。
-   - 规则：可视化层和核心 CLI/MCP 隔离，但随插件一起发布；默认只监听 `127.0.0.1`，不提供任意 shell 执行；左侧侧边栏负责功能切换，首页只显示插件状态概览；`/api/command` 只开放只读白名单命令，核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式，手动追加只使用 `project-guardian.config.json` 中的记忆路径或默认 `memory/` 路径。
-   - 已知边界情况：Run 目前只有两个受控写入入口：输入 `RUN_INIT` 后运行固定 `guardian init --language ...`，输入 `APPEND_MEMORY` 后追加到核心记忆白名单并做基础敏感词拦截。如果团队使用 `--host 0.0.0.0` 让局域网访问，必须自行增加登录认证、访问控制、反向代理和操作审计。
+   - 重要文件：`Run/server.js`、`Run/lib/commands.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`。
+   - 规则：可视化层和核心 CLI/MCP 隔离，但随插件一起发布；默认只监听 `127.0.0.1`，不提供任意 shell 执行；左侧侧边栏负责功能切换，首页只显示插件状态概览；`/api/command` 只允许固定命令目录里的命令，只读命令可直接运行，写入类命令必须输入 `RUN_COMMAND`，专用模块命令和 `mcp` 不通过通用接口直接启动；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式，手动追加只使用 `project-guardian.config.json` 中的记忆路径或默认 `memory/` 路径。
+   - 已知边界情况：Run 受控写入入口包括输入 `RUN_INIT` 后运行固定 `guardian init --language ...`、输入 `APPEND_MEMORY` 后追加到核心记忆白名单，以及输入 `RUN_COMMAND` 后运行固定命令目录中的写入类 CLI。Run 仍没有内置鉴权；如果团队使用 `--host 0.0.0.0` 让局域网访问，必须自行增加登录认证、访问控制、反向代理和操作审计。
 
 5. 控制 AI 读取项目记忆的 token 成本。
    - 入口：`guardian brief "任务或问题"`、`guardian brief "任务或问题" --mode quick|deep|full`、MCP `guardian_brief`、`guardian query "问题" --limit 3` 和 MCP `guardian_query.limit`。

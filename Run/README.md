@@ -97,13 +97,16 @@ node Run/server.js --host 0.0.0.0
 Run/
   README.md
   server.js
+  lib/
+    commands.js
   public/
     index.html
     styles.css
     app.js
 ```
 
-- `server.js`：本地 HTTP server、静态文件服务、固定命令目录 API、记忆读取 API 和受控写入 API；追加记忆模板来自 `plugins/project-guardian/scripts/lib/manual-memory.js`。
+- `server.js`：本地 HTTP server、静态文件服务、状态 API、记忆读取 API、受控写入 API、brief/query API 和 CLI 子进程调用；命令目录来自 `lib/commands.js`，追加记忆模板来自 `plugins/project-guardian/scripts/lib/manual-memory.js`。
+- `lib/commands.js`：Run 控制台的固定 CLI 命令目录、公开给前端的命令描述、写入类参数构造和字段校验；新增或调整命令操作入口时优先改这里。
 - `public/index.html`：页面结构，包含可收起侧边栏、各功能页面、知识查询独立输出区和命令操作页面。
 - `public/styles.css`：页面样式，包含侧边栏布局与收起动画、Markdown 文档预览、命令卡片和表格样式。
 - `public/app.js`：浏览器端交互逻辑，包含功能页切换、侧边栏状态、记忆预览、轻量 Markdown 渲染、命令目录渲染和分区输出。
