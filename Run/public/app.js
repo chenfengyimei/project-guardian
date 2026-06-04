@@ -7,6 +7,47 @@ const commandKindLabels = {
   terminal: "终端",
 };
 
+const commandGroupOrder = [
+  {
+    id: "linked",
+    title: "专用模块",
+    description: "已有独立页面承载的高频功能，点击后直接跳转到对应模块。",
+  },
+  {
+    id: "read",
+    title: "只读检查",
+    description: "只查看状态、校验结果或诊断信息，不会写入项目文件。",
+  },
+  {
+    id: "write",
+    title: "写入维护",
+    description: "会修改记忆、规则、Hook 或 CI 文件，运行前必须输入确认词。",
+  },
+  {
+    id: "terminal",
+    title: "终端服务",
+    description: "需要在终端或 AI IDE 配置中持续运行的服务命令。",
+  },
+];
+
+const fallbackAppendTemplate = {
+  id: "custom-note",
+  target: "*",
+  label: "自定义完整记录",
+  description: "模板列表暂未加载或没有专用模板时，仍可用完整记录补充项目记忆。",
+  fields: [
+    {
+      name: "content",
+      label: "完整记录内容",
+      placeholder: "写清楚发生了什么、为什么重要、如何验证、下一步是什么。",
+      required: true,
+      maxLength: 8000,
+      type: "textarea",
+      pattern: "",
+    },
+  ],
+};
+
 const viewTitles = {
   overview: ["状态概览", "插件状态概览"],
   memory: ["核心记忆", "核心记忆文件"],
@@ -289,8 +330,31 @@ function renderAppendTemplateOptions() {
 }
 
 function templatesForMemory(memoryName) {
-  const normalized = String(memoryName || "").toUpperCase();
-  return state.memoryAppendTemplates.filter((template) => template.target === normalized || template.target === "*");
+  return templatesForMemoryFromList(memoryName, state.memoryAppendTemplates);
+}
+
+function templatesForMemoryFromList(memoryName, templates) {
+  const normalized = normalizeMemoryTarget(memoryName);
+  const matched = (Array.isArray(templates) ? templates : []).filter((template) => {
+    const target = normalizeMemoryTarget(template.target);
+    return target === normalized || target === "*";
+  });
+  if (!matched.some((template) => template.id === fallbackAppendTemplate.id)) {
+    matched.push(fallbackAppendTemplate);
+  }
+  return matched;
+}
+
+function normalizeMemoryTarget(value) {
+  const normalized = String(value || "").trim().toUpperCase().replace(/[-\s]+/g, "_");
+  const aliases = {
+    CONTEXT: "PROJECT_CONTEXT",
+    PROJECT: "PROJECT_CONTEXT",
+    CHANGELOG: "AI_CHANGELOG",
+    AI_LOG: "AI_CHANGELOG",
+    HAND_OFF: "HANDOVER",
+  };
+  return aliases[normalized] || normalized;
 }
 
 function renderAppendTemplateFields() {
@@ -346,50 +410,83 @@ function renderCommandButtons() {
   const commands = state.commands.length
     ? state.commands
     : state.actions.map((action) => ({ id: action, label: action, kind: "read", fields: [], command: `guardian ${action}` }));
-  for (const command of commands) {
-    const card = document.createElement("article");
-    card.className = `command-card command-${command.kind}`;
-
-    const head = document.createElement("div");
-    head.className = "command-card-head";
-    head.innerHTML = [
-      `<strong>${escapeHtml(command.label || command.id)}</strong>`,
-      `<span>${escapeHtml(commandKindLabels[command.kind] || command.kind)}</span>`,
+  for (const group of commandGroupsForDisplay(commands)) {
+    const section = document.createElement("section");
+    section.className = `command-group command-group-${group.id}`;
+    section.innerHTML = [
+      '<div class="command-group-head">',
+      "<div>",
+      `<h4>${escapeHtml(group.title)}</h4>`,
+      `<p class="muted">${escapeHtml(group.description)}</p>`,
+      "</div>",
+      `<span>${group.commands.length} 个</span>`,
+      "</div>",
     ].join("");
-    card.appendChild(head);
 
-    const description = document.createElement("p");
-    description.className = "muted";
-    description.textContent = command.description || "";
-    card.appendChild(description);
-
-    const commandLine = document.createElement("code");
-    commandLine.className = "command-line";
-    commandLine.textContent = command.command || `guardian ${command.id}`;
-    card.appendChild(commandLine);
-
-    const fields = Array.isArray(command.fields) ? command.fields : [];
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = commandButtonText(command);
-    if (command.kind === "terminal") {
-      button.disabled = true;
-      button.dataset.disabled = "true";
-    } else if (command.kind === "linked") {
-      button.addEventListener("click", () => showView(command.view));
-    } else {
-      button.addEventListener("click", async () => {
-        if (command.kind === "write" || fields.length) {
-          openCommandModal(command);
-          return;
-        }
-        await postAndRender("/api/command", { action: command.id }, command.command || `guardian ${command.id}`);
-      });
+    const grid = document.createElement("div");
+    grid.className = "command-grid";
+    for (const command of group.commands) {
+      grid.appendChild(renderCommandCard(command));
     }
-    card.appendChild(button);
-    nodes.commandButtons.appendChild(card);
+    section.appendChild(grid);
+    nodes.commandButtons.appendChild(section);
   }
+}
+
+function commandGroupsForDisplay(commands) {
+  const grouped = new Map(commandGroupOrder.map((group) => [group.id, { ...group, commands: [] }]));
+  for (const command of commands) {
+    const key = grouped.has(command.kind) ? command.kind : "read";
+    grouped.get(key).commands.push(command);
+  }
+  return commandGroupOrder
+    .map((group) => grouped.get(group.id))
+    .filter((group) => group.commands.length > 0);
+}
+
+function renderCommandCard(command) {
+  const card = document.createElement("article");
+  card.className = `command-card command-${command.kind}`;
+
+  const head = document.createElement("div");
+  head.className = "command-card-head";
+  head.innerHTML = [
+    `<strong>${escapeHtml(command.label || command.id)}</strong>`,
+    `<span>${escapeHtml(commandKindLabels[command.kind] || command.kind)}</span>`,
+  ].join("");
+  card.appendChild(head);
+
+  const description = document.createElement("p");
+  description.className = "muted";
+  description.textContent = command.description || "";
+  card.appendChild(description);
+
+  const commandLine = document.createElement("code");
+  commandLine.className = "command-line";
+  commandLine.textContent = command.command || `guardian ${command.id}`;
+  card.appendChild(commandLine);
+
+  const fields = Array.isArray(command.fields) ? command.fields : [];
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = commandButtonText(command);
+  if (command.kind === "terminal") {
+    button.disabled = true;
+    button.dataset.disabled = "true";
+  } else if (command.kind === "linked") {
+    button.addEventListener("click", () => showView(command.view));
+  } else {
+    button.addEventListener("click", async () => {
+      if (command.kind === "write" || fields.length) {
+        openCommandModal(command);
+        return;
+      }
+      await postAndRender("/api/command", { action: command.id }, command.command || `guardian ${command.id}`);
+    });
+  }
+  card.appendChild(button);
+  return card;
 }
 
 function renderFieldControl(field) {
@@ -692,10 +789,12 @@ function escapeHtml(value) {
 if (typeof module !== "undefined") {
   module.exports = {
     appendOutput,
+    commandGroupsForDisplay,
     renderMarkdown,
     renderTable,
     parseTableRow,
     setOutputPending,
+    templatesForMemoryFromList,
   };
 }
 
