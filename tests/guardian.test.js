@@ -526,6 +526,31 @@ test("Run output replaces the temporary running placeholder", () => {
   assert.match(outputNode.textContent, /query result/);
 });
 
+test("Run append template selector always keeps a custom fallback", () => {
+  const runApp = require(path.join(repoRoot, "Run", "public", "app.js"));
+  const emptyFallback = runApp.templatesForMemoryFromList("STATE", []);
+  assert.equal(emptyFallback.length, 1);
+  assert.equal(emptyFallback[0].id, "custom-note");
+
+  const mixedTemplates = runApp.templatesForMemoryFromList("state", [
+    { id: "state-progress", target: "STATE", fields: [] },
+    { id: "custom-note", target: "*", fields: [] },
+  ]);
+  assert.deepEqual(mixedTemplates.map((template) => template.id), ["state-progress", "custom-note"]);
+});
+
+test("Run command catalog is grouped for easier scanning", () => {
+  const runApp = require(path.join(repoRoot, "Run", "public", "app.js"));
+  const groups = runApp.commandGroupsForDisplay([
+    { id: "doctor", kind: "read" },
+    { id: "init", kind: "linked" },
+    { id: "update", kind: "write" },
+    { id: "mcp", kind: "terminal" },
+  ]);
+  assert.deepEqual(groups.map((group) => group.id), ["linked", "read", "write", "terminal"]);
+  assert.deepEqual(groups.map((group) => group.commands[0].id), ["init", "doctor", "update", "mcp"]);
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
@@ -546,7 +571,7 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.match(page.body, /id="view-commands" class="view"/);
     assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
     assert.match(page.body, /id="queryOutput" class="output"/);
-    assert.match(page.body, /id="commandButtons" class="command-grid"/);
+    assert.match(page.body, /id="commandButtons" class="command-groups"/);
     assert.match(page.body, /id="appendTemplate"/);
     assert.match(page.body, /id="commandModal"/);
     assert.doesNotMatch(page.body, /<pre id="memoryViewer"/);
