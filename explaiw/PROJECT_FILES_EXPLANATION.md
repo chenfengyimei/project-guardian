@@ -90,6 +90,9 @@ project_ai/
         guardian.js
         lib/
           adapters.js
+          config.js
+          doc-validation.js
+          knowledge.js
           manual-memory.js
           mcp.js
       skills/
@@ -129,7 +132,7 @@ project_ai/
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
 | `memory/decisions/2026-06-04-run-command-catalog-module.md` | 单条决策文件 | 记录本次把 Run 命令目录从 HTTP server 拆成独立模块的原因 | 背景、决策、备选方案、影响文件、验证方式、风险、复审时间和后续动作 | Run 命令目录继续扩展、API 路由继续拆分或复审该架构选择时 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
-| `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、可收起侧边栏、Markdown 记忆预览、初始化、手动追加记忆、知识查询独立输出、全量 CLI 命令目录、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
+| `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、可收起侧边栏、Markdown 记忆预览、初始化、手动追加记忆、知识查询独立输出、命令搜索、写入前 diff 预览、操作日志、全量 CLI 命令目录、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
 | `plugins/project-guardian/docs/STANDARD.md` | 使用规范文档 | 统一团队怎么写、怎么审、怎么维护项目记忆 | 标准目录、记忆文件职责、记录质量、AI 使用规则、提交规范、配置标准 | 团队规范、目录标准、记录字段、配置项变化时 |
 | `plugins/project-guardian/docs/WORKFLOW.md` | 工作流文档 | 解释完整闭环，不只是单条命令 | 接手项目、初始化、日常开发、记录、提交、交接、新人接手、每周维护 | 团队协作流程、Gitee 分支流程、交接流程变化时 |
@@ -178,16 +181,19 @@ project_ai/
 | `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、MCP 权限、language、adapters、ignore | 记忆路径、语言、适配器、MCP 工具权限、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
-| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里执行 | init、update、append-memory、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等逻辑 | 新增命令、修改规则、修 bug、改变生成内容时 |
+| `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里进入，并协调各拆分模块 | init、update、append-memory、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等命令编排 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
+| `plugins/project-guardian/scripts/lib/config.js` | CLI 配置模块 | 把配置加载、默认值合并和配置校验从主 CLI 中拆出来 | `project-guardian.config.json` 默认值、语言列表、加载、深度合并、init 语言参数应用、配置合法性校验 | 新增配置项、调整默认值、改变配置校验规则时 |
+| `plugins/project-guardian/scripts/lib/doc-validation.js` | 文档质量校验模块 | 把 `validate-docs` 的文档检查规则从主 CLI 中拆出来，降低主文件体积 | 核心记忆文件规则、占位符检查、必填字段检查、表格空行检查、决策有效性、最新 changelog TODO 和 00:00 时间检查 | 文档质量标准、记忆字段、changelog 时间规则或决策规则变化时 |
+| `plugins/project-guardian/scripts/lib/knowledge.js` | query/brief 检索模块 | 把关键词检索、结果格式化和 token 预算读取计划从主 CLI 中拆出来 | query 排名、memory/source/git-history 结果格式化、brief 文件推荐、token 粗估、quick/deep/full/auto 读取计划格式化 | 检索策略、brief 模式、token 预算或输出格式变化时 |
 | `plugins/project-guardian/scripts/lib/manual-memory.js` | 手动记忆模板模块 | 让 CLI 和 Run 控制台共用同一套追加记忆模板、白名单和基础敏感词拦截 | 核心记忆文件配置、追加模板字段、模板渲染、追加记录格式、路径解析和敏感内容拦截 | 追加记忆字段、模板、写入格式或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
-| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、受控初始化 API、模板化手动追加记忆 API、brief/query API、命令操作 API、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
+| `Run/server.js` | 可视化层本地 HTTP server | 让用户可以自行启动网页控制台，同时和核心 CLI/MCP 代码隔离 | 静态文件服务、状态 API、按配置解析核心记忆路径、核心记忆读取 API、只读 diff 预览 API、受控初始化 API、模板化手动追加记忆 API、brief/query API、命令操作 API、CLI 子进程调用和本地安全边界 | 可视化 API、启动参数、安全策略或网页入口变化时 |
 | `Run/lib/commands.js` | Run 命令目录模块 | 把网页控制台的固定 CLI 命令目录从 HTTP server 中拆出来，降低后端主文件耦合 | 命令定义、公开给前端的命令字段、写入命令参数构造、适配器列表校验、复审文件路径校验和基础敏感词拦截 | 命令操作模块新增命令、调整字段、修改确认规则或修复参数校验时 |
-| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、模板化手动追加记忆、brief、知识查询独立输出区、命令操作页面和参数弹窗 | 页面结构、控件或用户操作入口变化时 |
-| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、参数弹窗、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
-| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、模板化手动追加记忆、命令目录渲染、命令参数弹窗、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、append-memory、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、模板化手动追加记忆、brief、知识查询独立输出区、命令搜索、操作日志、命令操作页面、参数弹窗和写入前 diff 预览区 | 页面结构、控件或用户操作入口变化时 |
+| `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、操作日志、diff 预览、参数弹窗、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
+| `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、模板化手动追加记忆、命令目录搜索/渲染、命令参数弹窗、写入前 diff 预览、操作日志、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、append-memory、decision、reviews、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、Run diff preview、Run 命令搜索、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖或构建产物 | Git 忽略路径 | 新增构建产物、缓存目录、临时文件类型时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |

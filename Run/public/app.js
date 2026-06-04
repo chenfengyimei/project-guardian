@@ -30,6 +30,9 @@ const commandGroupOrder = [
   },
 ];
 
+const OPERATION_LOG_KEY = "projectGuardianOperationLog";
+const MAX_OPERATION_LOG_ITEMS = 50;
+
 const fallbackAppendTemplate = {
   id: "custom-note",
   target: "*",
@@ -76,6 +79,8 @@ const state = {
   currentView: "overview",
   sidebarCollapsed: false,
   activeCommand: null,
+  commandSearch: "",
+  operationLog: [],
 };
 
 const nodes = typeof document === "undefined" ? {} : {
@@ -95,12 +100,15 @@ const nodes = typeof document === "undefined" ? {} : {
   memoryViewerTitle: document.querySelector("#memoryViewerTitle"),
   memoryViewer: document.querySelector("#memoryViewer"),
   reloadMemory: document.querySelector("#reloadMemory"),
+  commandSearch: document.querySelector("#commandSearch"),
   commandButtons: document.querySelector("#commandButtons"),
   output: document.querySelector("#output"),
   queryOutput: document.querySelector("#queryOutput"),
+  operationLog: document.querySelector("#operationLog"),
   refreshStatus: document.querySelector("#refreshStatus"),
   clearOutput: document.querySelector("#clearOutput"),
   clearQueryOutput: document.querySelector("#clearQueryOutput"),
+  clearOperationLog: document.querySelector("#clearOperationLog"),
   initForm: document.querySelector("#initForm"),
   appendMemoryForm: document.querySelector("#appendMemoryForm"),
   appendMemoryName: document.querySelector("#appendMemoryName"),
@@ -118,13 +126,18 @@ const nodes = typeof document === "undefined" ? {} : {
   commandModalTitle: document.querySelector("#commandModalTitle"),
   commandModalDescription: document.querySelector("#commandModalDescription"),
   commandModalLine: document.querySelector("#commandModalLine"),
+  commandModalDiffPanel: document.querySelector("#commandModalDiffPanel"),
+  commandModalDiff: document.querySelector("#commandModalDiff"),
+  commandModalRefreshDiff: document.querySelector("#commandModalRefreshDiff"),
   commandModalFields: document.querySelector("#commandModalFields"),
   commandModalConfirmLabel: document.querySelector("#commandModalConfirmLabel"),
   commandModalConfirm: document.querySelector("#commandModalConfirm"),
 };
 
 if (typeof document !== "undefined") {
+  state.operationLog = loadOperationLog();
   setSidebarCollapsed(localStorage.getItem("projectGuardianSidebar") === "collapsed");
+  renderOperationLog();
   nodes.sidebarToggle.addEventListener("click", () => {
     setSidebarCollapsed(!state.sidebarCollapsed);
   });
@@ -141,9 +154,19 @@ if (typeof document !== "undefined") {
   nodes.clearQueryOutput.addEventListener("click", () => {
     nodes.queryOutput.textContent = "等待查询...";
   });
+  nodes.clearOperationLog.addEventListener("click", () => {
+    state.operationLog = [];
+    saveOperationLog();
+    renderOperationLog();
+  });
+  nodes.commandSearch.addEventListener("input", () => {
+    state.commandSearch = nodes.commandSearch.value;
+    renderCommandButtons();
+  });
   nodes.appendMemoryName.addEventListener("change", renderAppendTemplateOptions);
   nodes.appendTemplate.addEventListener("change", renderAppendTemplateFields);
   nodes.commandModalClose.addEventListener("click", closeCommandModal);
+  nodes.commandModalRefreshDiff.addEventListener("click", loadDiffPreview);
   nodes.commandModal.querySelector("[data-modal-cancel]").addEventListener("click", closeCommandModal);
   nodes.commandModal.addEventListener("click", (event) => {
     if (event.target === nodes.commandModal) closeCommandModal();
@@ -178,6 +201,7 @@ if (typeof document !== "undefined") {
     setOutputPending(nodes.output, "等待操作...", "写入中...");
     try {
       const result = await postJson("/api/memory/append", payload);
+      recordOperation("append-memory", true, result.path || "");
       appendOutput("追加记忆", true, `已写入 ${result.path}，当前大小 ${result.size} bytes。`, "", nodes.output, "等待操作...", "写入中...");
       clearFields(nodes.appendTemplateFields);
       nodes.appendConfirm.value = "";
@@ -185,6 +209,7 @@ if (typeof document !== "undefined") {
       await loadMemoryFile(result.name);
       showView("memory");
     } catch (error) {
+      recordOperation("append-memory", false, error.message);
       appendOutput("追加记忆", false, "", error.message, nodes.output, "等待操作...", "写入中...");
     } finally {
       setBusy(false);
@@ -410,7 +435,16 @@ function renderCommandButtons() {
   const commands = state.commands.length
     ? state.commands
     : state.actions.map((action) => ({ id: action, label: action, kind: "read", fields: [], command: `guardian ${action}` }));
-  for (const group of commandGroupsForDisplay(commands)) {
+  const filteredCommands = filterCommandsForSearch(commands, state.commandSearch);
+  const groups = commandGroupsForDisplay(filteredCommands);
+  if (groups.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "没有匹配的命令。";
+    nodes.commandButtons.appendChild(empty);
+    return;
+  }
+  for (const group of groups) {
     const section = document.createElement("section");
     section.className = `command-group command-group-${group.id}`;
     section.innerHTML = [
@@ -431,6 +465,24 @@ function renderCommandButtons() {
     section.appendChild(grid);
     nodes.commandButtons.appendChild(section);
   }
+}
+
+function filterCommandsForSearch(commands, query) {
+  const keyword = String(query || "").trim().toLowerCase();
+  if (!keyword) return commands;
+  return commands.filter((command) => commandSearchText(command).includes(keyword));
+}
+
+function commandSearchText(command) {
+  return [
+    command.id,
+    command.label,
+    command.kind,
+    command.command,
+    command.description,
+    command.view,
+    ...(command.fields || []).flatMap((field) => [field.name, field.label, field.placeholder, field.description]),
+  ].filter(Boolean).join(" ").toLowerCase();
 }
 
 function commandGroupsForDisplay(commands) {
@@ -540,7 +592,10 @@ function openCommandModal(command) {
   nodes.commandModalConfirm.required = needsConfirmation;
   nodes.commandModalConfirm.value = "";
   nodes.commandModalConfirm.placeholder = `输入 ${command.confirmation || state.confirmations.command || "RUN_COMMAND"}`;
+  nodes.commandModalDiffPanel.hidden = command.kind !== "write";
+  nodes.commandModalDiff.textContent = "等待读取 diff...";
   nodes.commandModal.hidden = false;
+  if (command.kind === "write") loadDiffPreview();
   const firstInput = nodes.commandModal.querySelector("input:not([type='hidden']), textarea, select");
   if (firstInput) firstInput.focus();
 }
@@ -550,6 +605,8 @@ function closeCommandModal() {
   state.activeCommand = null;
   nodes.commandModalForm.reset();
   nodes.commandModalFields.innerHTML = "";
+  nodes.commandModalDiffPanel.hidden = true;
+  nodes.commandModalDiff.textContent = "等待读取 diff...";
 }
 
 async function handleCommandModalSubmit(event) {
@@ -585,14 +642,92 @@ async function postAndRender(route, payload, label, options = {}) {
   try {
     const result = await postJson(route, payload);
     appendOutput(label, result.ok, result.stdout || "", result.stderr || "", outputNode, emptyText, pendingText);
+    recordOperation(label, result.ok, result.stderr || result.stdout || "");
     if (options.nextView) showView(options.nextView);
     else showView("commands");
     return result;
   } catch (error) {
     appendOutput(label, false, "", error.message, outputNode, emptyText, pendingText);
+    recordOperation(label, false, error.message);
     return null;
   } finally {
     setBusy(false);
+  }
+}
+
+async function loadDiffPreview() {
+  if (!nodes.commandModalDiffPanel || nodes.commandModalDiffPanel.hidden) return null;
+  nodes.commandModalDiff.textContent = "读取中...";
+  try {
+    const payload = await requestJson("/api/diff-preview");
+    nodes.commandModalDiff.textContent = formatDiffPreview(payload);
+    return payload;
+  } catch (error) {
+    nodes.commandModalDiff.textContent = `读取 diff 失败：${error.message}`;
+    return null;
+  }
+}
+
+function formatDiffPreview(payload) {
+  if (!payload || !payload.gitAvailable) {
+    return ["当前目录没有可用的 Git diff 预览。", payload && payload.stderr ? payload.stderr : ""].filter(Boolean).join("\n");
+  }
+  const lines = [
+    "Git status:",
+    payload.status || "(clean)",
+    "",
+    "Unstaged diff --stat:",
+    payload.unstagedStat || "(none)",
+    "",
+    "Staged diff --stat:",
+    payload.stagedStat || "(none)",
+  ];
+  if (payload.stderr) lines.push("", "Warnings:", payload.stderr);
+  return lines.join("\n");
+}
+
+function recordOperation(label, ok, detail) {
+  if (!nodes.operationLog) return;
+  const summary = String(detail || "").replace(/\s+/g, " ").trim().slice(0, 180);
+  state.operationLog = [{
+    time: new Date().toLocaleString(),
+    label,
+    ok: Boolean(ok),
+    summary,
+  }, ...state.operationLog].slice(0, MAX_OPERATION_LOG_ITEMS);
+  saveOperationLog();
+  renderOperationLog();
+}
+
+function renderOperationLog() {
+  if (!nodes.operationLog) return;
+  if (!state.operationLog.length) {
+    nodes.operationLog.textContent = "暂无操作";
+    return;
+  }
+  nodes.operationLog.innerHTML = state.operationLog.map((item) => [
+    `<article class="operation-item ${item.ok ? "ok" : "failed"}">`,
+    `<strong>${escapeHtml(item.label)} ${item.ok ? "OK" : "FAILED"}</strong>`,
+    `<span>${escapeHtml(item.time)}</span>`,
+    item.summary ? `<p>${escapeHtml(item.summary)}</p>` : "",
+    "</article>",
+  ].join("")).join("");
+}
+
+function loadOperationLog() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(OPERATION_LOG_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_OPERATION_LOG_ITEMS) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveOperationLog() {
+  try {
+    localStorage.setItem(OPERATION_LOG_KEY, JSON.stringify(state.operationLog.slice(0, MAX_OPERATION_LOG_ITEMS)));
+  } catch (_) {
+    // Storage can be unavailable in private or restricted browser contexts.
   }
 }
 
@@ -790,6 +925,8 @@ if (typeof module !== "undefined") {
   module.exports = {
     appendOutput,
     commandGroupsForDisplay,
+    filterCommandsForSearch,
+    formatDiffPreview,
     renderMarkdown,
     renderTable,
     parseTableRow,

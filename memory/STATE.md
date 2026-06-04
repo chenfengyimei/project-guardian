@@ -18,7 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
-- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、模板化手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；命令操作会按专用模块、只读检查、写入维护和终端服务分组，写入类命令必须输入 `RUN_COMMAND`，需要参数的命令会在弹窗里填写后再运行。
+- 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、模板化手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；命令操作会按专用模块、只读检查、写入维护和终端服务分组，支持命令搜索、短操作日志和写入前固定 Git diff 预览，写入类命令必须输入 `RUN_COMMAND`，需要参数的命令会在弹窗里填写后再运行。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
 ## 已完成
@@ -50,14 +50,16 @@
 - 新增 `Run/server.js` 和 `Run/public/*`，并通过 `npm run ui` 启动本地可视化界面；package 发布范围已包含 `Run`。Run server 现在会按 `project-guardian.config.json` 解析核心记忆路径，初始化、模板化手动追加记忆和命令操作里的写入类 CLI 都需要确认词。
 - 新增 `plugins/project-guardian/scripts/lib/manual-memory.js` 和 `guardian append-memory`，让 Run 控制台与 CLI 共用同一套手动追加记忆模板、核心记忆白名单和基础敏感词拦截。
 - 新增 `Run/lib/commands.js`，把 Run 控制台的固定 CLI 命令目录、公开命令描述、写入参数构造和字段校验从 `Run/server.js` 中拆出，降低可视化后端主文件耦合。
+- 新增 `plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js` 和 `plugins/project-guardian/scripts/lib/knowledge.js`，把配置加载/校验、文档质量校验、query/brief 检索与读取计划格式化从 `guardian.js` 中拆出。
+- Run 控制台命令操作页新增命令搜索、浏览器本地短操作日志和写入类命令弹窗里的固定 Git diff 预览；后端新增只读 `/api/diff-preview`，不接收用户传入 Git 参数。
 
 ## 进行中
 
-- Run 命令目录模块拆分已通过完整 `npm.cmd run verify`；本轮提交前继续做最终 diff 检查和安全审计确认。
+- CLI 核心模块拆分和 Run 写入前可见性增强已通过完整验证；提交前只需复查 `git status` 和最终 diff。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 Run 控制台增强代码、文档、测试和记忆一起提交，且 `docs/ip/` 不被 Git 跟踪。
+1. 提交到 Gitee 前复查 `git status`，确认 CLI 模块拆分、Run 控制台增强代码、文档、测试和记忆一起提交，且 `docs/ip/` 不被 Git 跟踪。
 2. 软著申请前由人工确认著作权人、申请版本、软件完成日期、首次发表日期和权属方式，并更新 `docs/ip/` 下的待填写字段。
 3. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
 
@@ -76,15 +78,15 @@
 
 ## 风险区域
 
-- `plugins/project-guardian/scripts/guardian.js` 是主执行文件，协调 Git、文档、配置、hooks、CI 和扫描，修改时需要重点测试。
+- `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI 和扫描。
 - 文档校验既要严格阻止空模板，又不能严格到让新团队难以逐步接入。
 - 安全扫描必须隐藏敏感值，也要避免在普通文档中产生过多误报。
 - hooks 和 CI 应保持追加式或明确生成，不能覆盖团队已有自动化。
 
 ## 最新 AI 协助变更
 
-- 任务：阅读全项目代码并拆分 Run 命令目录模块。
-- 总结：完成 CLI、MCP、适配器、手动记忆、Run 前后端和测试结构复核；新增 `Run/lib/commands.js` 承接 Run 控制台固定命令目录、写入参数构造和校验，`Run/server.js` 回到 HTTP/API/CLI 执行边界。
-- 文件：`Run/lib/commands.js`、`Run/server.js`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-run-command-catalog-module.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`npm.cmd run verify`、`node plugins/project-guardian/scripts/guardian.js verify`、`npm.cmd audit --audit-level=moderate` 和 `git diff --check`；当前 58 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，diff 空白检查无错误。`npm.cmd pack --dry-run` 因本机 npm cache `EPERM` 失败，提权重跑被当前环境用量限制拒绝，需要用户本机补跑。
-- 后续：真实使用后观察是否需要命令搜索、写入前 diff 预览、操作日志，或继续把 Run API 路由拆成独立模块。
+- 任务：继续拆分 `guardian.js` 并完善 Run 命令操作体验。
+- 总结：新增 `config.js`、`doc-validation.js` 和 `knowledge.js`，把配置、文档校验、query/brief 检索从 `guardian.js` 中拆出；Run 控制台新增命令搜索、操作日志和写入前 diff 预览，服务端提供固定只读 `/api/diff-preview`。
+- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/HANDOVER.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-cli-module-and-run-ops.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和一次性 Run UI/API 冒烟脚本；当前 61 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，打包预览包含新增 CLI 模块和 Run 文件，页面节点、status、diff-preview 和 query API 均可用。
+- 后续：继续观察是否需要把 Run API 路由拆成独立模块、为 diff 预览增加完整补丁查看、导出操作日志，或继续拆分 `guardian.js` 中的 Git/decision/reviews/security 逻辑。

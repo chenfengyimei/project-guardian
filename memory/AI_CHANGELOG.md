@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-04 18:04 - 拆分 CLI 核心模块并增强 Run 命令操作
+
+- 用户需求：`guardian.js` 仍然偏大，下一步按低风险顺序拆配置加载/校验、文档校验、query/brief 检索；Run 后续继续补命令搜索、写入前 diff 预览和操作日志，并完善这些功能。
+- AI 总结：新增 `plugins/project-guardian/scripts/lib/config.js`、`doc-validation.js` 和 `knowledge.js`，把配置加载/校验、核心记忆文档质量检查、query/brief 检索与读取计划格式化从 `guardian.js` 中拆出；Run 控制台新增命令搜索、浏览器本地短操作日志和写入类命令弹窗内的固定 Git diff 预览。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/HANDOVER.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-cli-module-and-run-ops.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
+- 业务原因：继续降低 `guardian.js` 的维护压力，让配置、文档质量和检索能力都有独立测试边界；Run 命令数量增加后，零基础用户需要搜索命令、在写入前确认 Git 改动状态，并能回看简短操作结果。
+- 技术说明：`guardian.js` 保留命令编排和仍被多处复用的 Git/文件遍历逻辑；`config.js` 统一默认配置、语言和配置校验；`doc-validation.js` 统一 `validate-docs` 规则；`knowledge.js` 统一 query 排名、输出格式和 brief token 预算。Run `/api/diff-preview` 只执行固定只读 Git 命令，不接受用户传入参数；操作日志只保存在浏览器本地。
+- 验证方式：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和一次性 Run UI/API 冒烟脚本；当前 61 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，打包预览包含新增 CLI 模块和 Run 文件，页面节点、status、diff-preview 和 query API 均可用。
+- 风险：`guardian.js` 仍未完全模块化，后续还可以继续拆 Git、decision/reviews、security 和 handover；Run 操作日志不是正式审计日志，diff 预览只是摘要，不展示完整补丁；Web UI 仍默认只适合本机使用，不能直接公网暴露。
+- 敏感信息检查：已检查本轮变更没有写入生产密码、真实 token、客户隐私或其它密钥；`guardian verify` 中的安全扫描已通过。
+- 下一步：提交前复查最终 diff；后续根据真实使用反馈决定是否继续拆 Run API 路由、增加完整 diff 查看或导出操作日志。
+
 ### 2026-06-04 11:39 - 拆分 Run 命令目录模块
 
 - 用户需求：阅读项目所有代码文件，分析代码结构与实现目标，把繁琐代码进行多步拆解和分析，并对耦合度较高的地方进行重构解耦、完善项目框架和修复问题。

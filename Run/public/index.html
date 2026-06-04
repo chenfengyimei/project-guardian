@@ -193,7 +193,17 @@
                 <h3>CLI 指令</h3>
                 <span class="muted">全量命令目录，写入类必须确认</span>
               </div>
+              <div class="command-toolbar">
+                <input id="commandSearch" type="search" autocomplete="off" placeholder="&#x641C;&#x7D22;&#x547D;&#x4EE4;&#x3001;&#x8BF4;&#x660E;&#x6216; guardian &#x5B50;&#x547D;&#x4EE4;" aria-label="&#x641C;&#x7D22;&#x547D;&#x4EE4;">
+              </div>
               <div id="commandButtons" class="command-groups"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>&#x64CD;&#x4F5C;&#x65E5;&#x5FD7;</h3>
+                <button id="clearOperationLog" class="ghost-button" type="button">&#x6E05;&#x7A7A;</button>
+              </div>
+              <div id="operationLog" class="operation-log" aria-live="polite">&#x6682;&#x65E0;&#x64CD;&#x4F5C;</div>
             </section>
             <section class="panel">
               <div class="panel-head">
@@ -219,6 +229,13 @@
           </div>
           <p id="commandModalDescription" class="muted"></p>
           <code id="commandModalLine" class="command-line"></code>
+          <section id="commandModalDiffPanel" class="diff-preview" hidden>
+            <div class="diff-preview-head">
+              <strong>&#x5199;&#x5165;&#x524D; diff &#x9884;&#x89C8;</strong>
+              <button id="commandModalRefreshDiff" class="ghost-button" type="button">&#x5237;&#x65B0; diff</button>
+            </div>
+            <pre id="commandModalDiff">&#x7B49;&#x5F85;&#x8BFB;&#x53D6; diff...</pre>
+          </section>
           <div id="commandModalFields" class="template-fields"></div>
           <label id="commandModalConfirmLabel" class="modal-confirm">
             写入确认

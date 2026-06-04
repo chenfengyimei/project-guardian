@@ -66,7 +66,7 @@ npm.cmd test
 | --- | --- | --- |
 | 插件元数据 | `plugins/project-guardian/.codex-plugin/plugin.json`、`.agents/plugins/marketplace.json` | 让 Codex 发现和安装本地插件 |
 | Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | 告诉 Codex 在回答或编辑前如何使用项目记忆 |
-| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/mcp.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、conflicts、verify、安全扫描、AI 工具适配器解析和 adapters doctor |
+| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`plugins/project-guardian/scripts/lib/mcp.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、conflicts、verify、安全扫描、配置加载、文档校验、query/brief 检索、手动记忆模板、AI 工具适配器解析和 adapters doctor |
 | 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件、AI 工具规则和 VS Code tasks |
 | 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
 | 测试 | `package.json`、`tests/guardian.test.js` | 使用临时仓库运行语法检查和命令行为测试 |
@@ -82,6 +82,7 @@ npm.cmd test
 - 决策复审：对临时方案、安全权限、质量闸门、MCP、CI 或兼容策略设置 `--review-after`；到期后运行 `guardian reviews due`，由 AI 或人工完成检查，再运行 `guardian reviews complete ...` 标记正常和无需继续复审。
 - CI 接入：运行 `guardian install-ci`，审阅生成的 `.workflow/project-guardian.yml`，并按需通过配置调整分支或 Node 版本。
 - MCP 接入：支持 MCP 的 AI IDE 使用 `guardian mcp`；没有全局 CLI 时使用 `node plugins/project-guardian/scripts/guardian.js mcp`。高风险环境先用只读和允许列表；先用 `guardian_brief` 做读取计划，查询时用 `guardian_query.limit` 控制返回片段数量。
+- Run 可视化：运行 `npm run ui` 后在命令操作页用搜索框查找 CLI 命令；写入类命令弹窗会显示固定 Git diff 预览，并把简短结果写入操作日志。操作日志只是辅助审计，正式提交仍以 Git diff、`AI_CHANGELOG.md` 和 `guardian verify` 为准。
 
 ## 常见问题
 
@@ -101,7 +102,7 @@ npm.cmd test
 
 ## 风险区域
 
-- 修改 `guardian.js` 会影响所有命令，发布前要在临时仓库中测试命令行为。
+- 修改 `guardian.js` 或 `plugins/project-guardian/scripts/lib/*.js` 会影响 CLI 命令，发布前要在临时仓库中测试命令行为。
 - 校验规则应该阻止空模板，但不能强迫团队写过量文档。
 - 安全扫描必须隐藏敏感值，并允许通过 `.guardianignore` 对无害示例做排除。
 - Gitee 工作流生成必须保持可配置，因为组织之间的分支名和流水线语法可能不同。

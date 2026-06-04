@@ -418,6 +418,19 @@ button:disabled {
   gap: 18px;
 }
 
+.command-toolbar {
+  margin-bottom: 14px;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: #fbfcfd;
+}
+
 .command-group {
   display: grid;
   gap: 10px;
@@ -511,6 +524,47 @@ button:disabled {
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.operation-log {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.operation-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ok);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.operation-item.failed {
+  border-left-color: var(--bad);
+}
+
+.operation-item strong {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.operation-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.operation-item p {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .command-card-form,
@@ -694,6 +748,40 @@ button:disabled {
   display: grid;
   gap: 14px;
   padding: 18px;
+}
+
+.diff-preview {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.diff-preview[hidden] {
+  display: none;
+}
+
+.diff-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diff-preview pre {
+  max-height: 220px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 7px;
+  background: #101820;
+  color: #e8f0f2;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .modal-actions {

@@ -5,8 +5,21 @@ const os = require("os");
 const path = require("path");
 const readline = require("readline");
 const { execFileSync } = require("child_process");
-const { DEFAULT_ADAPTERS, SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters, validateAdapters } = require("./lib/adapters");
-const { runMcpServer, validateMcpConfig } = require("./lib/mcp");
+const { SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters } = require("./lib/adapters");
+const {
+  CONFIG_FILE,
+  DEFAULT_CONFIG,
+  SUPPORTED_LANGUAGES,
+  applyInitFlags,
+  clone,
+  isChinese,
+  loadConfig,
+  mergeConfig,
+  validateConfig,
+} = require("./lib/config");
+const { latestChangelog, runDocValidation } = require("./lib/doc-validation");
+const { buildBrief, chunks, formatBrief, formatResults, searchIndex } = require("./lib/knowledge");
+const { runMcpServer } = require("./lib/mcp");
 const {
   buildManualMemoryContent,
   buildManualMemoryEntry,
@@ -17,9 +30,7 @@ const {
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
-const CONFIG_FILE = "project-guardian.config.json";
 const AGENT_RULE_FILES = ["AGENTS.md", ".cursorrules"];
-const SUPPORTED_LANGUAGES = ["zh-CN", "en"];
 const DEFAULT_QUERY_LIMIT = 6;
 const MAX_QUERY_LIMIT = 10;
 const BRIEF_MODES = ["auto", "quick", "deep", "full"];
@@ -45,38 +56,6 @@ const SOURCE_EXTENSIONS = new Set([
   ".yaml",
   ".yml",
 ]);
-
-const DEFAULT_CONFIG = {
-  memoryFiles: {
-    context: "memory/PROJECT_CONTEXT.md",
-    state: "memory/STATE.md",
-    decisions: "memory/DECISIONS.md",
-    changelog: "memory/AI_CHANGELOG.md",
-    handover: "memory/HANDOVER.md",
-    decisionsDirectory: "memory/decisions",
-  },
-  quality: {
-    requireChangedLines: false,
-    taskIdPattern: null,
-  },
-  hooks: {
-    runValidateDocs: true,
-  },
-  ci: {
-    defaultBranch: "master",
-    nodeVersion: "18",
-  },
-  security: {
-    scanSecrets: true,
-  },
-  mcp: {
-    readOnly: false,
-    allowedTools: [],
-  },
-  language: "zh-CN",
-  adapters: DEFAULT_ADAPTERS,
-  ignore: [],
-};
 
 async function main() {
   const [command, ...args] = process.argv.slice(2);
@@ -769,12 +748,6 @@ function runCheck(root, config) {
   return { ok: issues.length === 0, issues, mode, files: target };
 }
 
-function runDocValidation(root, config) {
-  const reports = getDocRules(config).map((rule) => inspectDoc(root, rule));
-  const issues = reports.flatMap((report) => report.issues.map((message) => ({ file: report.file, message })));
-  return { ok: issues.length === 0, reports, issues };
-}
-
 function runReviewValidation(root, config) {
   const items = getReviewItems(root, config);
   const due = items.filter((item) => item.status === "due");
@@ -1090,254 +1063,6 @@ function buildGitHistoryDocs(root) {
   return history ? chunks("git-history", history, 1200, 200, "history") : [];
 }
 
-function inspectDoc(root, rule) {
-  const filePath = path.join(root, rule.file);
-  const text = readMaybe(filePath);
-  const placeholders = countPlaceholders(text);
-  const issues = [];
-
-  if (!text.trim()) issues.push("file is empty");
-  if (meaningfulLength(text) < rule.minLength) issues.push(`content is too short: ${meaningfulLength(text)}/${rule.minLength}`);
-  for (const section of rule.sections) {
-    const variants = Array.isArray(section) ? section : [section];
-    if (!variants.some((variant) => text.includes(variant))) issues.push(`missing section: ${variants.join(" / ")}`);
-  }
-  if (placeholders > rule.maxPlaceholders) issues.push(`too many placeholders: ${placeholders}/${rule.maxPlaceholders}`);
-  for (const issue of fieldIssues(text)) issues.push(issue);
-  if (hasEmptyTableRow(text)) issues.push("contains an empty table row");
-  if (rule.type === "state" && !/^(Last updated|最后更新)[:：]\s*\S+/m.test(text)) issues.push("Last updated / 最后更新 must have a value");
-  if (rule.type === "decisions" && !hasRealDecision(text)) issues.push("must contain a real decision or explicitly say 暂无关键决策");
-  if (rule.type === "changelog") {
-    const latest = latestChangelogText(text);
-    if (hasTodo(latest)) issues.push("latest changelog entry must not contain TODO / 待填写");
-    if (hasMidnightTimestamp(latest)) issues.push("latest changelog entry must use the current local HH:mm time, not 00:00");
-  }
-
-  return { file: rule.file, placeholders, issues };
-}
-
-function countPlaceholders(text) {
-  let count = 0;
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    if (hasTodo(line)) count += 1;
-    if (/^-\s*$/.test(line)) count += 1;
-    if (/^-\s*[^:：]+[:：]\s*$/.test(line)) count += 1;
-    if (/^(Last (updated|generated)|最后(更新|生成))[:：]\s*$/.test(line)) count += 1;
-    if (/^\|\s*(\|\s*)+$/.test(line)) count += 1;
-  }
-  return count;
-}
-
-function meaningfulLength(text) {
-  return text
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/[#*\-_|:`\s]/g, "")
-    .replace(/\bTODO\b/gi, "")
-    .replace(/待填写/g, "")
-    .length;
-}
-
-function fieldIssues(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line, index) => ({ line: line.trim(), index: index + 1 }))
-    .filter(({ line }) => /^-\s*[^:：]+[:：]\s*$/.test(line))
-    .map(({ line, index }) => `line ${index} has an empty field: ${line}`);
-}
-
-function hasEmptyTableRow(text) {
-  return text.split(/\r?\n/).some((line) => {
-    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
-    return cells.length > 0 && cells.every((cell) => cell === "");
-  });
-}
-
-function hasRealDecision(text) {
-  if (text.includes("暂无关键决策")) return true;
-  const hasDecisionTitle = /###\s+\d{4}-\d{2}-\d{2}\s+-\s+(?!(Decision title|决策标题))[^\n]+/.test(text);
-  const hasDecisionField = /-\s*(Decision|决策)[:：]\s*\S+/i.test(text);
-  return hasDecisionTitle && hasDecisionField;
-}
-
-function hasTodo(text) {
-  return /\bTODO\b/i.test(text) || text.includes("待填写");
-}
-
-function latestChangelog(root, config) {
-  return latestChangelogText(readMaybe(path.join(root, config.memoryFiles.changelog)));
-}
-
-function latestChangelogText(text) {
-  const matches = [...text.matchAll(/^###\s+.+$/gm)];
-  if (matches.length === 0) return "";
-  const first = matches[0];
-  const second = matches[1];
-  return text.slice(first.index, second ? second.index : undefined);
-}
-
-function hasMidnightTimestamp(text) {
-  return /^###\s+\d{4}-\d{2}-\d{2}\s+00:00\s+-\s+\S+/m.test(text);
-}
-
-function searchIndex(index, question, limit) {
-  const terms = tokenize(question);
-  const scored = index
-    .map((doc) => ({ doc, score: score(doc, terms) }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
-  const bestKnowledgeScore = Math.max(0, ...scored.filter((item) => item.doc.kind === "knowledge").map((item) => item.score));
-  return scored
-    .filter((item) => includeQueryResult(item, terms, bestKnowledgeScore))
-    .slice(0, limit);
-}
-
-function score(doc, terms) {
-  const haystack = `${doc.file}\n${doc.text}`.toLowerCase();
-  let total = 0;
-  for (const term of terms) {
-    const matches = haystack.match(new RegExp(escapeRegExp(term.toLowerCase()), "g"));
-    if (matches) total += matches.length * Math.min(term.length, 8);
-  }
-  const fileMatched = pathMatchesTerms(doc.file, terms);
-  if (total === 0 && !fileMatched) return 0;
-  if (doc.kind === "knowledge") total += 3;
-  if (fileMatched) total += 12;
-  return total;
-}
-
-function includeQueryResult(item, terms, bestKnowledgeScore) {
-  if (item.doc.kind === "knowledge") return true;
-  if (bestKnowledgeScore === 0) return true;
-  if (pathMatchesTerms(item.doc.file, terms)) return true;
-  return item.score >= Math.max(48, bestKnowledgeScore * 4);
-}
-
-function pathMatchesTerms(file, terms) {
-  const normalized = file.toLowerCase().replace(/\\/g, "/");
-  return terms.some((term) => term.length >= 3 && normalized.includes(term.toLowerCase()));
-}
-
-function formatResults(results) {
-  if (results.length === 0) return "No strong local match. Try a module name, file name, error message, or business keyword.";
-  return results
-    .map(({ doc, score: resultScore }, index) => {
-      const preview = doc.text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .slice(0, 8)
-        .join("\n");
-      return [`\n[${index + 1}] Source: ${doc.file} (score ${resultScore})`, "```text", preview, "```"].join("\n");
-    })
-    .join("\n");
-}
-
-function buildBrief(root, config, question, limit, mode = "auto") {
-  const files = [
-    briefFile(root, config.memoryFiles.context, "Stable project purpose, architecture, environment, and core workflows."),
-    briefFile(root, config.memoryFiles.state, "Current status, known issues, next steps, and latest AI-assisted change."),
-    briefFile(root, config.memoryFiles.decisions, "Architecture, workflow, security, compatibility, dependency, and review decisions."),
-    briefFile(root, config.memoryFiles.changelog, "Recent implementation history, verification notes, regressions, and risks."),
-    briefFile(root, config.memoryFiles.handover, "Onboarding, handover, release preparation, and first-day guidance."),
-  ];
-  const required = files.slice(0, 2).filter((file) => file.exists);
-  const optional = files.slice(2).filter((file) => file.exists);
-  const relevantOptional = optional.filter((file) => briefFileRelevant(file.file, question));
-  const recommended = recommendedBriefFiles(mode, required, optional, relevantOptional, question);
-  const fullTokens = files.reduce((total, file) => total + file.tokens, 0);
-  const recommendedTokens = recommended.reduce((total, file) => total + file.tokens, 0);
-  return { question, limit, mode, files, required, optional, relevantOptional, recommended, fullTokens, recommendedTokens };
-}
-
-function recommendedBriefFiles(mode, required, optional, relevantOptional, question) {
-  if (mode === "quick") return required;
-  if (mode === "deep") return uniqueBriefFiles([...required, ...optional.filter((file) => /DECISIONS|AI_CHANGELOG/i.test(file.file))]);
-  if (mode === "full") return uniqueBriefFiles([...required, ...optional]);
-  return question ? uniqueBriefFiles([...required, ...relevantOptional]) : required;
-}
-
-function briefFile(root, file, reason) {
-  const text = readMaybe(path.join(root, file));
-  return { file, reason, exists: Boolean(text), tokens: estimateTokens(text) };
-}
-
-function briefFileRelevant(file, question) {
-  if (!question) return false;
-  const text = question.toLowerCase();
-  if (/DECISIONS/i.test(file)) return /decisions|decision|architecture|dependency|security|compatibility|workflow|review|token|budget|cost|mcp|ci|auth|payment|data model|决策|架构|依赖|安全|权限|兼容|工作流|复审|token|成本|预算|消耗|登录|支付|数据模型|质量/.test(text);
-  if (/AI_CHANGELOG/i.test(file)) return /history|recent|change|changed|changelog|bug|regression|error|why|risk|最近|历史|变更|修改|修复|报错|错误|回归|风险|为什么/.test(text);
-  if (/HANDOVER/i.test(file)) return /handover|onboard|onboarding|release|start|first day|交接|接手|新人|上线|发布|从0|入门|第一天/.test(text);
-  return false;
-}
-
-function uniqueBriefFiles(files) {
-  const seen = new Set();
-  return files.filter((file) => {
-    if (seen.has(file.file)) return false;
-    seen.add(file.file);
-    return true;
-  });
-}
-
-function estimateTokens(text) {
-  return Math.ceil(String(text || "").length / 2.2);
-}
-
-function formatBrief(briefData) {
-  const savings = briefData.fullTokens > 0
-    ? Math.max(0, Math.round((1 - briefData.recommendedTokens / briefData.fullTokens) * 100))
-    : 0;
-  const queryText = shellQuoteText(briefData.question || "your question");
-  const linesOut = [
-    "Project Guardian brief",
-    "",
-    `Question: ${briefData.question || "(not provided)"}`,
-    `Mode: ${briefData.mode} budget-aware staged reading`,
-    "",
-    "Mode guide:",
-    "- auto: route by task keywords, then escalate when evidence is weak.",
-    "- quick: read only stable context and current state for low-risk routine work.",
-    "- deep: read context, state, decisions, and changelog for bugs, regressions, high-risk modules, or unclear history.",
-    "- full: read every core memory file for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.",
-    "",
-    "Read first:",
-    ...briefData.required.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
-    "",
-    "Read only when relevant:",
-    ...briefData.optional.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
-    "",
-    "Recommended for this task:",
-    ...briefData.recommended.map((file) => `- ${file.file}`),
-    "",
-    "Suggested commands:",
-    `- guardian query "${queryText}" --limit ${briefData.limit}`,
-    `- guardian brief "${queryText}" --mode deep --limit ${briefData.limit}`,
-    `- guardian brief "${queryText}" --mode full --limit ${briefData.limit}`,
-    "- guardian reviews due",
-    "",
-    "Estimated memory token budget:",
-    `- Recommended first pass: ~${briefData.recommendedTokens} tokens`,
-    `- Full core memory: ~${briefData.fullTokens} tokens`,
-    `- Estimated savings: ~${savings}%`,
-    "",
-    "Escalate to deep/full when:",
-    "- the task touches auth, payment, permissions, data models, CI, MCP, security, compatibility, or shared workflows;",
-    "- tests fail, behavior regresses, an error message appears, or the existing implementation is unclear;",
-    "- the user asks why something changed, what happened before, or who should take over;",
-    "- query results are weak, conflicting, or missing important source paths;",
-    "- you plan to delete, rewrite, migrate, or refactor important code.",
-    "",
-    "Rule: budget-aware reading is a starting point, not a hard restriction. Escalate before making risky changes.",
-  ];
-  return linesOut.join("\n");
-}
-
-function shellQuoteText(text) {
-  return String(text).replace(/"/g, '\\"');
-}
-
 function collectFiles(root, config, limit) {
   const tracked = lines(git(root, ["ls-files"]));
   const untracked = lines(git(root, ["ls-files", "--others", "--exclude-standard"]));
@@ -1617,61 +1342,6 @@ function getKnowledgeFiles(config) {
   return [...getCoreMemoryFiles(config), ...AGENT_RULE_FILES];
 }
 
-function getDocRules(config) {
-  return [
-    {
-      file: config.memoryFiles.context,
-      type: "context",
-      sections: [
-        ["## Project Summary", "## 项目概览"],
-        ["## Tech Stack", "## 技术栈"],
-        ["## Core Business Flows", "## 核心业务流程"],
-        ["## How To Run", "## 如何运行"],
-      ],
-      maxPlaceholders: 8,
-      minLength: 400,
-    },
-    {
-      file: config.memoryFiles.state,
-      type: "state",
-      sections: [
-        ["## Current Status", "## 当前状态"],
-        ["## Next Steps", "## 下一步"],
-        ["## Known Issues", "## 已知问题"],
-        ["## Latest AI-Assisted Change", "## 最新 AI 协助变更"],
-      ],
-      maxPlaceholders: 6,
-      minLength: 300,
-    },
-    {
-      file: config.memoryFiles.decisions,
-      type: "decisions",
-      sections: [["# Decisions", "# 决策记录"]],
-      maxPlaceholders: 4,
-      minLength: 150,
-    },
-    {
-      file: config.memoryFiles.changelog,
-      type: "changelog",
-      sections: [["# AI Changelog", "# AI 变更日志"]],
-      maxPlaceholders: 8,
-      minLength: 150,
-    },
-    {
-      file: config.memoryFiles.handover,
-      type: "handover",
-      sections: [
-        ["## First Read", "## 优先阅读"],
-        ["## How To Run", "## 如何运行"],
-        ["## Project Map", "## 项目地图"],
-        ["## New Developer First Day", "## 新人第一天"],
-      ],
-      maxPlaceholders: 8,
-      minLength: 300,
-    },
-  ];
-}
-
 function isMemoryFile(file, config = DEFAULT_CONFIG) {
   const normalized = file.replace(/\\/g, "/");
   return [...getKnowledgeFiles(config), CONFIG_FILE].map((item) => item.replace(/\\/g, "/")).includes(normalized);
@@ -1684,56 +1354,6 @@ function isMemoryRelatedFile(file, config = DEFAULT_CONFIG) {
 function isDecisionDirectoryFile(file, config = DEFAULT_CONFIG) {
   const dir = (config.memoryFiles.decisionsDirectory || "").replace(/\\/g, "/").replace(/\/?$/, "/");
   return dir !== "/" && file.replace(/\\/g, "/").startsWith(dir);
-}
-
-function loadConfig(root) {
-  const configPath = path.join(root, CONFIG_FILE);
-  if (!fs.existsSync(configPath)) return clone(DEFAULT_CONFIG);
-  try {
-    return mergeConfig(clone(DEFAULT_CONFIG), JSON.parse(fs.readFileSync(configPath, "utf8")));
-  } catch (error) {
-    return { ...clone(DEFAULT_CONFIG), __configError: error.message };
-  }
-}
-
-function validateConfig(config) {
-  const issues = [];
-  if (config.__configError) issues.push(`invalid ${CONFIG_FILE}: ${config.__configError}`);
-  if (!SUPPORTED_LANGUAGES.includes(config.language)) issues.push(`language must be one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
-  for (const [name, value] of Object.entries(config.memoryFiles || {})) {
-    if (typeof value !== "string" || value.trim() === "") issues.push(`memoryFiles.${name} must be a non-empty string`);
-  }
-  if (config.quality.taskIdPattern) {
-    try {
-      new RegExp(config.quality.taskIdPattern);
-    } catch (error) {
-      issues.push(`quality.taskIdPattern is not a valid regex: ${error.message}`);
-    }
-  }
-  issues.push(...validateMcpConfig(config.mcp));
-  issues.push(...validateAdapters(config.adapters));
-  return issues;
-}
-
-function mergeConfig(base, override) {
-  for (const [key, value] of Object.entries(override || {})) {
-    if (value && typeof value === "object" && !Array.isArray(value) && base[key] && typeof base[key] === "object") {
-      base[key] = mergeConfig(base[key], value);
-    } else {
-      base[key] = value;
-    }
-  }
-  return base;
-}
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-function applyInitFlags(config, flags) {
-  const language = flags.language || flags.lang;
-  if (!language) return config;
-  return mergeConfig(clone(config), { language });
 }
 
 function parseFlags(args) {
@@ -1779,10 +1399,6 @@ function resolveAdaptersOrFail(flags, config) {
   }
 }
 
-function isChinese(config = DEFAULT_CONFIG) {
-  return config.language === "zh-CN";
-}
-
 function validateLanguageOrFail(language) {
   if (!SUPPORTED_LANGUAGES.includes(language)) fail(`Unknown language: ${language}. Use one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
 }
@@ -1808,27 +1424,6 @@ function prompt(label) {
 function areaFor(file) {
   const first = file.split(/[\\/]/)[0];
   return first === file ? "root" : first;
-}
-
-function chunks(file, text, size, overlap, kind = "source") {
-  const clean = text.replace(/\0/g, "");
-  const result = [];
-  for (let start = 0; start < clean.length; start += size - overlap) {
-    result.push({ file, kind, text: clean.slice(start, start + size) });
-    if (result.length > 20) break;
-  }
-  return result;
-}
-
-function tokenize(input) {
-  const ascii = input.toLowerCase().match(/[a-z0-9_.:/-]{2,}/g) || [];
-  const cjk = input.match(/[\u4e00-\u9fff]{2,}/g) || [];
-  const cjkPairs = cjk.flatMap((word) => {
-    const pairs = [];
-    for (let i = 0; i < word.length - 1; i += 1) pairs.push(word.slice(i, i + 2));
-    return pairs;
-  });
-  return [...new Set([...ascii, ...cjk, ...cjkPairs])];
 }
 
 function git(root, args) {
@@ -1891,10 +1486,6 @@ function fenced(text) {
 function trimForDoc(text, max) {
   if (!text) return "No content recorded.";
   return text.length <= max ? text : `${text.slice(0, max)}\n...`;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function readPluginVersion() {

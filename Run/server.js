@@ -26,10 +26,11 @@ const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4357;
 const CONFIG_FILE = "project-guardian.config.json";
-const API_VERSION = 3;
+const API_VERSION = 4;
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 512 * 1024;
+const MAX_DIFF_PREVIEW_BYTES = 96 * 1024;
 const MAX_MEMORY_FILE_BYTES = 256 * 1024;
 const BRIEF_MODES = new Set(["auto", "quick", "deep", "full"]);
 const INIT_LANGUAGES = new Set(["zh-CN", "en"]);
@@ -160,6 +161,11 @@ async function handleApi(req, res, requestUrl, context) {
     return;
   }
 
+  if (req.method === "GET" && requestUrl.pathname === "/api/diff-preview") {
+    sendJson(res, 200, await diffPreviewPayload(context));
+    return;
+  }
+
   if (req.method === "GET" && requestUrl.pathname === "/api/memory") {
     sendJson(res, 200, readMemoryPayload(context, requestUrl.searchParams.get("name")));
     return;
@@ -242,6 +248,9 @@ function statusPayload(context) {
       appendMemory: true,
       configuredMemoryPaths: true,
       templateMemoryAppend: true,
+      commandSearch: true,
+      diffPreview: true,
+      operationLog: true,
     },
     readOnly: false,
     commandApiReadOnly: false,
@@ -258,6 +267,24 @@ function statusPayload(context) {
         exists: fs.existsSync(absolutePath),
       };
     }),
+  };
+}
+
+async function diffPreviewPayload(context) {
+  const [status, unstaged, staged] = await Promise.all([
+    runGit(context, ["status", "--short"]),
+    runGit(context, ["diff", "--stat"]),
+    runGit(context, ["diff", "--cached", "--stat"]),
+  ]);
+  const gitAvailable = [status, unstaged, staged].some((result) => result.status === 0);
+  return {
+    ok: true,
+    gitAvailable,
+    projectRoot: context.projectRoot,
+    status: status.stdout.trim(),
+    unstagedStat: unstaged.stdout.trim(),
+    stagedStat: staged.stdout.trim(),
+    stderr: uniqueLines([status.stderr, unstaged.stderr, staged.stderr].join("\n")),
   };
 }
 
@@ -375,6 +402,40 @@ async function sendCommandResult(res, context, args, action) {
   });
 }
 
+function runGit(context, args) {
+  return new Promise((resolve) => {
+    const child = spawn("git", args, {
+      cwd: context.projectRoot,
+      env: { ...process.env, NO_COLOR: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, 10_000);
+
+    child.stdout.on("data", (chunk) => {
+      stdout = appendLimitedTo(stdout, chunk.toString(), MAX_DIFF_PREVIEW_BYTES);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = appendLimitedTo(stderr, chunk.toString(), MAX_DIFF_PREVIEW_BYTES);
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ status: 1, stdout, stderr: `${stderr}${error.message}`, timedOut });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ status: code === null ? 1 : code, stdout, stderr, timedOut });
+    });
+  });
+}
+
 function runGuardian(context, args) {
   return new Promise((resolve) => {
     if (!context.guardianScript) {
@@ -420,10 +481,18 @@ function runGuardian(context, args) {
 }
 
 function appendLimited(current, addition) {
-  if (Buffer.byteLength(current, "utf8") >= MAX_OUTPUT_BYTES) return current;
+  return appendLimitedTo(current, addition, MAX_OUTPUT_BYTES);
+}
+
+function appendLimitedTo(current, addition, byteLimit) {
+  if (Buffer.byteLength(current, "utf8") >= byteLimit) return current;
   const next = current + addition;
-  if (Buffer.byteLength(next, "utf8") <= MAX_OUTPUT_BYTES) return next;
-  return `${next.slice(0, MAX_OUTPUT_BYTES)}\n[output truncated]`;
+  if (Buffer.byteLength(next, "utf8") <= byteLimit) return next;
+  return `${next.slice(0, byteLimit)}\n[output truncated]`;
+}
+
+function uniqueLines(value) {
+  return [...new Set(String(value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean))].join("\n");
 }
 
 function readJsonBody(req) {

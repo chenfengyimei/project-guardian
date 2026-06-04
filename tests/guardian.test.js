@@ -549,6 +549,17 @@ test("Run command catalog is grouped for easier scanning", () => {
   ]);
   assert.deepEqual(groups.map((group) => group.id), ["linked", "read", "write", "terminal"]);
   assert.deepEqual(groups.map((group) => group.commands[0].id), ["init", "doctor", "update", "mcp"]);
+  assert.deepEqual(runApp.filterCommandsForSearch([
+    { id: "verify", kind: "read", command: "guardian verify", description: "Run all checks" },
+    { id: "handover", kind: "write", command: "guardian handover", description: "Generate guide" },
+  ], "checks").map((command) => command.id), ["verify"]);
+  assert.match(runApp.formatDiffPreview({
+    gitAvailable: true,
+    status: " M Run/public/app.js",
+    unstagedStat: "Run/public/app.js | 10 ++++++++++",
+    stagedStat: "",
+    stderr: "",
+  }), /Unstaged diff --stat/);
 });
 
 test("Run command module builds guarded command args", () => {
@@ -568,6 +579,82 @@ test("Run command module builds guarded command args", () => {
   assert.equal(publicUpdate.kind, "write");
   assert.equal(publicUpdate.confirmation, "RUN_COMMAND");
   assert.equal(Object.prototype.hasOwnProperty.call(publicUpdate, "buildArgs"), false);
+});
+
+test("config module merges defaults and validates project config", () => {
+  const root = tempDir("config-module");
+  const configModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "config.js"));
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), {
+      language: "en",
+      memoryFiles: { state: "docs/state.md" },
+      mcp: { readOnly: false, allowedTools: ["guardian_query"] },
+    });
+    const config = configModule.loadConfig(root);
+    assert.equal(config.language, "en");
+    assert.equal(config.memoryFiles.state, "docs/state.md");
+    assert.equal(config.memoryFiles.context, "memory/PROJECT_CONTEXT.md");
+    assert.equal(configModule.isChinese(config), false);
+
+    const initialized = configModule.applyInitFlags(config, { language: "zh-CN" });
+    assert.equal(initialized.language, "zh-CN");
+    assert.equal(config.language, "en");
+
+    assert.deepEqual(configModule.validateConfig(config), []);
+    const issues = configModule.validateConfig(configModule.mergeConfig(configModule.clone(config), {
+      language: "fr",
+      mcp: { allowedTools: ["unknown_tool"] },
+      quality: { taskIdPattern: "[" },
+    }));
+    assert.ok(issues.some((issue) => /language must be one of/.test(issue)));
+    assert.ok(issues.some((issue) => /unsupported tool: unknown_tool/.test(issue)));
+    assert.ok(issues.some((issue) => /taskIdPattern/.test(issue)));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("document validation module checks latest changelog substance", () => {
+  const docValidation = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "doc-validation.js"));
+  const text = [
+    "# AI Changelog",
+    "",
+    "### 2026-06-04 00:00 - Latest",
+    "",
+    "- Verification: TODO",
+    "",
+    "### 2026-06-03 12:30 - Older",
+    "",
+    "- Verification: npm test",
+    "",
+  ].join("\n");
+
+  const latest = docValidation.latestChangelogText(text);
+  assert.match(latest, /2026-06-04 00:00/);
+  assert.equal(docValidation.hasTodo(latest), true);
+  assert.equal(docValidation.hasMidnightTimestamp(latest), true);
+});
+
+test("knowledge module ranks query results and builds token-aware briefs", () => {
+  const root = tempDir("knowledge-module");
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  try {
+    writeValidMemory(root);
+    const results = knowledge.searchIndex([
+      { file: "memory/PROJECT_CONTEXT.md", kind: "knowledge", text: "Project memory workflow and handover guide." },
+      { file: "Run/public/index.html", kind: "source", text: "workflow workflow workflow UI snippet." },
+    ], "memory workflow", 2);
+
+    assert.equal(results[0].doc.kind, "knowledge");
+    assert.match(knowledge.formatResults(results), /Source: memory\/PROJECT_CONTEXT\.md/);
+
+    const brief = knowledge.buildBrief(root, defaultConfig({ language: "en" }), "recent risk history", 3, "auto");
+    assert.ok(brief.fullTokens > 0);
+    assert.ok(brief.recommended.some((file) => /AI_CHANGELOG/.test(file.file)));
+    assert.match(knowledge.formatBrief(brief), /Estimated memory token budget/);
+  } finally {
+    cleanup(root);
+  }
 });
 
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
@@ -591,8 +678,12 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
     assert.match(page.body, /id="queryOutput" class="output"/);
     assert.match(page.body, /id="commandButtons" class="command-groups"/);
+    assert.match(page.body, /id="commandSearch"/);
+    assert.match(page.body, /id="operationLog" class="operation-log"/);
     assert.match(page.body, /id="appendTemplate"/);
     assert.match(page.body, /id="commandModal"/);
+    assert.match(page.body, /id="commandModalDiffPanel" class="diff-preview"/);
+    assert.match(page.body, /id="commandModalRefreshDiff"/);
     assert.doesNotMatch(page.body, /<pre id="memoryViewer"/);
 
     const status = await requestJson(server, "/api/status");
@@ -605,6 +696,9 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.features.initProject, true);
     assert.equal(status.body.features.appendMemory, true);
     assert.equal(status.body.features.templateMemoryAppend, true);
+    assert.equal(status.body.features.commandSearch, true);
+    assert.equal(status.body.features.diffPreview, true);
+    assert.equal(status.body.features.operationLog, true);
     assert.ok(status.body.actions.includes("verify"));
     assert.ok(status.body.commands.some((command) => command.id === "help" && command.kind === "read"));
     assert.ok(status.body.commands.some((command) => command.id === "append-memory" && command.kind === "linked"));
@@ -614,6 +708,13 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.ok(status.body.memoryAppendTemplates.some((template) => template.id === "state-progress" && template.target === "STATE"));
     assert.ok(status.body.memoryAppendTemplates.some((template) => template.id === "custom-note" && template.target === "*"));
     assert.ok(status.body.memoryFiles.some((file) => file.name === "PROJECT_CONTEXT" && file.exists));
+
+    const diffPreview = await requestJson(server, "/api/diff-preview");
+    assert.equal(diffPreview.status, 200);
+    assert.equal(diffPreview.body.ok, true);
+    assert.equal(typeof diffPreview.body.status, "string");
+    assert.equal(typeof diffPreview.body.unstagedStat, "string");
+    assert.equal(typeof diffPreview.body.stagedStat, "string");
 
     const memory = await requestJson(server, "/api/memory?name=STATE");
     assert.equal(memory.status, 200);
