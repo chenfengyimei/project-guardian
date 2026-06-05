@@ -109,6 +109,7 @@ const nodes = typeof document === "undefined" ? {} : {
   commandButtons: document.querySelector("#commandButtons"),
   output: document.querySelector("#output"),
   queryOutput: document.querySelector("#queryOutput"),
+  briefOutput: document.querySelector("#briefOutput"),
   operationLog: document.querySelector("#operationLog"),
   serverAuditLog: document.querySelector("#serverAuditLog"),
   reloadServerAuditLog: document.querySelector("#reloadServerAuditLog"),
@@ -132,6 +133,7 @@ const nodes = typeof document === "undefined" ? {} : {
   refreshStatus: document.querySelector("#refreshStatus"),
   clearOutput: document.querySelector("#clearOutput"),
   clearQueryOutput: document.querySelector("#clearQueryOutput"),
+  clearBriefOutput: document.querySelector("#clearBriefOutput"),
   clearOperationLog: document.querySelector("#clearOperationLog"),
   initForm: document.querySelector("#initForm"),
   appendMemoryForm: document.querySelector("#appendMemoryForm"),
@@ -179,6 +181,9 @@ if (typeof document !== "undefined") {
   });
   nodes.clearQueryOutput.addEventListener("click", () => {
     nodes.queryOutput.textContent = "等待查询...";
+  });
+  nodes.clearBriefOutput.addEventListener("click", () => {
+    nodes.briefOutput.textContent = "等待读取计划...";
   });
   nodes.clearOperationLog.addEventListener("click", () => {
     state.operationLog = [];
@@ -257,7 +262,12 @@ if (typeof document !== "undefined") {
       mode: document.querySelector("#briefMode").value,
       limit: Number(document.querySelector("#briefLimit").value),
     };
-    await postAndRender("/api/brief", payload, "guardian brief");
+    await postAndRender("/api/brief", payload, "guardian brief", {
+      outputNode: nodes.briefOutput,
+      emptyText: "等待读取计划...",
+      pendingText: "生成中...",
+      nextView: "brief",
+    });
   });
   nodes.queryForm.addEventListener("submit", async (event) => {
     event.preventDefault();
