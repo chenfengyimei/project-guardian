@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-06-05 10:03
+最后更新：2026-06-05 15:58
 
 ## 当前状态
 
@@ -54,16 +54,19 @@
 - Run 控制台命令操作页新增命令搜索、浏览器本地短操作日志和写入类命令弹窗里的固定 Git diff 预览；后端新增只读 `/api/diff-preview`，不接收用户传入 Git 参数。
 - 新增 `plugins/project-guardian/scripts/lib/git-utils.js` 和 `plugins/project-guardian/scripts/lib/security.js`，继续从 `guardian.js` 拆出 Git/diff/文件扫描与安全扫描逻辑；Run 控制台新增服务端本地审计日志 `.project-guardian/run-audit.jsonl` 和 `/api/audit-log`，并在 `.gitignore` 中忽略本地审计目录。
 - Run 控制台新增 `MCP 系统` 页面，通过 `/api/status` 展示 MCP 启动命令、协议版本、配置有效性、只读状态、`allowedTools` 和工具启用/禁用状态；页面只做本地配置摘要，不启动 stdio MCP 长连接。
+- MCP 模块现在提供可复用的工具执行器，Run 控制台通过 `/api/mcp/call` 调用同一套 MCP 工具定义、权限过滤和参数校验；写入类 MCP 工具必须输入 `RUN_MCP`，审计日志只记录工具名和参数名。
+- 新增 `plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js` 和 `plugins/project-guardian/scripts/lib/handover.js`，把决策记录、复审检测/完成和交接指南生成继续从 `guardian.js` 中拆出；主 CLI 现在更偏命令编排。
+- 新增 `Run/lib/audit.js`，把 Run 服务端本地审计日志、hash 链完整性校验、敏感摘要脱敏和可选 `GUARDIAN_RUN_TOKEN` API 口令保护从 `Run/server.js` 中拆出；Run 页面会显示审计链完整性。
 
 ## 进行中
 
-- MCP 系统接入 Run 控制台已完成，正在做最终服务启动和交付说明复核。
+- 当前剩余风险已完成收口复核：新增模块均为当前代码硬依赖，`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate` 和 diff 空白检查均已通过，准备作为同一个完整提交范围处理。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 MCP 控制台接入、Run 审计日志、文档、测试和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
-2. 软著申请前由人工确认著作权人、申请版本、软件完成日期、首次发表日期和权属方式，并更新 `docs/ip/` 下的待填写字段。
-3. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
+1. 提交到 Gitee 前复查 `git status`，确认 MCP Web 调用、Run hash 链审计、CLI 拆分模块、文档、测试和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
+2. 后续如果团队需要企业级审计，再设计集中采集、登录鉴权、访问控制、HTTPS、保留策略和不可变存储，而不是继续把 Run 本地 JSONL 当作正式审计系统。
+3. 后续可继续按低风险顺序拆分 `guardian.js` 中的 init/update/check/doctor/query/hooks/CI 编排，或把 Run API 路由再拆成独立模块。
 
 ## 已知问题
 
@@ -80,15 +83,16 @@
 
 ## 风险区域
 
-- `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI 和扫描。
+- `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI、决策、复审、交接和扫描。
+- Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但仍然不是企业集中审计或不可变存储；如果离开 localhost 或多人共享，需要单独补登录鉴权、访问控制、HTTPS、集中采集和保留策略。
 - 文档校验既要严格阻止空模板，又不能严格到让新团队难以逐步接入。
 - 安全扫描必须隐藏敏感值，也要避免在普通文档中产生过多误报。
 - hooks 和 CI 应保持追加式或明确生成，不能覆盖团队已有自动化。
 
 ## 最新 AI 协助变更
 
-- 任务：将 MCP 系统一起写入 Run 可视化控制台。
-- 总结：`mcp.js` 新增公开状态摘要能力；Run `/api/status` 返回 MCP 协议、配置、权限和工具列表；前端新增 `MCP 系统` 页面，展示全局/本地启动命令、只读状态、`allowedTools`、配置问题和工具卡片。页面只展示状态，不直接启动 stdio MCP 长连接。
-- 文件：`plugins/project-guardian/scripts/lib/mcp.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-05-run-mcp-console.md`。
-- 验证：已运行 `node --check` 覆盖相关 JS 文件、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check` 和一次性 Run UI/API 冒烟脚本；自动化测试 63 个全部通过，MCP 状态 API 返回 12 个工具、12 个启用工具。
-- 后续：继续保持 MCP stdio server 由终端或 AI IDE 配置启动；如后续要在控制台做 MCP 客户端调试，应另行设计连接生命周期、权限确认和审计边界。
+- 任务：继续处理剩余风险，拆分 `guardian.js` 的 decision/reviews/handover，并把 Run 审计从普通本地 JSONL 提升为带完整性提示和可选访问口令的本地审计。
+- 总结：新增 `decisions.js`、`reviews.js` 和 `handover.js`，主 CLI 只负责命令分发和校验衔接；新增 `Run/lib/audit.js`，Run 审计日志新记录带 hash 链，`/api/audit-log` 返回完整性校验结果，`GUARDIAN_RUN_TOKEN` 可为 `/api/*` 增加本地口令保护。
+- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js`、`Run/lib/audit.js`、`Run/server.js`、`Run/public/app.js`、`tests/guardian.test.js`、`package.json`、`Run/README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
+- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check`、`npm.cmd run verify` 和 `npm.cmd audit --audit-level=moderate`；66 个测试通过，`guardian verify` 通过，npm 审计 0 漏洞，diff 空白检查无错误，仅有 Windows LF/CRLF 提示。
+- 后续：Run 审计仍不是企业集中审计；若要局域网或多人使用，应启用 `GUARDIAN_RUN_TOKEN` 并补充反向代理、登录鉴权、集中采集和不可变存储。

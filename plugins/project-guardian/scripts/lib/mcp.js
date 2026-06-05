@@ -300,43 +300,33 @@ class McpServer {
     const params = plainObject(message.params) ? message.params : {};
     const name = params.name;
     const args = params.arguments == null ? {} : params.arguments;
-    const knownTool = TOOLS.find((item) => item.name === name);
-    if (!knownTool) {
-      return {
-        jsonrpc: "2.0",
-        id: message.id,
-        error: { code: -32602, message: `Unknown tool: ${name}` },
-      };
-    }
-    if (!this.enabledToolNames.has(name)) {
-      return {
-        jsonrpc: "2.0",
-        id: message.id,
-        error: { code: -32602, message: `Tool disabled by MCP configuration: ${name}` },
-      };
-    }
-    const argumentIssue = validateToolArguments(knownTool, args);
-    if (argumentIssue) {
-      return {
-        jsonrpc: "2.0",
-        id: message.id,
-        error: { code: -32602, message: argumentIssue },
-      };
-    }
-
-    const command = commandForTool(name, args);
-    const isWrite = WRITE_TOOL_NAMES.has(name);
     try {
-      const result = await this.queue.enqueue(() => this.runGuardian(command), isWrite);
+      const result = await executeMcpTool({
+        root: this.root,
+        node: this.node,
+        guardianScript: this.guardianScript,
+        normalizedMcpConfig: this.mcpConfig,
+        enabledToolNames: this.enabledToolNames,
+        queue: this.queue,
+        name,
+        arguments: args,
+      });
       return {
         jsonrpc: "2.0",
         id: message.id,
         result: {
           content: [{ type: "text", text: result.text }],
-          isError: result.code !== 0,
+          isError: result.isError,
         },
       };
     } catch (error) {
+      if (error instanceof McpToolCallError) {
+        return {
+          jsonrpc: "2.0",
+          id: message.id,
+          error: { code: -32602, message: error.message },
+        };
+      }
       return {
         jsonrpc: "2.0",
         id: message.id,
@@ -349,43 +339,11 @@ class McpServer {
   }
 
   runGuardian(args) {
-    return new Promise((resolve) => {
-      const child = spawn(this.node, [this.guardianScript, ...args], {
-        cwd: this.root,
-        env: { ...process.env, PROJECT_GUARDIAN_MCP_CHILD: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      let stdout = "";
-      let stderr = "";
-      let timedOut = false;
-      let outputTruncated = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        child.kill();
-      }, COMMAND_TIMEOUT_MS);
-
-      child.stdout.on("data", (chunk) => {
-        stdout = appendLimited(stdout, chunk.toString());
-        if (Buffer.byteLength(stdout, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
-      });
-      child.stderr.on("data", (chunk) => {
-        stderr = appendLimited(stderr, chunk.toString());
-        if (Buffer.byteLength(stderr, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
-      });
-      child.on("error", (error) => {
-        clearTimeout(timer);
-        resolve({ code: 1, text: error.message });
-      });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (timedOut) {
-          resolve({ code: 1, text: `Command timed out after ${COMMAND_TIMEOUT_MS / 1000}s.` });
-          return;
-        }
-        const text = trimOutput(stdout, stderr, outputTruncated, code);
-        resolve({ code: code === null ? 1 : code, text });
-      });
-    });
+    return runGuardianCommand({
+      root: this.root,
+      node: this.node,
+      guardianScript: this.guardianScript,
+    }, args);
   }
 
   readVersion() {
@@ -449,6 +407,86 @@ function enabledToolNames(normalizedConfig) {
   return configured;
 }
 
+class McpToolCallError extends Error {}
+
+async function executeMcpTool(options = {}) {
+  const root = options.root;
+  const node = options.node || process.execPath;
+  const guardianScript = options.guardianScript;
+  if (!guardianScript || !fs.existsSync(guardianScript)) {
+    const hint = guardianScript ? `File not found: ${guardianScript}` : "guardianScript is not set";
+    throw new McpToolCallError(`Project Guardian CLI script is missing. ${hint}`);
+  }
+
+  const normalizedConfig = options.normalizedMcpConfig || normalizeMcpConfig(options.mcpConfig || {});
+  const enabledNames = options.enabledToolNames || enabledToolNames(normalizedConfig);
+  const args = options.arguments == null ? {} : options.arguments;
+  const tool = validateMcpToolCall(options.name, args, enabledNames);
+  const command = commandForTool(tool.name, args);
+  const isWrite = WRITE_TOOL_NAMES.has(tool.name);
+  const queue = options.queue || new TaskQueue({ maxConcurrentReads: MAX_CONCURRENT_READS });
+  const result = await queue.enqueue(() => runGuardianCommand({ root, node, guardianScript }, command), isWrite);
+  return {
+    ok: result.code === 0,
+    isError: result.code !== 0,
+    name: tool.name,
+    write: isWrite,
+    status: result.code,
+    text: result.text,
+    command,
+  };
+}
+
+function validateMcpToolCall(name, args, enabledNames) {
+  const toolName = String(name || "").trim();
+  const knownTool = TOOLS.find((item) => item.name === toolName);
+  if (!knownTool) throw new McpToolCallError(`Unknown tool: ${toolName}`);
+  if (!enabledNames.has(toolName)) throw new McpToolCallError(`Tool disabled by MCP configuration: ${toolName}`);
+  const argumentIssue = validateToolArguments(knownTool, args);
+  if (argumentIssue) throw new McpToolCallError(argumentIssue);
+  return knownTool;
+}
+
+function runGuardianCommand(context, args) {
+  return new Promise((resolve) => {
+    const child = spawn(context.node, [context.guardianScript, ...args], {
+      cwd: context.root,
+      env: { ...process.env, PROJECT_GUARDIAN_MCP_CHILD: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let outputTruncated = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, COMMAND_TIMEOUT_MS);
+
+    child.stdout.on("data", (chunk) => {
+      stdout = appendLimited(stdout, chunk.toString());
+      if (Buffer.byteLength(stdout, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = appendLimited(stderr, chunk.toString());
+      if (Buffer.byteLength(stderr, "utf8") >= MAX_OUTPUT_BYTES) outputTruncated = true;
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ code: 1, text: error.message });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        resolve({ code: 1, text: `Command timed out after ${COMMAND_TIMEOUT_MS / 1000}s.` });
+        return;
+      }
+      const text = trimOutput(stdout, stderr, outputTruncated, code);
+      resolve({ code: code === null ? 1 : code, text });
+    });
+  });
+}
+
 function publicMcpStatus(config = {}, options = {}) {
   const issues = validateMcpConfig(config);
   const normalized = issues.length
@@ -484,7 +522,36 @@ function publicMcpTool(tool, enabledNames) {
     write: WRITE_TOOL_NAMES.has(tool.name),
     required: tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [],
     properties,
+    fields: publicMcpFields(tool),
   };
+}
+
+function publicMcpFields(tool) {
+  const schema = tool.inputSchema || {};
+  const properties = schema.properties || {};
+  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+  return Object.keys(properties).map((name) => publicMcpField(name, properties[name], required.has(name)));
+}
+
+function publicMcpField(name, property, required) {
+  return {
+    name,
+    label: name,
+    type: publicMcpFieldType(property),
+    required,
+    description: property.description || "",
+    maxLength: property.maxLength,
+    minimum: property.minimum,
+    maximum: property.maximum,
+    options: Array.isArray(property.enum) ? property.enum : undefined,
+  };
+}
+
+function publicMcpFieldType(property) {
+  if (Array.isArray(property.enum)) return "select";
+  if (property.type === "number") return "number";
+  if (property.type === "string" && property.maxLength && property.maxLength > 500) return "textarea";
+  return "text";
 }
 
 function validateToolArguments(tool, args) {
@@ -616,6 +683,7 @@ module.exports = {
   SUPPORTED_MCP_TOOLS,
   TOOLS,
   enabledToolNames,
+  executeMcpTool,
   publicMcpStatus,
   validateMcpConfig,
   runMcpServer,

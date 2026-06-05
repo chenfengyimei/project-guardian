@@ -236,6 +236,31 @@
               </div>
               <div id="mcpTools" class="mcp-tool-list"></div>
             </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>MCP 工具调用</h3>
+                <span class="muted">使用当前 MCP 模块</span>
+              </div>
+              <form id="mcpToolForm" class="mcp-tool-form">
+                <label>
+                  工具
+                  <select id="mcpToolSelect" name="tool"></select>
+                </label>
+                <div id="mcpToolFields" class="template-fields"></div>
+                <label id="mcpToolConfirmLabel" class="modal-confirm" hidden>
+                  写入确认
+                  <input id="mcpToolConfirm" type="text" autocomplete="off">
+                </label>
+                <button id="mcpToolSubmit" type="submit">执行 MCP 工具</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>MCP 输出</h3>
+                <button id="clearMcpOutput" class="ghost-button" type="button">清空</button>
+              </div>
+              <pre id="mcpToolOutput" class="output" aria-live="polite">等待 MCP 工具调用...</pre>
+            </section>
           </section>
 
           <section id="view-commands" class="view">

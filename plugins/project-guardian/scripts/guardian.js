@@ -17,6 +17,7 @@ const {
   validateConfig,
 } = require("./lib/config");
 const { latestChangelog, runDocValidation } = require("./lib/doc-validation");
+const { addDecision } = require("./lib/decisions");
 const {
   changedFilesForUpdate,
   changedLineRanges,
@@ -25,6 +26,7 @@ const {
   git,
   gitChangeSummary,
 } = require("./lib/git-utils");
+const { generateHandover } = require("./lib/handover");
 const { buildBrief, chunks, formatBrief, formatResults, searchIndex } = require("./lib/knowledge");
 const { runMcpServer } = require("./lib/mcp");
 const {
@@ -34,6 +36,7 @@ const {
   publicMemoryAppendTemplates,
   resolveMemoryTarget: resolveManualMemoryTarget,
 } = require("./lib/manual-memory");
+const { printReviewValidation, reviews, runReviewValidation } = require("./lib/reviews");
 const { runSecretScan } = require("./lib/security");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
@@ -91,11 +94,11 @@ async function main() {
       }
       break;
     case "decision-add":
-      await decisionAdd(root, args);
+      await addDecision(root, args);
       break;
     case "decision":
       if (args[0] === "add") {
-        await decisionAdd(root, args.slice(1));
+        await addDecision(root, args.slice(1));
       } else {
         fail("Unknown decision command. Use: guardian decision add --title \"Decision title\"");
       }
@@ -230,137 +233,9 @@ function printAppendMemoryTemplates(fileName = "") {
   }
 }
 
-function buildHandover(config, data) {
-  const { context, decisions, files, packageInfo, state } = data;
-  if (isChinese(config)) {
-    return [
-      "# 交接指南",
-      "",
-      `最后生成：${timestamp()}`,
-      "",
-      "## 优先阅读",
-      "",
-      "修改代码前先阅读这些文件：",
-      "",
-      `1. \`${config.memoryFiles.context}\``,
-      `2. \`${config.memoryFiles.state}\``,
-      `3. \`${config.memoryFiles.decisions}\``,
-      `4. \`${config.memoryFiles.changelog}\``,
-      "",
-      "## 如何运行",
-      "",
-      packageInfo,
-      "",
-      "## 项目地图",
-      "",
-      "| 区域 | 文件 | 用途 |",
-      "| --- | --- | --- |",
-      ...files.slice(0, 80).map((file) => `| ${areaFor(file)} | \`${file}\` | 修改 ${areaFor(file)} 时需要查看。 |`),
-      "",
-      "## 当前状态快照",
-      "",
-      fenced(trimForDoc(state, 3000)),
-      "",
-      "## 项目上下文快照",
-      "",
-      fenced(trimForDoc(context, 3000)),
-      "",
-      "## 决策快照",
-      "",
-      fenced(trimForDoc(decisions, 2500)),
-      "",
-      "## 风险区域",
-      "",
-      "- 修改核心行为前先查看状态文件中的 `风险区域`。",
-      "- 提交交接变更前运行 `guardian verify`。",
-      "",
-      "## 常见问题",
-      "",
-      "| 问题 | 可能原因 | 处理方式 |",
-      "| --- | --- | --- |",
-      "| 记忆校验失败 | 必填字段仍是模板或待填写 | 补齐最新变更、当前状态和决策细节 |",
-      "",
-      "## 新人第一天",
-      "",
-      "1. 阅读全部项目记忆文件。",
-      "2. 在本地跑起来项目。",
-      "3. 运行可用测试或冒烟检查。",
-      `4. 从 \`${config.memoryFiles.state}\` 里选一个小的下一步任务。`,
-      `5. 完成后更新 \`${config.memoryFiles.state}\` 和 \`${config.memoryFiles.changelog}\`。`,
-      "",
-    ].join("\n");
-  }
-  return [
-    "# Handover Guide",
-    "",
-    `Last generated: ${timestamp()}`,
-    "",
-    "## First Read",
-    "",
-    "Read these files before editing code:",
-    "",
-    `1. \`${config.memoryFiles.context}\``,
-    `2. \`${config.memoryFiles.state}\``,
-    `3. \`${config.memoryFiles.decisions}\``,
-    `4. \`${config.memoryFiles.changelog}\``,
-    "",
-    "## How To Run",
-    "",
-    packageInfo,
-    "",
-    "## Project Map",
-    "",
-    "| Area | Files | Purpose |",
-    "| --- | --- | --- |",
-    ...files.slice(0, 80).map((file) => `| ${areaFor(file)} | \`${file}\` | Review this file when working in ${areaFor(file)}. |`),
-    "",
-    "## Current State Snapshot",
-    "",
-    fenced(trimForDoc(state, 3000)),
-    "",
-    "## Project Context Snapshot",
-    "",
-    fenced(trimForDoc(context, 3000)),
-    "",
-    "## Decision Snapshot",
-    "",
-    fenced(trimForDoc(decisions, 2500)),
-    "",
-    "## Risk Areas",
-    "",
-    "- Review `Risk Areas` in the state file before modifying core behavior.",
-    "- Run `guardian verify` before committing handover changes.",
-    "",
-    "## Common Problems",
-    "",
-    "| Problem | Likely cause | Fix |",
-    "| --- | --- | --- |",
-    "| Memory validation fails | Required fields still contain placeholders | Fill the latest change, state, and decision details |",
-    "",
-    "## New Developer First Day",
-    "",
-    "1. Read all project memory files.",
-    "2. Run the project locally.",
-    "3. Run available tests or smoke checks.",
-    `4. Pick one small next step from \`${config.memoryFiles.state}\`.`,
-    `5. Update \`${config.memoryFiles.state}\` and \`${config.memoryFiles.changelog}\` after the change.`,
-    "",
-  ].join("\n");
-}
-
 function handover(root) {
-  const config = loadConfig(root);
-  ensureInitialized(root, config);
-
-  const files = collectFiles(root, config, 160);
-  const packageInfo = readPackageInfo(root);
-  const state = readMaybe(path.join(root, config.memoryFiles.state)).trim();
-  const context = readMaybe(path.join(root, config.memoryFiles.context)).trim();
-  const decisions = readDecisions(root, config).trim();
-  const content = buildHandover(config, { context, decisions, files, packageInfo, state });
-
-  writeFile(path.join(root, config.memoryFiles.handover), content);
-  console.log(`Generated ${config.memoryFiles.handover}.`);
+  const result = generateHandover(root);
+  console.log(`Generated ${result.path}.`);
   validateDocs(root);
 }
 
@@ -461,87 +336,6 @@ function brief(root, args = []) {
   const mode = parseBriefMode(flags.mode);
   const question = flags._.join(" ").trim();
   console.log(formatBrief(buildBrief(root, config, question, limit, mode)));
-}
-
-async function decisionAdd(root, args) {
-  const config = loadConfig(root);
-  ensureInitialized(root, config);
-  const flags = parseFlags(args);
-  const date = flags.date || today();
-  const fields = {
-    title: await requiredValue(flags.title || flags._.join(" "), "Title"),
-    context: await requiredValue(flags.context, "Context"),
-    decision: await requiredValue(flags.decision, "Decision"),
-    alternatives: await optionalValue(flags.alternatives, "Alternatives considered"),
-    files: await optionalValue(flags.files, "Affected files/modules"),
-    relatedChange: await optionalValue(flags.relatedChange || flags["related-change"], "Related change"),
-    verification: await optionalValue(flags.verification, "Verification"),
-    risks: await optionalValue(flags.risks, "Risks"),
-    reviewAfter: await optionalValue(flags.reviewAfter || flags["review-after"], "Review after"),
-    followUp: await optionalValue(flags.followUp || flags["follow-up"], "Follow-up"),
-  };
-  const entry = buildDecisionEntry(config, date, fields);
-  const decisionFile = writeDecisionFile(root, config, date, fields, entry);
-  fs.appendFileSync(path.join(root, config.memoryFiles.decisions), entry, "utf8");
-  if (decisionFile) {
-    const decisionFileLabel = isChinese(config) ? "决策文件" : "Decision file";
-    const separator = isChinese(config) ? "：" : ":";
-    const padding = isChinese(config) ? "" : " ";
-    fs.appendFileSync(path.join(root, config.memoryFiles.decisions), `- ${decisionFileLabel}${separator}${padding}\`${decisionFile}\`\n`, "utf8");
-  }
-  console.log(`Added decision to ${config.memoryFiles.decisions}.`);
-  if (decisionFile) console.log(`Created ${decisionFile}.`);
-}
-
-function reviews(root, args = []) {
-  const config = loadConfig(root);
-  ensureInitialized(root, config);
-  const subcommand = args[0] || "list";
-  if (subcommand === "complete") {
-    completeReview(root, config, args.slice(1));
-    return;
-  }
-  if (!["list", "due", "status"].includes(subcommand)) {
-    fail("Unknown reviews command. Use: guardian reviews, guardian reviews due, or guardian reviews complete <decision-file>");
-  }
-  const result = runReviewValidation(root, config);
-  printReviewValidation(result, false);
-  if (subcommand === "due") finish(result.ok);
-}
-
-function buildDecisionEntry(config, date, fields) {
-  if (isChinese(config)) {
-    return [
-      "",
-      `### ${date} - ${fields.title}`,
-      "",
-      `- 背景：${fields.context}`,
-      `- 决策：${fields.decision}`,
-      `- 备选方案：${fields.alternatives || "暂无记录。"}`,
-      `- 影响文件/模块：${fields.files || "未指定。"}`,
-      `- 关联变更：${fields.relatedChange || "未指定。"}`,
-      `- 验证方式：${fields.verification || "暂无记录。"}`,
-      `- 风险：${fields.risks || "暂无记录。"}`,
-      `- 复审时间：${fields.reviewAfter || "未安排。"}`,
-      `- 后续动作：${fields.followUp || "暂无记录。"}`,
-      "",
-    ].join("\n");
-  }
-  return [
-    "",
-    `### ${date} - ${fields.title}`,
-    "",
-    `- Context: ${fields.context}`,
-    `- Decision: ${fields.decision}`,
-    `- Alternatives considered: ${fields.alternatives || "None recorded."}`,
-    `- Affected files/modules: ${fields.files || "Not specified."}`,
-    `- Related change: ${fields.relatedChange || "Not specified."}`,
-    `- Verification: ${fields.verification || "Not recorded."}`,
-    `- Risks: ${fields.risks || "Not recorded."}`,
-    `- Review after: ${fields.reviewAfter || "Not scheduled."}`,
-    `- Follow-up: ${fields.followUp || "None recorded."}`,
-    "",
-  ].join("\n");
 }
 
 function installHooks(root) {
@@ -734,16 +528,6 @@ function runCheck(root, config) {
   return { ok: issues.length === 0, issues, mode, files: target };
 }
 
-function runReviewValidation(root, config) {
-  const items = getReviewItems(root, config);
-  const due = items.filter((item) => item.status === "due");
-  const issues = due.map((item) => ({
-    file: item.file,
-    message: `review due since ${item.reviewAfter}: ${item.title}`,
-  }));
-  return { ok: due.length === 0, items, due, issues };
-}
-
 function printDoctor(result, silent) {
   if (silent) return;
   console.log("Project Guardian doctor report");
@@ -783,23 +567,6 @@ function printDocValidation(result, silent) {
     }
   }
   console.log(result.ok ? "\nDocument validation passed." : "\nDocument validation failed.");
-}
-
-function printReviewValidation(result, silent) {
-  if (silent) return;
-  console.log("Project Guardian decision review");
-  console.log("");
-  if (result.items.length === 0) {
-    console.log("No scheduled decision reviews found.");
-    return;
-  }
-  for (const item of result.items) {
-    const label = item.status === "completed" ? "completed" : item.status === "due" ? "due" : "scheduled";
-    console.log(`${item.file}: ${label} (review after ${item.reviewAfter})`);
-    console.log(`  - ${item.title}`);
-    if (item.status === "due") console.log(`  - review due since ${item.reviewAfter}`);
-  }
-  console.log(result.ok ? "\nDecision review check passed." : "\nDecision review check failed.");
 }
 
 function printSecretScan(result, silent) {
@@ -1036,160 +803,6 @@ function memoryContainsPattern(root, config, pattern) {
   return getCoreMemoryFiles(config).some((file) => regex.test(readMaybe(path.join(root, file))));
 }
 
-function readPackageInfo(root) {
-  const packagePath = path.join(root, "package.json");
-  if (!fs.existsSync(packagePath)) return "```bash\n# No package.json found. Document project-specific commands here.\n```";
-  try {
-    const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-    const scripts = Object.keys(pkg.scripts || {});
-    const candidates = scripts.filter((name) => /^(dev|start|serve|test|build|verify)$/.test(name));
-    return ["```bash", "# install", "npm install", "", ...candidates.map((name) => `npm run ${name}`), "```"].join("\n");
-  } catch (_) {
-    return "```bash\n# package.json exists but could not be parsed.\n```";
-  }
-}
-
-function readDecisions(root, config) {
-  const main = readMaybe(path.join(root, config.memoryFiles.decisions));
-  const dir = path.join(root, config.memoryFiles.decisionsDirectory);
-  if (!fs.existsSync(dir)) return main;
-  const extra = fs
-    .readdirSync(dir)
-    .filter((file) => file.endsWith(".md"))
-    .map((file) => readMaybe(path.join(dir, file)))
-    .join("\n\n");
-  return `${main}\n\n${extra}`;
-}
-
-function getDecisionFiles(root, config) {
-  if (!config.memoryFiles.decisionsDirectory) return [];
-  const dir = path.join(root, config.memoryFiles.decisionsDirectory);
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((file) => file.endsWith(".md"))
-    .map((file) => path.join(config.memoryFiles.decisionsDirectory, file).replace(/\\/g, "/"));
-}
-
-function getReviewItems(root, config) {
-  return getDecisionFiles(root, config)
-    .map((file) => reviewItem(root, file))
-    .filter((item) => item.reviewAfter);
-}
-
-function reviewItem(root, file) {
-  const text = readMaybe(path.join(root, file));
-  const reviewAfter = reviewDate(text);
-  const title = reviewTitle(text, file);
-  const completed = reviewCompleted(text);
-  const status = completed ? "completed" : reviewAfter && reviewAfter <= today() ? "due" : "scheduled";
-  return { file, title, reviewAfter, completed, status };
-}
-
-function reviewDate(text) {
-  const match = text.match(/^-\s*(?:Review after|复审时间)[:：]\s*(.+)$/mi);
-  if (!match) return "";
-  const value = match[1].trim();
-  if (/^(not scheduled|未安排)/i.test(value)) return "";
-  const date = value.match(/\d{4}-\d{2}-\d{2}/);
-  return date ? date[0] : "";
-}
-
-function reviewTitle(text, fallback) {
-  const heading = text.match(/^###\s+(.+)$/m) || text.match(/^#\s+(.+)$/m);
-  return heading ? heading[1].trim() : fallback;
-}
-
-function reviewCompleted(text) {
-  const status = text.match(/^-\s*(?:Review status|复审状态)[:：]\s*(.+)$/mi);
-  const further = text.match(/^-\s*(?:Further review|后续复审)[:：]\s*(.+)$/mi);
-  return Boolean(status && /^(completed|complete|done|normal|正常|已完成|无需继续复审)/i.test(status[1].trim()))
-    || Boolean(further && /^(no further review needed|无需继续复审)/i.test(further[1].trim()));
-}
-
-function completeReview(root, config, args) {
-  const flags = parseFlags(args);
-  const target = flags._[0];
-  if (!target) fail("Missing decision file. Use: guardian reviews complete memory/decisions/example.md --summary \"Still valid\" --verification \"Checked tests\"");
-  const file = resolveReviewFile(root, config, target);
-  const full = path.join(root, file);
-  const current = readMaybe(full);
-  if (!current) fail(`Review file not found: ${target}`);
-  if (reviewCompleted(current)) {
-    console.log(`${file} is already marked as review completed.`);
-    return;
-  }
-  const block = buildReviewCompletion(config, flags);
-  fs.writeFileSync(full, `${current.replace(/\s*$/, "")}\n\n${block}\n`, "utf8");
-  console.log(`Marked review completed for ${file}.`);
-}
-
-function resolveReviewFile(root, config, target) {
-  const normalized = normalizeForHook(target);
-  const direct = path.join(root, normalized);
-  if (fs.existsSync(direct)) return normalized;
-  const files = getDecisionFiles(root, config);
-  const found = files.find((file) => file === normalized || path.basename(file) === normalized || file.includes(normalized));
-  if (!found) fail(`Review file not found: ${target}`);
-  return found;
-}
-
-function buildReviewCompletion(config, flags) {
-  const reviewer = flags.reviewer || flags.by || (isChinese(config) ? "AI 或人工复审者" : "AI or human reviewer");
-  const summary = flags.summary || flags.result || (isChinese(config) ? "复审通过，当前决策仍然有效。" : "Review passed; the decision remains valid.");
-  const verification = flags.verification || (isChinese(config) ? "复审时已检查相关代码、文档或测试结果。" : "Relevant code, docs, or test results were checked during review.");
-  if (isChinese(config)) {
-    return [
-      "## 复审结果",
-      "",
-      "- 复审状态：正常",
-      `- 复审完成时间：${timestamp()}`,
-      `- 复审人：${reviewer}`,
-      `- 复审结论：${summary}`,
-      `- 验证方式：${verification}`,
-      "- 后续复审：无需继续复审",
-    ].join("\n");
-  }
-  return [
-    "## Review Result",
-    "",
-    "- Review status: completed",
-    `- Review completed at: ${timestamp()}`,
-    `- Reviewer: ${reviewer}`,
-    `- Review summary: ${summary}`,
-    `- Verification: ${verification}`,
-    "- Further review: no further review needed",
-  ].join("\n");
-}
-
-function writeDecisionFile(root, config, date, fields, entry) {
-  const dir = config.memoryFiles.decisionsDirectory;
-  if (!dir) return "";
-  const slug = slugify(fields.title) || `decision-${Date.now()}`;
-  const relative = path.join(dir, `${date}-${slug}.md`).replace(/\\/g, "/");
-  const dateLabel = isChinese(config) ? "日期" : "Date";
-  const recordHeading = isChinese(config) ? "## 决策记录" : "## Decision Record";
-  const content = [
-    `# ${fields.title}`,
-    "",
-    `${dateLabel}: ${date}`,
-    "",
-    recordHeading,
-    entry.trim(),
-    "",
-  ].join("\n");
-  writeFile(path.join(root, relative), content);
-  return relative;
-}
-
-function slugify(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
-
 function getCoreMemoryFiles(config) {
   return [
     config.memoryFiles.context,
@@ -1265,29 +878,6 @@ function validateLanguageOrFail(language) {
   if (!SUPPORTED_LANGUAGES.includes(language)) fail(`Unknown language: ${language}. Use one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
 }
 
-async function requiredValue(value, label) {
-  const next = value || (process.stdin.isTTY ? await prompt(`${label}: `) : "");
-  if (!next) fail(`Missing required field: ${label}`);
-  return next;
-}
-
-async function optionalValue(value, label) {
-  return value || (process.stdin.isTTY ? await prompt(`${label}: `) : "");
-}
-
-function prompt(label) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(label, (answer) => {
-    rl.close();
-    resolve(answer.trim());
-  }));
-}
-
-function areaFor(file) {
-  const first = file.split(/[\\/]/)[0];
-  return first === file ? "root" : first;
-}
-
 function unique(values) {
   return [...new Set(values.filter(Boolean).map((value) => value.replace(/\\/g, "/")))];
 }
@@ -1327,19 +917,6 @@ function timestamp() {
   const now = new Date();
   const pad = (value) => String(value).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function today() {
-  return timestamp().slice(0, 10);
-}
-
-function fenced(text) {
-  return ["```text", text || "No content recorded.", "```"].join("\n");
-}
-
-function trimForDoc(text, max) {
-  if (!text) return "No content recorded.";
-  return text.length <= max ? text : `${text.slice(0, max)}\n...`;
 }
 
 function readPluginVersion() {

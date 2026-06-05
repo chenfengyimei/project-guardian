@@ -40,8 +40,8 @@
 4. 使用可选 `Run/` 本地可视化层。
    - 入口：`npm run ui` 或 `node Run/server.js`。
    - 重要文件：`Run/server.js`、`Run/lib/commands.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`。
-   - 规则：可视化层和核心 CLI/MCP 隔离，但随插件一起发布；默认只监听 `127.0.0.1`，不提供任意 shell 执行；左侧侧边栏负责功能切换，首页只显示插件状态概览；`/api/command` 只允许固定命令目录里的命令，只读命令可直接运行，写入类命令必须输入 `RUN_COMMAND`，专用模块命令和 `mcp` 不通过通用接口直接启动；命令操作支持搜索、短操作日志和写入前固定 Git diff 预览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式，手动追加只使用 `project-guardian.config.json` 中的记忆路径或默认 `memory/` 路径。
-   - 已知边界情况：Run 受控写入入口包括输入 `RUN_INIT` 后运行固定 `guardian init --language ...`、输入 `APPEND_MEMORY` 后追加到核心记忆白名单，以及输入 `RUN_COMMAND` 后运行固定命令目录中的写入类 CLI。Run 仍没有内置鉴权；如果团队使用 `--host 0.0.0.0` 让局域网访问，必须自行增加登录认证、访问控制、反向代理和操作审计。
+   - 规则：可视化层和核心 CLI/MCP 隔离，但随插件一起发布；默认只监听 `127.0.0.1`，不提供任意 shell 执行；左侧侧边栏负责功能切换，首页只显示插件状态概览；`/api/command` 只允许固定命令目录里的命令，只读命令可直接运行，写入类命令必须输入 `RUN_COMMAND`，专用模块命令和 `mcp` 不通过通用接口直接启动；`/api/mcp/call` 复用 MCP 模块执行当前配置启用的工具，写入类 MCP 工具必须输入 `RUN_MCP`；命令操作支持搜索、短操作日志和写入前固定 Git diff 预览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式，手动追加只使用 `project-guardian.config.json` 中的记忆路径或默认 `memory/` 路径。
+   - 已知边界情况：Run 受控写入入口包括输入 `RUN_INIT` 后运行固定 `guardian init --language ...`、输入 `APPEND_MEMORY` 后追加到核心记忆白名单、输入 `RUN_COMMAND` 后运行固定命令目录中的写入类 CLI，以及输入 `RUN_MCP` 后运行当前 MCP 配置允许的写入工具。Run 仍没有内置鉴权；如果团队使用 `--host 0.0.0.0` 让局域网访问，必须自行增加登录认证、访问控制、反向代理和操作审计。
 
 5. 控制 AI 读取项目记忆的 token 成本。
    - 入口：`guardian brief "任务或问题"`、`guardian brief "任务或问题" --mode quick|deep|full`、MCP `guardian_brief`、`guardian query "问题" --limit 3` 和 MCP `guardian_query.limit`。
@@ -92,8 +92,8 @@
 | 记忆目录 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | CLI 默认生成和维护的位置，用于避免根目录被项目记忆文件占满 |
 | Guardian 配置 | 记忆路径、质量规则、hook 行为、CI 默认值、安全扫描开关、MCP 工具权限、默认适配器、忽略路径 | 存放在 `project-guardian.config.json`，默认零配置可用 |
 | AI IDE 适配器 | adapter 名称、目标文件、模板文件、安装状态 | 由 `scripts/lib/adapters.js` 维护，`guardian adapters doctor` 输出当前状态 |
-| MCP 工具 | 工具名、输入 schema、CLI 子命令映射、返回文本 | 由 `scripts/lib/mcp.js` 维护，支持 MCP 的 IDE 通过 stdio 调用；多余参数、错误类型和越界 query limit 会被拒绝 |
-| Run 可视化层 | 本地 HTTP server、静态页面、侧边栏导航、Markdown 记忆预览、受控初始化、手动追加记忆、命令搜索、操作日志、写入前 diff 预览、只读命令白名单 | 存放在 `Run/`，默认只监听 localhost，通过固定参数调用现有 CLI，不复制核心业务逻辑；记忆路径优先来自 `project-guardian.config.json` |
+| MCP 工具 | 工具名、输入 schema、CLI 子命令映射、返回文本、Web/stdio 共享执行器 | 由 `scripts/lib/mcp.js` 维护，支持 MCP 的 IDE 通过 stdio 调用，也支持 Run 通过 `/api/mcp/call` 复用；多余参数、错误类型和越界 query limit 会被拒绝 |
+| Run 可视化层 | 本地 HTTP server、静态页面、侧边栏导航、Markdown 记忆预览、受控初始化、手动追加记忆、命令搜索、操作日志、写入前 diff 预览、只读命令白名单、MCP 工具调用 | 存放在 `Run/`，默认只监听 localhost，通过固定参数调用现有 CLI，并通过 MCP 共享执行器调用启用工具，不复制核心业务逻辑；记忆路径优先来自 `project-guardian.config.json` |
 | 读取计划 | 任务问题、读取模式、推荐文件、必读文件、按需文件、粗略 token 估算、建议查询 limit、升级触发条件 | 由 `guardian brief` 和 MCP `guardian_brief` 输出，用于让 AI 在打开大型历史记忆前先做成本判断；支持 `auto`、`quick`、`deep` 和 `full` |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
 | 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |

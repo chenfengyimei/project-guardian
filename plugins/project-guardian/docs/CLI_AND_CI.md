@@ -264,6 +264,23 @@ Run 现在有三类受控写入入口：
 
 Run 的服务端审计日志会写入目标项目根目录的 `.project-guardian/run-audit.jsonl`。它记录操作时间、API 路由、命令类型、成功状态、退出状态、耗时和受控参数摘要；不会记录 `brief` / `query` 的问题原文，也不会记录手动追加记忆的正文。默认 `.gitignore` 会忽略 `.project-guardian/`，避免打开控制台就污染工作区。这个日志适合本机追踪，不等同企业集中审计；如果团队要正式审计，需要自行采集该 JSONL 并补充登录、访问控制和日志保留策略。
 
+当前新审计记录会额外写入 `sequence`、`previousHash`、`hashAlgorithm` 和 `hash`，形成本地 hash 链；`/api/audit-log` 会返回完整性校验结果，Run 页面会显示审计链是否通过。旧记录没有 hash 时会被标记为 legacy。这个机制是“可发现篡改迹象”，不是“无法篡改”：本地文件仍可能被有权限的人删除、替换或整体重写。企业正式使用时仍应把 `.project-guardian/run-audit.jsonl` 采集到集中日志系统或不可变存储。
+
+如果需要给本地 Run API 加一层访问口令，可以在启动前设置：
+
+```powershell
+$env:GUARDIAN_RUN_TOKEN="your-local-token"
+npm run ui
+```
+
+浏览器首次访问可以使用：
+
+```text
+http://127.0.0.1:4357/?token=your-local-token
+```
+
+前端会把 token 存入当前浏览器本地，并在后续 `/api/*` 请求中发送 `X-Guardian-Run-Token`。如果使用 `node Run/server.js --host 0.0.0.0` 让局域网访问，必须启用 `GUARDIAN_RUN_TOKEN`，并额外增加反向代理、登录鉴权、访问控制、HTTPS 和正式审计归档。
+
 默认只监听 `127.0.0.1`。如果使用 `--host 0.0.0.0` 给局域网访问，必须由团队自行增加登录认证、访问控制、反向代理和操作审计。
 
 ## 2.4 决策复审命令

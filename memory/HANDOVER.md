@@ -66,7 +66,7 @@ npm.cmd test
 | --- | --- | --- |
 | 插件元数据 | `plugins/project-guardian/.codex-plugin/plugin.json`、`.agents/plugins/marketplace.json` | 让 Codex 发现和安装本地插件 |
 | Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | 告诉 Codex 在回答或编辑前如何使用项目记忆 |
-| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、conflicts、verify、安全扫描、配置加载、Git/diff/文件扫描、文档校验、query/brief 检索、手动记忆模板、AI 工具适配器解析和 adapters doctor |
+| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、reviews、conflicts、verify、安全扫描、配置加载、Git/diff/文件扫描、文档校验、query/brief 检索、手动记忆模板、AI 工具适配器解析、决策记录、复审检测和交接生成 |
 | 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件、AI 工具规则和 VS Code tasks |
 | 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
 | 测试 | `package.json`、`tests/guardian.test.js` | 使用临时仓库运行语法检查和命令行为测试 |
@@ -82,7 +82,7 @@ npm.cmd test
 - 决策复审：对临时方案、安全权限、质量闸门、MCP、CI 或兼容策略设置 `--review-after`；到期后运行 `guardian reviews due`，由 AI 或人工完成检查，再运行 `guardian reviews complete ...` 标记正常和无需继续复审。
 - CI 接入：运行 `guardian install-ci`，审阅生成的 `.workflow/project-guardian.yml`，并按需通过配置调整分支或 Node 版本。
 - MCP 接入：支持 MCP 的 AI IDE 使用 `guardian mcp`；没有全局 CLI 时使用 `node plugins/project-guardian/scripts/guardian.js mcp`。高风险环境先用只读和允许列表；先用 `guardian_brief` 做读取计划，查询时用 `guardian_query.limit` 控制返回片段数量。
-- Run 可视化：运行 `npm run ui` 后在命令操作页用搜索框查找 CLI 命令；写入类命令弹窗会显示固定 Git diff 预览，并把简短结果写入操作日志。操作日志只是辅助审计，正式提交仍以 Git diff、`AI_CHANGELOG.md` 和 `guardian verify` 为准。
+- Run 可视化：运行 `npm run ui` 后在命令操作页用搜索框查找 CLI 命令；写入类命令弹窗会显示固定 Git diff 预览。后端会把受控操作写入 `.project-guardian/run-audit.jsonl`，新记录带 hash 链并可在页面查看完整性；如设置 `GUARDIAN_RUN_TOKEN`，`/api/*` 还会要求本地访问口令。它仍是项目本地防篡改提示日志，不是企业集中审计系统，正式提交仍以 Git diff、`AI_CHANGELOG.md` 和 `guardian verify` 为准。
 
 ## 常见问题
 
@@ -108,6 +108,7 @@ npm.cmd test
 - Gitee 工作流生成必须保持可配置，因为组织之间的分支名和流水线语法可能不同。
 - MCP 支持只读模式和工具允许列表，但不做身份认证或逐次审批；接入后仍需依赖本地仓库权限、Git 权限、代码评审和 `guardian verify`。
 - MCP 工具调用会严格校验参数；如果 AI IDE 传多余字段或错误类型，应修正工具参数，而不是绕过校验。
+- Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但本质仍是项目本地 JSONL；如果要满足企业审计，需要集中采集、登录鉴权、访问控制、HTTPS、保留策略和不可变存储。
 - 复审检测依赖标准字段名和 `YYYY-MM-DD` 日期；不要手写破坏 `Review after` / `复审时间` 和完成标记。
 
 ## 新人第一天

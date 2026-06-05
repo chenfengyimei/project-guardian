@@ -31,6 +31,7 @@ const commandGroupOrder = [
 ];
 
 const OPERATION_LOG_KEY = "projectGuardianOperationLog";
+const RUN_TOKEN_KEY = "projectGuardianRunToken";
 const MAX_OPERATION_LOG_ITEMS = 50;
 
 const fallbackAppendTemplate = {
@@ -84,6 +85,7 @@ const state = {
   commandSearch: "",
   operationLog: [],
   serverAuditLog: [],
+  serverAuditIntegrity: null,
 };
 
 const nodes = typeof document === "undefined" ? {} : {
@@ -119,6 +121,14 @@ const nodes = typeof document === "undefined" ? {} : {
   mcpEnabledCount: document.querySelector("#mcpEnabledCount"),
   mcpConfigIssues: document.querySelector("#mcpConfigIssues"),
   mcpTools: document.querySelector("#mcpTools"),
+  mcpToolForm: document.querySelector("#mcpToolForm"),
+  mcpToolSelect: document.querySelector("#mcpToolSelect"),
+  mcpToolFields: document.querySelector("#mcpToolFields"),
+  mcpToolConfirmLabel: document.querySelector("#mcpToolConfirmLabel"),
+  mcpToolConfirm: document.querySelector("#mcpToolConfirm"),
+  mcpToolSubmit: document.querySelector("#mcpToolSubmit"),
+  mcpToolOutput: document.querySelector("#mcpToolOutput"),
+  clearMcpOutput: document.querySelector("#clearMcpOutput"),
   refreshStatus: document.querySelector("#refreshStatus"),
   clearOutput: document.querySelector("#clearOutput"),
   clearQueryOutput: document.querySelector("#clearQueryOutput"),
@@ -149,6 +159,7 @@ const nodes = typeof document === "undefined" ? {} : {
 };
 
 if (typeof document !== "undefined") {
+  captureRunTokenFromUrl();
   state.operationLog = loadOperationLog();
   setSidebarCollapsed(localStorage.getItem("projectGuardianSidebar") === "collapsed");
   renderOperationLog();
@@ -175,6 +186,13 @@ if (typeof document !== "undefined") {
     renderOperationLog();
   });
   if (nodes.reloadServerAuditLog) nodes.reloadServerAuditLog.addEventListener("click", loadServerAuditLog);
+  if (nodes.clearMcpOutput) {
+    nodes.clearMcpOutput.addEventListener("click", () => {
+      nodes.mcpToolOutput.textContent = "等待 MCP 工具调用...";
+    });
+  }
+  if (nodes.mcpToolSelect) nodes.mcpToolSelect.addEventListener("change", renderMcpToolFields);
+  if (nodes.mcpToolForm) nodes.mcpToolForm.addEventListener("submit", handleMcpToolSubmit);
   nodes.commandSearch.addEventListener("input", () => {
     state.commandSearch = nodes.commandSearch.value;
     renderCommandButtons();
@@ -348,6 +366,7 @@ function renderMcpStatus(mcp) {
     ? configIssues.map((issue) => `- ${issue}`).join("\n")
     : "MCP 配置有效。";
   renderMcpTools(tools);
+  renderMcpToolSelect(tools);
 }
 
 function mcpReadOnlyText(data) {
@@ -383,7 +402,66 @@ function renderMcpTools(tools) {
       `<p><span>必填</span><code>${escapeHtml(required)}</code></p>`,
       `<p><span>参数</span><code>${escapeHtml(properties)}</code></p>`,
     ].join("");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = tool.enabled ? "使用" : "已禁用";
+    button.disabled = !tool.enabled;
+    button.addEventListener("click", () => {
+      nodes.mcpToolSelect.value = tool.name;
+      renderMcpToolFields();
+      nodes.mcpToolSelect.focus();
+    });
+    card.appendChild(button);
     nodes.mcpTools.appendChild(card);
+  }
+}
+
+function renderMcpToolSelect(tools) {
+  if (!nodes.mcpToolSelect) return;
+  const previous = nodes.mcpToolSelect.value;
+  nodes.mcpToolSelect.innerHTML = "";
+  for (const tool of tools) {
+    const option = document.createElement("option");
+    option.value = tool.name;
+    option.textContent = `${tool.name}${tool.write ? " - 写入" : " - 只读"}${tool.enabled ? "" : " - 禁用"}`;
+    option.disabled = !tool.enabled;
+    nodes.mcpToolSelect.appendChild(option);
+  }
+  const hasPrevious = tools.some((tool) => tool.name === previous && tool.enabled);
+  const firstEnabled = tools.find((tool) => tool.enabled);
+  if (hasPrevious) nodes.mcpToolSelect.value = previous;
+  else if (firstEnabled) nodes.mcpToolSelect.value = firstEnabled.name;
+  renderMcpToolFields();
+}
+
+function selectedMcpTool() {
+  const tools = state.mcp && Array.isArray(state.mcp.tools) ? state.mcp.tools : [];
+  return tools.find((tool) => tool.name === nodes.mcpToolSelect.value) || null;
+}
+
+function renderMcpToolFields() {
+  if (!nodes.mcpToolFields) return;
+  const tool = selectedMcpTool();
+  nodes.mcpToolFields.innerHTML = "";
+  nodes.mcpToolConfirm.value = "";
+  const canCall = Boolean(tool && tool.enabled && state.features.mcpToolCall);
+  nodes.mcpToolSubmit.disabled = !canCall;
+  nodes.mcpToolConfirmLabel.hidden = !(tool && tool.write);
+  nodes.mcpToolConfirm.required = Boolean(tool && tool.write);
+  nodes.mcpToolConfirm.placeholder = `输入 ${state.confirmations.mcpTool || "RUN_MCP"}`;
+  if (!tool) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "没有可调用的 MCP 工具。";
+    nodes.mcpToolFields.appendChild(empty);
+    return;
+  }
+  for (const field of tool.fields || []) nodes.mcpToolFields.appendChild(renderFieldControl(field));
+  if (!(tool.fields || []).length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "该工具不需要参数。";
+    nodes.mcpToolFields.appendChild(empty);
   }
 }
 
@@ -638,6 +716,11 @@ function renderFieldControl(field) {
       control.appendChild(option);
     }
     control.value = field.value || "";
+  } else if (field.type === "number") {
+    control = document.createElement("input");
+    control.type = "number";
+    if (Number.isFinite(field.minimum)) control.min = String(field.minimum);
+    if (Number.isFinite(field.maximum)) control.max = String(field.maximum);
   } else {
     control = document.createElement("input");
     control.type = "text";
@@ -697,6 +780,33 @@ async function handleCommandModalSubmit(event) {
   if (command.kind === "write") payload.confirm = nodes.commandModalConfirm.value;
   const result = await postAndRender("/api/command", payload, command.command || `guardian ${command.id}`);
   if (result) closeCommandModal();
+}
+
+async function handleMcpToolSubmit(event) {
+  event.preventDefault();
+  const tool = selectedMcpTool();
+  if (!tool || !tool.enabled) return;
+  const payload = {
+    name: tool.name,
+    arguments: collectMcpArguments(tool),
+  };
+  if (tool.write) payload.confirm = nodes.mcpToolConfirm.value;
+  await postAndRender("/api/mcp/call", payload, `MCP ${tool.name}`, {
+    outputNode: nodes.mcpToolOutput,
+    emptyText: "等待 MCP 工具调用...",
+    nextView: "mcp",
+  });
+}
+
+function collectMcpArguments(tool) {
+  const fields = new Map((tool.fields || []).map((field) => [field.name, field]));
+  const values = {};
+  nodes.mcpToolFields.querySelectorAll("input[name], textarea[name], select[name]").forEach((control) => {
+    const field = fields.get(control.name) || {};
+    if (!control.value && !field.required) return;
+    values[control.name] = field.type === "number" ? Number(control.value) : control.value;
+  });
+  return values;
 }
 
 function collectNamedFields(container) {
@@ -805,6 +915,7 @@ async function loadServerAuditLog() {
   try {
     const payload = await requestJson("/api/audit-log?limit=30");
     state.serverAuditLog = payload.entries || [];
+    state.serverAuditIntegrity = payload.integrity || null;
     renderServerAuditLog(payload.path);
   } catch (error) {
     nodes.serverAuditLog.textContent = `\u8bfb\u53d6\u670d\u52a1\u7aef\u5ba1\u8ba1\u5931\u8d25\uff1a${error.message}`;
@@ -819,13 +930,29 @@ function renderServerAuditLog(logPath) {
       : "\u6682\u65e0\u670d\u52a1\u7aef\u5ba1\u8ba1\u8bb0\u5f55";
     return;
   }
-  nodes.serverAuditLog.innerHTML = state.serverAuditLog.map((item) => [
+  const integrity = state.serverAuditIntegrity;
+  const integrityCard = integrity ? [
+    `<article class="operation-item ${integrity.ok ? "ok" : "failed"}">`,
+    `<strong>${integrity.ok ? "\u5ba1\u8ba1\u94fe\u6821\u9a8c OK" : "\u5ba1\u8ba1\u94fe\u6821\u9a8c FAILED"}</strong>`,
+    `<p>${escapeHtml(auditIntegritySummary(integrity))}</p>`,
+    "</article>",
+  ].join("") : "";
+  nodes.serverAuditLog.innerHTML = integrityCard + state.serverAuditLog.map((item) => [
     `<article class="operation-item ${item.ok ? "ok" : "failed"}">`,
     `<strong>${escapeHtml(item.action || "-")} ${item.ok ? "OK" : "FAILED"}</strong>`,
     `<span>${escapeHtml(formatAuditTime(item.timestamp))}</span>`,
     `<p>${escapeHtml(auditSummary(item))}</p>`,
     "</article>",
   ].join("")).join("");
+}
+
+function auditIntegritySummary(integrity) {
+  const parts = [
+    `checked ${Number(integrity.checked || 0)}`,
+    `legacy ${Number(integrity.legacy || 0)}`,
+  ];
+  if (Array.isArray(integrity.issues) && integrity.issues.length) parts.push(integrity.issues.join("; "));
+  return parts.join(" | ");
 }
 
 function auditSummary(item) {
@@ -873,10 +1000,40 @@ function postJson(route, payload) {
 }
 
 async function requestJson(route, options) {
-  const response = await fetch(route, options);
+  const nextOptions = withRunToken(options);
+  const response = await fetch(route, nextOptions);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
   return payload;
+}
+
+function withRunToken(options) {
+  const token = runToken();
+  if (!token) return options;
+  const next = { ...(options || {}) };
+  next.headers = { ...(next.headers || {}), "X-Guardian-Run-Token": token };
+  return next;
+}
+
+function runToken() {
+  try {
+    return localStorage.getItem(RUN_TOKEN_KEY) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function captureRunTokenFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get("token");
+    if (!token) return;
+    localStorage.setItem(RUN_TOKEN_KEY, token);
+    url.searchParams.delete("token");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  } catch (_) {
+    // Token persistence is optional and only used when the server requires it.
+  }
 }
 
 function setOutputPending(outputNode, emptyText, pendingText) {

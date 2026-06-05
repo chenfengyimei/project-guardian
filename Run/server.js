@@ -20,24 +20,27 @@ const {
   COMMANDS,
   publicCommandDefinition,
 } = require("./lib/commands");
+const {
+  appendAuditEvent,
+  isAuthorizedApiRequest,
+  isRunAuthRequired,
+  readAuditLogPayload,
+  summarizeAuditArgs,
+} = require("./lib/audit");
 const { loadConfig } = require("../plugins/project-guardian/scripts/lib/config");
-const { publicMcpStatus } = require("../plugins/project-guardian/scripts/lib/mcp");
+const { executeMcpTool, publicMcpStatus, TaskQueue } = require("../plugins/project-guardian/scripts/lib/mcp");
 
 const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4357;
 const CONFIG_FILE = "project-guardian.config.json";
-const API_VERSION = 5;
+const API_VERSION = 6;
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 512 * 1024;
 const MAX_DIFF_PREVIEW_BYTES = 96 * 1024;
 const MAX_MEMORY_FILE_BYTES = 256 * 1024;
-const AUDIT_DIR = ".project-guardian";
-const AUDIT_LOG_FILE = "run-audit.jsonl";
-const MAX_AUDIT_EVENTS = 200;
-const MAX_AUDIT_DETAIL = 240;
 const BRIEF_MODES = new Set(["auto", "quick", "deep", "full"]);
 const INIT_LANGUAGES = new Set(["zh-CN", "en"]);
 const INIT_ADAPTERS = new Set(["default", "all"]);
@@ -48,6 +51,7 @@ const WRITE_CONFIRMATIONS = {
   init: "RUN_INIT",
   appendMemory: "APPEND_MEMORY",
   command: COMMAND_CONFIRMATION,
+  mcpTool: "RUN_MCP",
 };
 
 const CONTENT_TYPES = {
@@ -123,6 +127,10 @@ Options:
   --port   HTTP port. Use 0 to let the OS choose a free port.
   --cwd    Target project root. Defaults to the current working directory.
 
+Environment:
+  GUARDIAN_RUN_TOKEN  Optional API token. When set, browser requests must send it with ?token=...,
+                      X-Guardian-Run-Token, or Authorization: Bearer <token>.
+
 The web UI runs allowlisted Project Guardian commands. Write-capable UI actions require explicit confirmation.`);
 }
 
@@ -146,12 +154,13 @@ function findGuardianScript(projectRoot) {
 function createServer(inputOptions = {}) {
   const projectRoot = resolveProjectRoot(inputOptions.projectRoot);
   const guardianScript = inputOptions.guardianScript || findGuardianScript(projectRoot);
+  const mcpQueue = inputOptions.mcpQueue || new TaskQueue();
 
   return http.createServer(async (req, res) => {
     try {
       const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
       if (requestUrl.pathname.startsWith("/api/")) {
-        await handleApi(req, res, requestUrl, { projectRoot, guardianScript });
+        await handleApi(req, res, requestUrl, { projectRoot, guardianScript, mcpQueue });
         return;
       }
       serveStatic(requestUrl.pathname, res);
@@ -162,6 +171,19 @@ function createServer(inputOptions = {}) {
 }
 
 async function handleApi(req, res, requestUrl, context) {
+  if (!isAuthorizedApiRequest(req)) {
+    appendAuditEvent(context, {
+      action: "unauthorized",
+      route: requestUrl.pathname,
+      kind: "security",
+      ok: false,
+      status: 401,
+      error: "Unauthorized API request.",
+    });
+    sendJson(res, 401, { ok: false, error: "Unauthorized. Provide GUARDIAN_RUN_TOKEN as X-Guardian-Run-Token or Bearer token." });
+    return;
+  }
+
   if (req.method === "GET" && requestUrl.pathname === "/api/status") {
     sendJson(res, 200, statusPayload(context));
     return;
@@ -207,6 +229,20 @@ async function handleApi(req, res, requestUrl, context) {
     if (command.kind === "write") validateConfirmation(body.confirm, COMMAND_CONFIRMATION);
     const args = command.kind === "write" ? command.buildArgs(body) : command.args;
     await sendCommandResult(res, context, args, action, { route: requestUrl.pathname, kind: command.kind });
+    return;
+  }
+
+  if (requestUrl.pathname === "/api/mcp/call") {
+    const name = validateMcpToolName(body.name);
+    const args = validateMcpArguments(body.arguments);
+    const config = loadConfig(context.projectRoot);
+    const mcpStatus = mcpStatusForContext(context, config);
+    const tool = mcpStatus.tools.find((item) => item.name === name);
+    if (!mcpStatus.configValid) throw badRequest(`Invalid MCP configuration: ${mcpStatus.configIssues.join("; ")}`);
+    if (!tool) throw badRequest(`Unsupported MCP tool: ${name}`);
+    if (!tool.enabled) throw badRequest(`MCP tool is disabled by configuration: ${name}`);
+    if (tool.write) validateConfirmation(body.confirm, WRITE_CONFIRMATIONS.mcpTool);
+    await sendMcpToolResult(res, context, config.mcp, name, args, tool);
     return;
   }
 
@@ -286,12 +322,12 @@ function statusPayload(context) {
       diffPreview: true,
       operationLog: true,
       serverAuditLog: true,
+      auditHashChain: true,
+      authRequired: isRunAuthRequired(),
       mcpStatus: true,
+      mcpToolCall: true,
     },
-    mcp: publicMcpStatus(config.mcp, {
-      globalCommand: "guardian mcp",
-      localCommand: guardianScriptCommand(context),
-    }),
+    mcp: mcpStatusForContext(context, config),
     readOnly: false,
     commandApiReadOnly: false,
     writeRequiresConfirmation: true,
@@ -310,6 +346,13 @@ function statusPayload(context) {
   };
 }
 
+function mcpStatusForContext(context, config = loadConfig(context.projectRoot)) {
+  return publicMcpStatus(config.mcp, {
+    globalCommand: "guardian mcp",
+    localCommand: guardianScriptCommand(context),
+  });
+}
+
 function guardianScriptCommand(context) {
   if (!context.guardianScript) return "";
   const relativeScript = path.relative(context.projectRoot, context.guardianScript).replace(/\\/g, "/");
@@ -321,26 +364,6 @@ function guardianScriptCommand(context) {
 
 function quoteCliPath(value) {
   return /\s/.test(value) ? `"${value}"` : value;
-}
-
-function readAuditLogPayload(context, rawLimit) {
-  const limit = validateAuditLimit(rawLimit);
-  const file = auditLogPath(context);
-  const payload = {
-    ok: true,
-    path: auditLogRelativePath(),
-    exists: fs.existsSync(file),
-    entries: [],
-  };
-  if (!payload.exists) return payload;
-  const text = fs.readFileSync(file, "utf8");
-  payload.entries = text.split(/\r?\n/)
-    .filter(Boolean)
-    .slice(-limit)
-    .map(parseAuditLine)
-    .filter(Boolean)
-    .reverse();
-  return payload;
 }
 
 async function diffPreviewPayload(context) {
@@ -462,11 +485,17 @@ function validateConfirmation(value, expected) {
   if (String(value || "").trim() !== expected) throw badRequest(`Type ${expected} to confirm this write operation.`);
 }
 
-function validateAuditLimit(value) {
-  if (value === undefined || value === null || value === "") return 80;
-  const limit = Number(value);
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_AUDIT_EVENTS) throw badRequest(`Limit must be an integer from 1 to ${MAX_AUDIT_EVENTS}.`);
-  return limit;
+function validateMcpToolName(value) {
+  const name = String(value || "").trim();
+  if (!name) throw badRequest("MCP tool name is required.");
+  if (!/^[A-Za-z0-9_-]+$/.test(name)) throw badRequest("MCP tool name contains unsupported characters.");
+  return name;
+}
+
+function validateMcpArguments(value) {
+  if (value === undefined || value === null || value === "") return {};
+  if (typeof value !== "object" || Array.isArray(value)) throw badRequest("MCP arguments must be an object.");
+  return value;
 }
 
 async function sendCommandResult(res, context, args, action, auditMeta = {}) {
@@ -499,69 +528,54 @@ async function sendCommandResult(res, context, args, action, auditMeta = {}) {
   });
 }
 
-function appendAuditEvent(context, event) {
+async function sendMcpToolResult(res, context, mcpConfig, name, args, tool) {
+  const startedAt = Date.now();
   try {
-    fs.mkdirSync(path.join(context.projectRoot, AUDIT_DIR), { recursive: true });
-    fs.appendFileSync(auditLogPath(context), `${JSON.stringify(sanitizeAuditEvent(event))}\n`, "utf8");
-  } catch (_) {
-    // Audit logging must never break the user-facing command.
+    const result = await executeMcpTool({
+      root: context.projectRoot,
+      guardianScript: context.guardianScript,
+      mcpConfig,
+      queue: context.mcpQueue,
+      name,
+      arguments: args,
+    });
+    appendAuditEvent(context, {
+      action: `mcp:${name}`,
+      route: "/api/mcp/call",
+      kind: tool.write ? "write" : "read",
+      ok: result.ok,
+      status: result.status,
+      durationMs: Date.now() - startedAt,
+      mcpTool: name,
+      mcpArgumentNames: Object.keys(args).sort(),
+      confirmationRequired: Boolean(tool.write),
+      error: result.ok ? "" : result.text,
+    });
+    sendJson(res, 200, {
+      ok: result.ok,
+      action: "mcp",
+      tool: name,
+      write: tool.write,
+      status: result.status,
+      timedOut: false,
+      stdout: result.text,
+      stderr: "",
+    });
+  } catch (error) {
+    appendAuditEvent(context, {
+      action: `mcp:${name}`,
+      route: "/api/mcp/call",
+      kind: tool.write ? "write" : "read",
+      ok: false,
+      status: null,
+      durationMs: Date.now() - startedAt,
+      mcpTool: name,
+      mcpArgumentNames: Object.keys(args).sort(),
+      confirmationRequired: Boolean(tool.write),
+      error: error.message,
+    });
+    sendJson(res, 400, { ok: false, error: error.message });
   }
-}
-
-function sanitizeAuditEvent(event) {
-  return {
-    timestamp: new Date().toISOString(),
-    action: sanitizeAuditText(event.action, 80),
-    route: sanitizeAuditText(event.route, 80),
-    kind: sanitizeAuditText(event.kind, 32),
-    ok: Boolean(event.ok),
-    status: Number.isInteger(event.status) ? event.status : null,
-    timedOut: Boolean(event.timedOut),
-    durationMs: Number.isInteger(event.durationMs) ? event.durationMs : null,
-    args: Array.isArray(event.args) ? event.args.map((item) => sanitizeAuditText(item, 120)).slice(0, 20) : [],
-    questionLength: Number.isInteger(event.questionLength) ? event.questionLength : undefined,
-    limit: Number.isInteger(event.limit) ? event.limit : undefined,
-    mode: event.mode ? sanitizeAuditText(event.mode, 32) : undefined,
-    language: event.language ? sanitizeAuditText(event.language, 32) : undefined,
-    adapter: event.adapter ? sanitizeAuditText(event.adapter, 32) : undefined,
-    memoryName: event.memoryName ? sanitizeAuditText(event.memoryName, 80) : undefined,
-    memoryPath: event.memoryPath ? sanitizeAuditText(event.memoryPath, 160) : undefined,
-    templateId: event.templateId ? sanitizeAuditText(event.templateId, 80) : undefined,
-    fieldNames: Array.isArray(event.fieldNames) ? event.fieldNames.map((item) => sanitizeAuditText(item, 80)).slice(0, 20) : undefined,
-    error: event.error ? sanitizeAuditText(event.error, MAX_AUDIT_DETAIL) : undefined,
-  };
-}
-
-function summarizeAuditArgs(action, args) {
-  if (action === "query") return ["query", "<question>", ...args.slice(2)];
-  if (action === "brief") return ["brief", "<question>", ...args.slice(2)];
-  return args;
-}
-
-function sanitizeAuditText(value, limit) {
-  return redactLikelySecret(String(value || "").replace(/\s+/g, " ").trim()).slice(0, limit);
-}
-
-function redactLikelySecret(value) {
-  return value
-    .replace(/\b(password|passwd|secret|token|api[_-]?key|private[_-]?key)\b\s*[:=]\s*["']?[^"'\s]+/gi, "$1=[redacted]")
-    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted-token]");
-}
-
-function parseAuditLine(line) {
-  try {
-    return JSON.parse(line);
-  } catch (_) {
-    return null;
-  }
-}
-
-function auditLogPath(context) {
-  return path.join(context.projectRoot, AUDIT_DIR, AUDIT_LOG_FILE);
-}
-
-function auditLogRelativePath() {
-  return path.join(AUDIT_DIR, AUDIT_LOG_FILE).replace(/\\/g, "/");
 }
 
 function runGit(context, args) {
@@ -740,7 +754,8 @@ function main() {
     console.log(`Project Guardian Run UI: ${url}`);
     console.log(`Project root: ${projectRoot}`);
     if (!guardianScript) console.log("Warning: Project Guardian CLI script was not found.");
-    if (options.host !== DEFAULT_HOST) console.log("Warning: non-localhost binding has no built-in authentication.");
+    if (isRunAuthRequired()) console.log("Run API token protection is enabled with GUARDIAN_RUN_TOKEN.");
+    if (options.host !== DEFAULT_HOST && !isRunAuthRequired()) console.log("Warning: non-localhost binding has no built-in authentication. Set GUARDIAN_RUN_TOKEN before sharing Run on a network.");
   });
 }
 

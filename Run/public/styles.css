@@ -577,6 +577,10 @@ button:disabled {
   background: #fbfcfd;
 }
 
+.mcp-tool button {
+  justify-self: start;
+}
+
 .mcp-tool.disabled {
   opacity: 0.72;
 }
@@ -630,6 +634,22 @@ button:disabled {
 .chip.disabled {
   background: #f0f1f3;
   color: var(--muted);
+}
+
+.mcp-tool-form {
+  display: grid;
+  gap: 14px;
+}
+
+.mcp-tool-form > label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mcp-tool-form > button {
+  justify-self: start;
 }
 
 .operation-log {

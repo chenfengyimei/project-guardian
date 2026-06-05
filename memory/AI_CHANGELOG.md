@@ -4,6 +4,30 @@
 
 ## 2026 记录
 
+### 2026-06-05 15:58 - 拆分决策复审交接模块并增强 Run 审计边界
+
+- 用户需求：继续处理剩余风险，Run 审计日志已经从浏览器本地辅助记录升级为项目本地 JSONL，但仍不是企业级集中审计；`guardian.js` 已继续瘦身，但 decision/reviews/handover 还可以继续拆成独立模块。
+- AI 总结：新增 `plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js` 和 `plugins/project-guardian/scripts/lib/handover.js`，把决策记录、复审检测/完成和交接指南生成从 `guardian.js` 中拆出；新增 `Run/lib/audit.js`，把 Run 服务端本地审计日志、hash 链完整性校验、敏感摘要脱敏和可选 `GUARDIAN_RUN_TOKEN` API 口令保护从 `Run/server.js` 中拆出；Run 前端会显示审计链校验状态并通过本地保存的 token 发送 API 请求头。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js`、`Run/lib/audit.js`、`Run/server.js`、`Run/public/app.js`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/HANDOVER.md`、`memory/DECISIONS.md` 和 `memory/decisions/2026-06-05-cli-run-audit.md`。
+- 业务原因：继续降低 CLI 与 Run 后端主文件的维护压力，同时把本地审计从“普通落盘记录”提升为“能发现篡改迹象、可选本地访问口令”的轻量机制；但不把它伪装成企业级登录、集中采集或不可变审计系统。
+- 技术说明：`guardian.js` 仍保留命令分发、init/update/check/doctor/query/hooks/CI 等编排；新审计条目写入 `sequence`、`previousHash`、`hashAlgorithm` 和 `hash`，`/api/audit-log` 会返回完整性校验结果，旧无 hash 记录按 legacy 统计；设置 `GUARDIAN_RUN_TOKEN` 后，所有 `/api/*` 请求必须发送 `X-Guardian-Run-Token` 或 Bearer token，未授权访问也会写入脱敏审计记录。
+- 验证方式：已运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check`、`npm.cmd run verify` 和 `npm.cmd audit --audit-level=moderate`；66 个测试全部通过，`guardian verify` 通过，npm 审计 0 漏洞，diff 空白检查无错误，仅有 Windows LF/CRLF 提示。
+- 风险：Run hash 链是本地防篡改提示，不是不可篡改存储；`GUARDIAN_RUN_TOKEN` 是轻量本地口令，不是完整登录鉴权；如果使用 `--host 0.0.0.0` 或多人共享，仍必须额外设计反向代理、HTTPS、登录鉴权、访问控制、集中采集、保留策略和不可变存储；`guardian.js` 后续仍可继续拆分其它命令编排。
+- 敏感信息检查：本轮没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据；文档中的 token 均为示例占位，审计实现会脱敏疑似 token/password/api_key/private_key。
+- 下一步：提交到 Gitee 前复查 `git status`；后续真实使用时再评估集中审计、Run API 路由拆分和继续拆分 `guardian.js` 的 init/update/check/doctor/query/hooks/CI。
+
+### 2026-06-05 15:43 - 让 Run 网页控制台与 MCP 系统模块互联
+
+- 用户需求：网页版继续做，并且 MCP 与网页版同步，作为同一套系统；MCP 单独作为系统模块，网页版负责与这个模块互联、获取信息、传入信息并使用。
+- AI 总结：`plugins/project-guardian/scripts/lib/mcp.js` 新增 `executeMcpTool()` 共享执行器，保留 stdio MCP server，同时让 Run 网页后端通过同一 MCP 模块调用工具；Run 新增 `/api/mcp/call`，只允许调用当前 MCP 配置启用的工具，写入类工具必须输入 `RUN_MCP`；前端 `MCP 系统` 页面新增工具调用表单、动态参数输入、写入确认和 MCP 输出区。
+- 变更文件：`plugins/project-guardian/scripts/lib/mcp.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-05-run-mcp-web-sync.md`。
+- 业务原因：用户需要 MCP 不只是被展示，而是作为 Project Guardian 的独立能力模块被网页控制台复用，避免 CLI、stdio MCP 和 Web UI 形成三套分叉能力。
+- 技术说明：共享执行器复用 `TOOLS`、`WRITE_TOOL_NAMES`、`enabledToolNames()`、`validateToolArguments()` 和 `commandForTool()`；Run server 为每个实例维护 MCP 调用队列，读工具可并发、写工具串行；审计日志只记录 MCP 工具名和参数名，不记录参数值。
+- 验证方式：已运行 `node --check` 覆盖 `mcp.js`、`Run/server.js`、`Run/public/app.js` 和 `tests/guardian.test.js`；针对性运行 `node --test --test-name-pattern "Run web server exposes|mcp public status|mcp executeMcpTool" tests/guardian.test.js`，3 个相关测试通过；最终运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify` 和 `git diff --check`，全量测试 64 个全部通过，`guardian verify` 通过，diff 检查仅有 Windows LF/CRLF 提示。
+- 风险：Run 仍无内置登录鉴权，不能公网暴露；Web 调用 MCP 工具虽然复用 MCP 权限过滤和确认词，但写入工具仍会修改项目记忆，必须继续依赖 Git diff、代码评审和 `guardian verify`。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私；MCP 审计记录不保存工具参数值。
+- 下一步：运行全量验证；真实使用后观察是否需要增加更细的 MCP 工具分组、常用参数模板或外部 MCP 客户端连接诊断。
+
 ### 2026-06-05 10:31 - 继续拆分 Git/安全模块并为 Run 增加服务端审计日志
 
 - 用户需求：继续处理剩余风险，包括 `guardian.js` 仍然没有完全拆完，以及 Run 操作日志只是浏览器本地辅助记录、不算正式审计日志。

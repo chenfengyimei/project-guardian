@@ -27,7 +27,7 @@ function run(cwd, args) {
   });
 }
 
-function requestJson(server, route, payload) {
+function requestJson(server, route, payload, headers = {}) {
   return new Promise((resolve, reject) => {
     const address = server.address();
     const body = payload === undefined ? null : JSON.stringify(payload);
@@ -36,7 +36,8 @@ function requestJson(server, route, payload) {
       port: address.port,
       path: route,
       method: body === null ? "GET" : "POST",
-      headers: body === null ? {} : {
+      headers: body === null ? headers : {
+        ...headers,
         "Content-Type": "application/json",
         "Content-Length": Buffer.byteLength(body),
       },
@@ -690,12 +691,65 @@ test("Git and security helper modules keep CLI support behavior isolated", () =>
   }
 });
 
+test("decision, review, and handover modules preserve CLI workflows", async () => {
+  const root = tempDir("decision-review-handover-modules");
+  const configModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "config.js"));
+  const decisions = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "decisions.js"));
+  const reviews = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "reviews.js"));
+  const handover = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "handover.js"));
+  try {
+    writeValidMemory(root);
+    const created = await decisions.addDecision(root, [
+      "--date",
+      "2026-06-05",
+      "--title",
+      "Module split decision",
+      "--context",
+      "The main CLI file is too large.",
+      "--decision",
+      "Move decision, review, and handover helpers into modules.",
+      "--verification",
+      "Run module and CLI tests.",
+      "--review-after",
+      "2000-01-01",
+    ]);
+    assert.ok(created.decisionFile);
+    assert.ok(fs.existsSync(path.join(root, created.decisionFile)));
+
+    const config = configModule.loadConfig(root);
+    const before = reviews.runReviewValidation(root, config);
+    assert.equal(before.ok, false);
+    assert.ok(before.due.some((item) => item.file === created.decisionFile));
+
+    reviews.completeReview(root, config, [
+      created.decisionFile,
+      "--summary",
+      "The split remains valid.",
+      "--verification",
+      "Checked module tests.",
+    ]);
+    const after = reviews.runReviewValidation(root, config);
+    assert.equal(after.ok, true);
+    assert.ok(after.items.some((item) => item.file === created.decisionFile && item.completed));
+
+    const generated = handover.generateHandover(root);
+    assert.equal(generated.path, "memory/HANDOVER.md");
+    const text = fs.readFileSync(path.join(root, "memory", "HANDOVER.md"), "utf8");
+    assert.match(text, /# Handover Guide/);
+    assert.match(text, /Decision Snapshot/);
+    assert.match(text, /Module split decision/);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
   const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
   try {
     writeValidMemory(root);
+    initGit(root);
     await listen(server);
 
     const page = await requestText(server, "/");
@@ -715,6 +769,9 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.match(page.body, /id="commandButtons" class="command-groups"/);
     assert.match(page.body, /id="mcpTools" class="mcp-tool-list"/);
     assert.match(page.body, /id="mcpConfigState"/);
+    assert.match(page.body, /id="mcpToolForm"/);
+    assert.match(page.body, /id="mcpToolSelect"/);
+    assert.match(page.body, /id="mcpToolOutput" class="output"/);
     assert.match(page.body, /id="commandSearch"/);
     assert.match(page.body, /id="operationLog" class="operation-log"/);
     assert.match(page.body, /id="serverAuditLog" class="operation-log audit-log"/);
@@ -739,7 +796,11 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.features.diffPreview, true);
     assert.equal(status.body.features.operationLog, true);
     assert.equal(status.body.features.serverAuditLog, true);
+    assert.equal(status.body.features.auditHashChain, true);
+    assert.equal(status.body.features.authRequired, false);
     assert.equal(status.body.features.mcpStatus, true);
+    assert.equal(status.body.features.mcpToolCall, true);
+    assert.equal(status.body.confirmations.mcpTool, "RUN_MCP");
     assert.equal(status.body.mcp.protocolVersion, "2025-06-18");
     assert.equal(status.body.mcp.commands.global, "guardian mcp");
     assert.match(status.body.mcp.commands.local, /guardian\.js mcp/);
@@ -749,6 +810,9 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.mcp.allowedTools.length, 0);
     assert.ok(status.body.mcp.tools.some((tool) => tool.name === "guardian_query" && tool.enabled && !tool.write));
     assert.ok(status.body.mcp.tools.some((tool) => tool.name === "guardian_update" && tool.enabled && tool.write));
+    const queryTool = status.body.mcp.tools.find((tool) => tool.name === "guardian_query");
+    assert.ok(queryTool.fields.some((field) => field.name === "question" && field.required));
+    assert.ok(queryTool.fields.some((field) => field.name === "limit" && field.type === "number"));
     assert.ok(status.body.actions.includes("verify"));
     assert.ok(status.body.commands.some((command) => command.id === "help" && command.kind === "read"));
     assert.ok(status.body.commands.some((command) => command.id === "append-memory" && command.kind === "linked"));
@@ -834,6 +898,29 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(terminal.status, 400);
     assert.match(terminal.body.error, /terminal|guardian mcp/i);
 
+    const mcpMissingArgs = await requestJson(server, "/api/mcp/call", {
+      name: "guardian_query",
+      arguments: {},
+    });
+    assert.equal(mcpMissingArgs.status, 400);
+    assert.match(mcpMissingArgs.body.error, /Missing required argument: question/);
+
+    const mcpQuery = await requestJson(server, "/api/mcp/call", {
+      name: "guardian_query",
+      arguments: { question: "Current Status", limit: 1 },
+    });
+    assert.equal(mcpQuery.status, 200);
+    assert.equal(mcpQuery.body.ok, true);
+    assert.equal(mcpQuery.body.tool, "guardian_query");
+    assert.match(mcpQuery.body.stdout, /Source: memory\/STATE\.md|Project Guardian query/);
+
+    const mcpWriteBlocked = await requestJson(server, "/api/mcp/call", {
+      name: "guardian_update",
+      arguments: { task: "web mcp write must be confirmed" },
+    });
+    assert.equal(mcpWriteBlocked.status, 400);
+    assert.match(mcpWriteBlocked.body.error, /RUN_MCP/);
+
     const decision = await requestJson(server, "/api/command", {
       action: "decision-add",
       title: "Expose Run command catalog",
@@ -875,11 +962,59 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(audit.body.ok, true);
     assert.equal(audit.body.path, ".project-guardian/run-audit.jsonl");
     assert.equal(audit.body.exists, true);
+    assert.equal(audit.body.tamperEvident, true);
+    assert.equal(audit.body.integrity.ok, true);
+    assert.ok(audit.body.integrity.checked > 0);
     assert.ok(audit.body.entries.some((entry) => entry.action === "help" && entry.ok));
+    assert.ok(audit.body.entries.some((entry) => entry.action === "mcp:guardian_query" && entry.mcpTool === "guardian_query"));
     assert.ok(audit.body.entries.some((entry) => entry.action === "append-memory" && entry.memoryPath === "memory/STATE.md"));
     assert.ok(audit.body.entries.some((entry) => entry.action === "brief" && entry.questionLength === "handover onboarding".length));
+    assert.ok(audit.body.entries.every((entry) => entry.hash && entry.previousHash && entry.hashAlgorithm === "sha256"));
     assert.doesNotMatch(JSON.stringify(audit.body.entries), /handover onboarding/);
+    assert.doesNotMatch(JSON.stringify(audit.body.entries), /Current Status/);
   } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
+});
+
+test("Run web server can require an API token and records unauthorized attempts", async () => {
+  const root = tempDir("run-ui-token");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  const previousToken = process.env.GUARDIAN_RUN_TOKEN;
+  process.env.GUARDIAN_RUN_TOKEN = "test-run-token";
+  try {
+    writeValidMemory(root);
+    await listen(server);
+
+    const unauthenticated = await requestJson(server, "/api/status");
+    assert.equal(unauthenticated.status, 401);
+    assert.match(unauthenticated.body.error, /Unauthorized/);
+
+    const authenticated = await requestJson(server, "/api/status", undefined, {
+      "X-Guardian-Run-Token": "test-run-token",
+    });
+    assert.equal(authenticated.status, 200);
+    assert.equal(authenticated.body.ok, true);
+    assert.equal(authenticated.body.features.authRequired, true);
+
+    const help = await requestJson(server, "/api/command", { action: "help" }, {
+      Authorization: "Bearer test-run-token",
+    });
+    assert.equal(help.status, 200);
+    assert.equal(help.body.ok, true);
+
+    const audit = await requestJson(server, "/api/audit-log?limit=10", undefined, {
+      "X-Guardian-Run-Token": "test-run-token",
+    });
+    assert.equal(audit.status, 200);
+    assert.equal(audit.body.integrity.ok, true);
+    assert.ok(audit.body.entries.some((entry) => entry.action === "unauthorized" && entry.status === 401));
+    assert.ok(audit.body.entries.some((entry) => entry.action === "help" && entry.ok));
+  } finally {
+    if (previousToken === undefined) delete process.env.GUARDIAN_RUN_TOKEN;
+    else process.env.GUARDIAN_RUN_TOKEN = previousToken;
     if (server.listening) await new Promise((resolve) => server.close(resolve));
     cleanup(root);
   }
@@ -1211,6 +1346,7 @@ test("mcp public status summarizes permissions for the Run console", () => {
     assert.equal(limited.effectiveReadOnly, false);
     assert.equal(limited.tools.find((tool) => tool.name === "guardian_query").enabled, true);
     assert.equal(limited.tools.find((tool) => tool.name === "guardian_verify").enabled, false);
+    assert.ok(limited.tools.find((tool) => tool.name === "guardian_query").fields.some((field) => field.name === "question" && field.required));
 
     process.env.PROJECT_GUARDIAN_MCP_READ_ONLY = "1";
     const readOnly = mcp.publicMcpStatus({ readOnly: false, allowedTools: [] });
@@ -1226,6 +1362,39 @@ test("mcp public status summarizes permissions for the Run console", () => {
   } finally {
     if (previousEnv === undefined) delete process.env.PROJECT_GUARDIAN_MCP_READ_ONLY;
     else process.env.PROJECT_GUARDIAN_MCP_READ_ONLY = previousEnv;
+  }
+});
+
+test("mcp executeMcpTool reuses guarded tool calls for web clients", async () => {
+  const root = tempDir("mcp-web-runner");
+  const mcp = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "mcp.js"));
+  try {
+    writeValidMemory(root);
+    initGit(root);
+    const result = await mcp.executeMcpTool({
+      root,
+      guardianScript: guardian,
+      mcpConfig: { readOnly: false, allowedTools: ["guardian_query"] },
+      name: "guardian_query",
+      arguments: { question: "Current Status", limit: 1 },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.name, "guardian_query");
+    assert.deepEqual(result.command, ["query", "Current Status", "--limit", "1"]);
+    assert.match(result.text, /Source: memory\/STATE\.md|Project Guardian query/);
+
+    await assert.rejects(
+      () => mcp.executeMcpTool({
+        root,
+        guardianScript: guardian,
+        mcpConfig: { readOnly: true, allowedTools: [] },
+        name: "guardian_update",
+        arguments: { task: "blocked web write" },
+      }),
+      /Tool disabled by MCP configuration: guardian_update/,
+    );
+  } finally {
+    cleanup(root);
   }
 });
 

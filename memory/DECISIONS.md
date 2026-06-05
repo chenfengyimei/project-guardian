@@ -4,6 +4,19 @@
 
 ## 有效决策
 
+### 2026-06-05 - 将 MCP 作为可被 Run 网页复用的系统模块
+
+- 背景：用户进一步明确 MCP 不能只是显示在可视化控制台里，而是要和网页版同步，作为同一套系统；MCP 保持独立系统模块，网页负责与它互联、传入信息并使用工具能力。
+- 决策：在 `plugins/project-guardian/scripts/lib/mcp.js` 中暴露共享 `executeMcpTool()`，让 stdio MCP server 和 Run 网页 `/api/mcp/call` 复用同一套工具定义、权限过滤、参数 schema 校验和执行队列；Run 页面新增 MCP 工具调用表单和输出区。
+- 备选方案：浏览器直接启动 stdio MCP 长连接；继续只展示 MCP 状态；在 Run 后端重新实现一套类似 MCP 的工具路由。
+- 影响文件/模块：`plugins/project-guardian/scripts/lib/mcp.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`tests/guardian.test.js` 和项目记忆文件。
+- 关联变更：`/api/status` 继续提供 MCP 元数据和动态字段；`/api/mcp/call` 调用启用工具；写入类工具必须输入 `RUN_MCP`；服务端审计日志只记录工具名和参数名，不记录参数值。
+- 验证方式：运行 MCP 共享执行器测试、Run API 测试、lint、全量测试、`guardian verify` 和 `git diff --check`。
+- 风险：这是本地网页客户端复用 MCP 模块，不是公网权限系统；如果使用 `--host 0.0.0.0` 暴露 Run，需要额外登录鉴权、访问控制和正式审计。
+- 复审时间：2026-07-05。
+- 后续动作：观察真实使用中是否需要 MCP 工具分组、常用参数模板、外部 MCP 客户端连接诊断或更细粒度权限。
+- 决策文件：`memory/decisions/2026-06-05-run-mcp-web-sync.md`
+
 ### 2026-06-05 - 在 Run 控制台展示 MCP 状态但不直接启动 MCP 服务
 
 - 背景：用户希望把 MCP 系统写入可视化控制台；现有 Run 控制台已经有受控 CLI 命令目录，但 `guardian mcp` 是 stdio 长连接服务，不适合作为普通 `/api/command` 按钮直接启动。
@@ -259,3 +272,16 @@
 - 复审时间：2026-07-05
 - 后续动作：观察真实使用中是否需要审计日志导出、集中采集、Run API 路由拆分，以及继续拆分 decision/reviews/handover。
 - 决策文件：`memory/decisions/2026-06-05-git-run.md`
+
+### 2026-06-05 - 拆分决策复审交接模块并增强 Run 本地审计
+
+- 背景：此前剩余风险是 guardian.js 仍保留 decision/reviews/handover 编排，Run 审计也只是项目本地 JSONL，缺少完整性提示和访问口令。
+- 决策：将 decision add、reviews 和 handover 生成拆到独立 CLI 模块；Run 审计拆到 Run/lib/audit.js，并为新审计记录增加 hash 链校验和可选 GUARDIAN_RUN_TOKEN API 保护。
+- 备选方案：继续保留在 guardian.js 和 Run/server.js；一次性引入企业集中审计服务；直接开发完整登录系统。
+- 影响文件/模块：plugins/project-guardian/scripts/guardian.js, plugins/project-guardian/scripts/lib/decisions.js, plugins/project-guardian/scripts/lib/reviews.js, plugins/project-guardian/scripts/lib/handover.js, Run/lib/audit.js, Run/server.js, Run/public/app.js, tests/guardian.test.js, Run/README.md, plugins/project-guardian/docs/CLI_AND_CI.md
+- 关联变更：未指定。
+- 验证方式：npm.cmd run lint; npm.cmd test; node plugins/project-guardian/scripts/guardian.js verify; git diff --check
+- 风险：Run hash 链只能发现本地日志异常，不是不可篡改或集中审计；GUARDIAN_RUN_TOKEN 是轻量本地口令，不是完整登录鉴权；guardian.js 仍保留部分命令编排。
+- 复审时间：2026-07-05
+- 后续动作：真实团队使用后评估是否需要集中审计采集、不可变存储、登录鉴权、Run API 路由拆分，以及继续拆分 init/update/check/doctor/query/hooks/CI。
+- 决策文件：`memory/decisions/2026-06-05-cli-run-audit.md`
