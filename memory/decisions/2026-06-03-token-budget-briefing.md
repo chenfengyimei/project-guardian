@@ -15,3 +15,12 @@
 - Verification: Run lint, tests, `guardian brief` smoke checks, `guardian verify`, audit, and diff check.
 - Risks: Token estimates are approximate; keyword routing may miss semantic relevance; `deep` and `full` intentionally spend more context when risk rises; if core memory grows too large, a short summary file or MCP resource layer may still be needed.
 - Follow-up: Review real AI IDE behavior after teams adopt the new rules, then decide whether to add summaries, pagination, cached excerpts, or vector retrieval.
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:23
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - guardian brief 4 modes (auto/quick/deep/full) working, MCP guardian_brief exposed, token estimation with savings, escalation conditions documented, AGENTS.md and templates all use brief-first pattern
+- 验证方式：Verified: guardian brief works with --mode quick/deep/full, MCP guardian_brief dispatches correctly, knowledge.js handles brief args, AGENTS.md rules reflect brief-first workflow, verify passes
+- 后续复审：无需继续复审

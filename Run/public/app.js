@@ -60,6 +60,7 @@ const viewTitles = {
   brief: ["读取计划", "生成记忆读取计划"],
   query: ["知识查询", "查询本地项目知识"],
   mcp: ["MCP 系统", "MCP 系统配置"],
+  reviews: ["决策复审", "决策文件复审状态"],
   commands: ["命令操作", "运行命令与查看输出"],
 };
 
@@ -123,6 +124,10 @@ const nodes = typeof document === "undefined" ? {} : {
   mcpConfigIssues: document.querySelector("#mcpConfigIssues"),
   mcpTools: document.querySelector("#mcpTools"),
   mcpToolForm: document.querySelector("#mcpToolForm"),
+  reviewList: document.querySelector("#reviewList"),
+  reviewViewer: document.querySelector("#reviewViewer"),
+  reviewViewerTitle: document.querySelector("#reviewViewerTitle"),
+  reviewViewerPath: document.querySelector("#reviewViewerPath"),
   mcpToolSelect: document.querySelector("#mcpToolSelect"),
   mcpToolFields: document.querySelector("#mcpToolFields"),
   mcpToolConfirmLabel: document.querySelector("#mcpToolConfirmLabel"),
@@ -337,6 +342,7 @@ function showView(viewName) {
   const [eyebrow, title] = viewTitles[nextView];
   nodes.viewEyebrow.textContent = eyebrow;
   nodes.viewTitle.textContent = title;
+  if (nextView === 'reviews') loadReviews();
 }
 
 function renderCompatibilityWarning(payload) {
@@ -1233,6 +1239,76 @@ if (typeof module !== "undefined") {
     setOutputPending,
     templatesForMemoryFromList,
   };
+}
+
+
+
+async function loadReviews() {
+  try {
+    const data = await requestJson('/api/reviews');
+    renderReviewList(data);
+  } catch (error) {
+    if (nodes.reviewList) nodes.reviewList.innerHTML = '<p class="muted">加载失败: ' + escapeHtml(error.message) + '</p>';
+  }
+}
+
+function renderReviewList(data) {
+  if (!nodes.reviewList) return;
+  if (!data || !data.ok || !data.items || data.items.length === 0) {
+    nodes.reviewList.innerHTML = '<p class="muted">暂无决策复审记录。</p>';
+    return;
+  }
+
+  const items = data.items;
+  const statusLabels = {
+    completed: { label: '已完成', cls: 'review-badge-completed' },
+    due: { label: '已到期', cls: 'review-badge-due' },
+    scheduled: { label: '待复审', cls: 'review-badge-scheduled' },
+  };
+
+  let html = '<div class="review-grid">';
+  for (const item of items) {
+    const statusInfo = statusLabels[item.status] || { label: item.status, cls: '' };
+    const fileName = item.file.split('/').pop();
+    const dateLabel = item.reviewAfter ? '复审日期: ' + item.reviewAfter : '';
+    html += '<button class="review-item" type="button" data-file="' + escapeHtml(item.file) + '">';
+    html += '  <strong>' + escapeHtml(item.title) + '</strong>';
+    html += '  <span class="review-meta">' + escapeHtml(fileName) + '</span>';
+    if (dateLabel) html += '  <span class="review-meta">' + escapeHtml(dateLabel) + '</span>';
+    html += '  <span class="review-badge ' + statusInfo.cls + '">' + statusInfo.label + '</span>';
+    html += '</button>';
+  }
+  html += '</div>';
+
+  nodes.reviewList.innerHTML = html;
+
+  nodes.reviewList.querySelectorAll('.review-item').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      selectReviewFile(btn.dataset.file);
+    });
+  });
+}
+
+async function selectReviewFile(file) {
+  if (!nodes.reviewViewer) return;
+  nodes.reviewViewer.textContent = '正在加载...';
+  nodes.reviewViewerTitle.textContent = file.split('/').pop();
+  nodes.reviewViewerPath.textContent = file;
+
+  try {
+    const data = await requestJson('/api/review-file?file=' + encodeURIComponent(file));
+    if (!data.ok) {
+      nodes.reviewViewer.innerHTML = '<p class="muted">' + escapeHtml(data.error || '读取失败') + '</p>';
+      return;
+    }
+    if (data.tooLarge) {
+      nodes.reviewViewer.innerHTML = '<p class="muted">文件过大，无法预览（' + data.size + ' 字节）</p>';
+      return;
+    }
+    nodes.reviewViewer.innerHTML = renderMarkdown(data.content || '');
+  } catch (error) {
+    nodes.reviewViewer.innerHTML = '<p class="muted">加载失败: ' + escapeHtml(error.message) + '</p>';
+  }
 }
 
 if (typeof document !== "undefined") loadStatus();

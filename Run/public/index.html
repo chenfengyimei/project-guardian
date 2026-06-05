@@ -24,6 +24,7 @@
           <button class="nav-button" type="button" data-view="brief" data-short="计划" title="读取计划">读取计划</button>
           <button class="nav-button" type="button" data-view="query" data-short="查询" title="知识查询">知识查询</button>
           <button class="nav-button" type="button" data-view="mcp" data-short="MCP" title="MCP 系统">MCP 系统</button>
+          <button class="nav-button" type="button" data-view="reviews" data-short="复审" title="决策复审">决策复审</button>
           <button class="nav-button" type="button" data-view="commands" data-short="命令" title="命令操作">命令操作</button>
         </nav>
       </aside>
@@ -267,6 +268,23 @@
                 <button id="clearMcpOutput" class="ghost-button" type="button">清空</button>
               </div>
               <pre id="mcpToolOutput" class="output" aria-live="polite">等待 MCP 工具调用...</pre>
+            </section>
+          </section>
+
+          <section id="view-reviews" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>决策复审列表</h3>
+                <span class="muted">所有决策文件及其复审状态</span>
+              </div>
+              <div id="reviewList" class="review-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3 id="reviewViewerTitle">复审文件内容</h3>
+                <span id="reviewViewerPath" class="muted">选择一个决策文件查看</span>
+              </div>
+              <article id="reviewViewer" class="markdown-viewer">请选择一个决策文件查看详细内容。</article>
             </section>
           </section>
 

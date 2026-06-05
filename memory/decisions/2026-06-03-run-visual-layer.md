@@ -15,3 +15,12 @@
 - 风险：当前 Web UI 没有内置认证，不能直接公网暴露；手动追加记忆只有基础敏感词拦截，不能替代 `guardian verify`、代码评审和人工安全审查；后续复杂写入类命令仍应增加预览和审计。
 - 复审时间：2026-07-03。
 - 后续动作：观察真实用户是否需要写入 diff 预览、操作日志、复审日历、记忆搜索或桌面窗口包装。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:23
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - Run/ directory fully implemented with server, web UI, command catalog, side nav, memory preview, scope init/append/command gating via fixed keywords, default bind 127.0.0.1, npm run ui entry
+- 验证方式：Verified: Run/ directory structure intact, server.js with DEFAULT_HOST=127.0.0.1, RUN_INIT/APPEND_MEMORY/RUN_COMMAND gating, /api/command whitelist, /api/status, lint/verify pass, npm run ui available
+- 后续复审：无需继续复审

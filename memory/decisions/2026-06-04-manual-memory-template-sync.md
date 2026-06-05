@@ -15,3 +15,12 @@
 - 风险：模板字段可能无法覆盖所有团队表达习惯；基础敏感词拦截不是完整 DLP；Run 仍无内置鉴权，不能公网暴露。
 - 复审时间：2026-07-04。
 - 后续动作：观察真实用户是否需要更多模板、模板搜索、写入前 diff 预览、操作审计或 MCP 追加记忆工具。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:24
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - manual-memory.js shared between CLI (guardian append-memory) and Run UI (APPEND_MEMORY modal), templates with fields, basic sensitive word blocking, Run /api/status exposes memoryAppendTemplates
+- 验证方式：Verified: manual-memory.js exists (14KB), guardian.js dispatches append-memory command with template/field validation, Run/server.js uses same module with APPEND_MEMORY confirmation, lint/test/verify pass
+- 后续复审：无需继续复审

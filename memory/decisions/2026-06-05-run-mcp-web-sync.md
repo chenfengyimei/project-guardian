@@ -9,3 +9,12 @@
 - 风险：这是本地网页客户端复用 MCP 模块，不是公网权限系统；如果使用 `--host 0.0.0.0` 暴露 Run，需要额外登录鉴权、访问控制和正式审计。
 - 复审时间：2026-07-05。
 - 后续动作：观察真实使用中是否需要 MCP 工具分组、常用参数模板、外部 MCP 客户端连接诊断或更细粒度权限。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:24
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - executeMcpTool() shared between stdio MCP server and Run /api/mcp/call, same tool definitions/permissions/schema validation/execution queue, Run UI has tool call form and output area with RUN_MCP confirmation
+- 验证方式：Verified: mcp.js exports executeMcpTool(), Run/server.js imports and calls it for /api/mcp/call, audit logs tool name only (no param values), WRITE_TOOL_NAMES gating works in both paths, lint/test/verify pass
+- 后续复审：无需继续复审

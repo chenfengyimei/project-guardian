@@ -14,3 +14,12 @@ Date: 2026-05-14
 - Risks: Decision content is duplicated for compatibility.
 - Review after: 2026-06-14
 - Follow-up: Consider turning memory/DECISIONS.md into a pure index after teams adopt the directory.
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:16
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - memory/decisions/ directory holds 18 decision files, DECISIONS.md syncs consistently with per-decision references, guardian decision add command works
+- 验证方式：Verified: 18 files in memory/decisions/, DECISIONS.md references all of them via '决策文件' links, test and verify pass
+- 后续复审：无需继续复审

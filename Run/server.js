@@ -29,6 +29,12 @@ const {
 } = require("./lib/audit");
 const { loadConfig } = require("../plugins/project-guardian/scripts/lib/config");
 const { executeMcpTool, publicMcpStatus, TaskQueue } = require("../plugins/project-guardian/scripts/lib/mcp");
+const {
+  getDecisionFiles,
+  getReviewItems,
+  reviewItem,
+  runReviewValidation,
+} = require("../plugins/project-guardian/scripts/lib/reviews");
 
 const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
@@ -189,6 +195,16 @@ async function handleApi(req, res, requestUrl, context) {
     return;
   }
 
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/reviews") {
+    sendJson(res, 200, readReviewsPayload(context));
+    return;
+  }
+
+  if (req.method === "GET" && requestUrl.pathname === "/api/review-file" && requestUrl.searchParams.get("file")) {
+    sendJson(res, 200, readReviewFilePayload(context, requestUrl.searchParams.get("file")));
+    return;
+  }
   if (req.method === "GET" && requestUrl.pathname === "/api/diff-preview") {
     sendJson(res, 200, await diffPreviewPayload(context));
     return;
@@ -343,6 +359,42 @@ function statusPayload(context) {
         exists: fs.existsSync(absolutePath),
       };
     }),
+  };
+}
+
+
+function readReviewsPayload(context) {
+  const config = loadConfig(context.projectRoot);
+  const items = getReviewItems(context.projectRoot, config);
+  const reviewFiles = getDecisionFiles(context.projectRoot, config);
+  return {
+    ok: true,
+    items,
+    reviewFiles,
+  };
+}
+
+function readReviewFilePayload(context, relativePath) {
+  const root = context.projectRoot;
+  const config = loadConfig(root);
+  const files = getDecisionFiles(root, config);
+  const normalized = relativePath.replace(/\\\\/g, "/");
+  const file = files.find((f) => f === normalized || f.endsWith("/" + normalized) || path.basename(f) === normalized);
+  if (!file) return { ok: false, error: "Review file not found: " + relativePath };
+  const fullPath = path.join(root, file);
+  if (!fs.existsSync(fullPath)) return { ok: false, error: "Review file does not exist: " + file };
+  const stat = fs.statSync(fullPath);
+  const maxBytes = 256 * 1024;
+  const tooLarge = stat.size > maxBytes;
+  const content = tooLarge ? "" : fs.readFileSync(fullPath, "utf8");
+  return {
+    ok: true,
+    name: path.basename(file),
+    path: file,
+    exists: true,
+    size: stat.size,
+    tooLarge,
+    content,
   };
 }
 

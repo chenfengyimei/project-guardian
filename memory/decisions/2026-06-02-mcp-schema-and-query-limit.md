@@ -15,3 +15,12 @@
 - 风险：这仍是本地工具边界，不是身份认证；`limit` 只能减少返回片段，不能保证语义命中率。
 - 复审时间：2026-07-02。
 - 后续动作：真实 MCP 客户端接入后，观察是否需要默认更小的 MCP limit、分页查询、摘要模式或 MCP prompts/resources。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:18
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - strict config validation on MCP startup reject bad readOnly/allowedTools, schema validation rejects extra/mistyped params, query/brief tools support limit 1-10, all tests pass
+- 验证方式：Verified: validateMcpConfig() checks type of readOnly/allowedTools, tool call dispatching validates input schemas, query/brief tools support --limit, verify passes
+- 后续复审：无需继续复审

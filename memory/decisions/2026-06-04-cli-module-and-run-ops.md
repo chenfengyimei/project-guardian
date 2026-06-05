@@ -9,3 +9,12 @@
 - 风险：`guardian.js` 仍然保留 Git、handover、decision、reviews、安全扫描和命令编排，后续还可以继续小步拆分；Run 操作日志保存在浏览器本地，只是辅助查看，不能替代 `AI_CHANGELOG.md`、Git 历史或正式审计；diff preview 是只读摘要，不展示完整补丁。
 - 复审时间：2026-07-04。
 - 后续动作：观察真实使用中是否需要把 Run API 路由继续拆成模块、为 diff preview 增加完整补丁查看或导出操作日志。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:23
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - config.js/doc-validation.js/knowledge.js split from guardian.js, Run command search + short ops log + /api/diff-preview with fixed git status/diff--stat/cached--stat all implemented
+- 验证方式：Verified: 3 new lib modules exist and imported in guardian.js, diffPreviewPayload does fixed git status/diff--stat/cached--stat, Run command search works, lint/test/verify pass
+- 后续复审：无需继续复审

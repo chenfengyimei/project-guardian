@@ -9,3 +9,12 @@
 - 风险：控制台显示的是当前 Run 进程读取到的配置和环境变量，真实 AI IDE 启动 MCP 时仍可能使用不同工作目录或环境；页面不是 MCP 客户端调试器，不会验证 IDE 侧连接是否成功。
 - 复审时间：2026-07-05。
 - 后续动作：真实接入 Cursor、Cline、Continue、Claude Code 或 Gemini 等 MCP 客户端后，观察是否需要增加 IDE 配置示例、MCP 连接检查或独立调试器。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:24
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - publicMcpStatus() exposes config/readOnly/allowedTools/tool status, Run /api/status returns mcp + features.mcpStatus, Run UI has MCP system page with tool cards, RUN_MCP confirmation for write tools
+- 验证方式：Verified: mcp.js publicMcpStatus() implemented, Run/server.js /api/status returns mcp config/tools/status/features, /api/mcp/call reuses MCP module, RUN_MCP confirmation required for writes, lint/test/verify pass
+- 后续复审：无需继续复审

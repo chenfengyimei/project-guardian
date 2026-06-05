@@ -14,3 +14,12 @@
 - 风险：Run hash 链只能发现本地日志异常，不是不可篡改或集中审计；GUARDIAN_RUN_TOKEN 是轻量本地口令，不是完整登录鉴权；guardian.js 仍保留部分命令编排。
 - 复审时间：2026-07-05
 - 后续动作：真实团队使用后评估是否需要集中审计采集、不可变存储、登录鉴权、Run API 路由拆分，以及继续拆分 init/update/check/doctor/query/hooks/CI。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 16:59
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - CLI modules (decisions/reviews/handover) split successfully, Run audit hash chain and GUARDIAN_RUN_TOKEN working as designed, docs synced
+- 验证方式：Verified: module files exist, audit.js hash chain integrity check works, GUARDIAN_RUN_TOKEN env guard present, guardian verify passed, CLI_AND_CI.md docs up to date
+- 后续复审：无需继续复审

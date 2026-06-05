@@ -15,3 +15,12 @@
 - 风险：这是工具过滤，不是身份认证或逐次审批；接入高风险环境仍要保留仓库权限、Git 权限、代码评审和安全扫描。
 - 复审时间：2026-07-02。
 - 后续动作：真实 MCP 客户端接入后，评估是否需要 prompts/resources、权限细化、审计日志或官方 SDK 集成。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:18
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - WRITE_TOOL_NAMES defined, readOnly/allowedTools/PROJECT_GUARDIAN_MCP_READ_ONLY triple gating implemented, tools/list filters by config, tools/call rejects forbidden tools, doctor validates config
+- 验证方式：Verified: mcp.js has WRITE_TOOL_NAMES set (4 write tools), readOnly removes write tools from tool list, allowedTools restricts exposed tools, env var override works, validateMcpConfig runs on startup, verify passes
+- 后续复审：无需继续复审

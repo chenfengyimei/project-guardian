@@ -15,3 +15,12 @@
 - 风险：`RUN_COMMAND` 能降低误点风险，但不是登录认证或权限系统。Run 除非由团队额外加认证、访问控制、反向代理保护和审计日志，否则仍应只在本机使用。写入类命令仍需要 Git diff 审查和 `guardian verify`。
 - 复审时间：2026-07-03。
 - 后续动作：观察真实使用情况，再决定是否需要命令搜索、分组折叠、写入前预览、diff 预览或操作审计日志。
+
+## 复审结果
+
+- 复审状态：正常
+- 复审完成时间：2026-06-05 17:23
+- 复审人：AI 或人工复审者
+- 复审结论：Still valid - command catalog with 4 groups (read/write/linked/terminal) implemented, RUN_COMMAND gating for writes, init/brief/query linked to dedicated UI modules, mcp stays in terminal only
+- 验证方式：Verified: commands.js groups readCommand (11), writeCommand (6), linkedCommand (4), terminalCommand (1), RUN_COMMAND confirmation required for writes, all listed commands dispatch correctly, verify passes
+- 后续复审：无需继续复审
