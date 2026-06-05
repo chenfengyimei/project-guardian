@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-06-04
+最后更新：2026-06-05 10:03
 
 ## 当前状态
 
@@ -52,14 +52,16 @@
 - 新增 `Run/lib/commands.js`，把 Run 控制台的固定 CLI 命令目录、公开命令描述、写入参数构造和字段校验从 `Run/server.js` 中拆出，降低可视化后端主文件耦合。
 - 新增 `plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js` 和 `plugins/project-guardian/scripts/lib/knowledge.js`，把配置加载/校验、文档质量校验、query/brief 检索与读取计划格式化从 `guardian.js` 中拆出。
 - Run 控制台命令操作页新增命令搜索、浏览器本地短操作日志和写入类命令弹窗里的固定 Git diff 预览；后端新增只读 `/api/diff-preview`，不接收用户传入 Git 参数。
+- 新增 `plugins/project-guardian/scripts/lib/git-utils.js` 和 `plugins/project-guardian/scripts/lib/security.js`，继续从 `guardian.js` 拆出 Git/diff/文件扫描与安全扫描逻辑；Run 控制台新增服务端本地审计日志 `.project-guardian/run-audit.jsonl` 和 `/api/audit-log`，并在 `.gitignore` 中忽略本地审计目录。
+- Run 控制台新增 `MCP 系统` 页面，通过 `/api/status` 展示 MCP 启动命令、协议版本、配置有效性、只读状态、`allowedTools` 和工具启用/禁用状态；页面只做本地配置摘要，不启动 stdio MCP 长连接。
 
 ## 进行中
 
-- CLI 核心模块拆分和 Run 写入前可见性增强已通过完整验证；提交前只需复查 `git status` 和最终 diff。
+- MCP 系统接入 Run 控制台已完成，正在做最终服务启动和交付说明复核。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 CLI 模块拆分、Run 控制台增强代码、文档、测试和记忆一起提交，且 `docs/ip/` 不被 Git 跟踪。
+1. 提交到 Gitee 前复查 `git status`，确认 MCP 控制台接入、Run 审计日志、文档、测试和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
 2. 软著申请前由人工确认著作权人、申请版本、软件完成日期、首次发表日期和权属方式，并更新 `docs/ip/` 下的待填写字段。
 3. 后续真实接入 Cursor、Cline、Continue、Claude Code 等 MCP 客户端，收集配置差异。
 
@@ -85,8 +87,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：继续拆分 `guardian.js` 并完善 Run 命令操作体验。
-- 总结：新增 `config.js`、`doc-validation.js` 和 `knowledge.js`，把配置、文档校验、query/brief 检索从 `guardian.js` 中拆出；Run 控制台新增命令搜索、操作日志和写入前 diff 预览，服务端提供固定只读 `/api/diff-preview`。
-- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`package.json`、`tests/guardian.test.js`、`Run/README.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/PROJECT_CONTEXT.md`、`memory/HANDOVER.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-04-cli-module-and-run-ops.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `npm.cmd run verify`、`npm.cmd audit --audit-level=moderate`、`git diff --check`、`npm.cmd pack --dry-run` 和一次性 Run UI/API 冒烟脚本；当前 61 个测试通过，Project Guardian doctor/check/validate-docs/reviews/scan-secrets 全部通过，审计 0 漏洞，打包预览包含新增 CLI 模块和 Run 文件，页面节点、status、diff-preview 和 query API 均可用。
-- 后续：继续观察是否需要把 Run API 路由拆成独立模块、为 diff 预览增加完整补丁查看、导出操作日志，或继续拆分 `guardian.js` 中的 Git/decision/reviews/security 逻辑。
+- 任务：将 MCP 系统一起写入 Run 可视化控制台。
+- 总结：`mcp.js` 新增公开状态摘要能力；Run `/api/status` 返回 MCP 协议、配置、权限和工具列表；前端新增 `MCP 系统` 页面，展示全局/本地启动命令、只读状态、`allowedTools`、配置问题和工具卡片。页面只展示状态，不直接启动 stdio MCP 长连接。
+- 文件：`plugins/project-guardian/scripts/lib/mcp.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`Run/README.md`、`tests/guardian.test.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-05-run-mcp-console.md`。
+- 验证：已运行 `node --check` 覆盖相关 JS 文件、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check` 和一次性 Run UI/API 冒烟脚本；自动化测试 63 个全部通过，MCP 状态 API 返回 12 个工具、12 个启用工具。
+- 后续：继续保持 MCP stdio server 由终端或 AI IDE 配置启动；如后续要在控制台做 MCP 客户端调试，应另行设计连接生命周期、权限确认和审计边界。

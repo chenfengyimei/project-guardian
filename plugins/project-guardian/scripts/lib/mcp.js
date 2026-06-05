@@ -449,6 +449,44 @@ function enabledToolNames(normalizedConfig) {
   return configured;
 }
 
+function publicMcpStatus(config = {}, options = {}) {
+  const issues = validateMcpConfig(config);
+  const normalized = issues.length
+    ? { readOnly: false, allowedTools: [] }
+    : normalizeMcpConfig(config);
+  const enabledNames = issues.length ? new Set() : enabledToolNames(normalized);
+  const envReadOnly = process.env.PROJECT_GUARDIAN_MCP_READ_ONLY === "1";
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    configValid: issues.length === 0,
+    configIssues: issues,
+    readOnly: normalized.readOnly,
+    envReadOnly,
+    effectiveReadOnly: normalized.readOnly || envReadOnly,
+    allowedTools: normalized.allowedTools,
+    commands: {
+      global: options.globalCommand || "guardian mcp",
+      local: options.localCommand || "",
+    },
+    totalTools: TOOLS.length,
+    enabledTools: enabledNames.size,
+    writeTools: Array.from(WRITE_TOOL_NAMES),
+    tools: TOOLS.map((tool) => publicMcpTool(tool, enabledNames)),
+  };
+}
+
+function publicMcpTool(tool, enabledNames) {
+  const properties = Object.keys((tool.inputSchema && tool.inputSchema.properties) || {});
+  return {
+    name: tool.name,
+    description: tool.description,
+    enabled: enabledNames.has(tool.name),
+    write: WRITE_TOOL_NAMES.has(tool.name),
+    required: tool.inputSchema && Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [],
+    properties,
+  };
+}
+
 function validateToolArguments(tool, args) {
   if (!plainObject(args)) return `${tool.name} arguments must be an object`;
   const schema = tool.inputSchema || {};
@@ -578,6 +616,7 @@ module.exports = {
   SUPPORTED_MCP_TOOLS,
   TOOLS,
   enabledToolNames,
+  publicMcpStatus,
   validateMcpConfig,
   runMcpServer,
   TaskQueue,

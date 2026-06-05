@@ -8,3 +8,4 @@ tests/.tmp-*/
 .env
 .env.*
 docs/ip/
+.project-guardian/

@@ -657,6 +657,39 @@ test("knowledge module ranks query results and builds token-aware briefs", () =>
   }
 });
 
+test("Git and security helper modules keep CLI support behavior isolated", () => {
+  const root = tempDir("git-security-modules");
+  const gitUtils = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "git-utils.js"));
+  const security = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "security.js"));
+  const configModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "config.js"));
+  try {
+    initGit(root);
+    writeValidMemory(root);
+    git(root, ["add", "."]);
+    git(root, ["commit", "-m", "baseline"]);
+    writeFile(path.join(root, "src", "app.js"), "const answer = 42;\n");
+    git(root, ["add", "src/app.js"]);
+
+    assert.deepEqual(gitUtils.changedFilesForUpdate(root), ["src/app.js"]);
+    assert.deepEqual(gitUtils.changedLineRanges(root), ["src/app.js:1"]);
+    writeFile(path.join(root, "src", "Widget.vue"), "<template><div>Widget</div></template>\n");
+    writeFile(path.join(root, "src", "Panel.svelte"), "<script>export let title = 'Panel';</script>\n");
+    const collected = gitUtils.collectFiles(root, configModule.loadConfig(root), 20);
+    assert.ok(collected.includes("src/app.js"));
+    assert.ok(collected.includes("src/Widget.vue"));
+    assert.ok(collected.includes("src/Panel.svelte"));
+
+    const fakeValue = "abcdEFGH1234_SECRET";
+    fs.appendFileSync(path.join(root, "memory", "AI_CHANGELOG.md"), `\n- Debug note: api_key=${fakeValue}\n`, "utf8");
+    const scan = security.runSecretScan(root, configModule.loadConfig(root));
+    assert.equal(scan.ok, false);
+    assert.match(scan.findings[0].preview, /abcd\.\.\.CRET/);
+    assert.doesNotMatch(JSON.stringify(scan.findings), new RegExp(fakeValue));
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("Run web server exposes Project Guardian UI API with confirmed memory writes", async () => {
   const root = tempDir("run-ui");
   const runUi = require(path.join(repoRoot, "Run", "server.js"));
@@ -670,16 +703,22 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.match(page.body, /class="sidebar"/);
     assert.match(page.body, /id="sidebarToggle"/);
     assert.match(page.body, /data-view="memory"/);
+    assert.match(page.body, /data-view="mcp"/);
     assert.match(page.body, /data-view="commands"[^>]*>命令操作/);
     assert.doesNotMatch(page.body, /data-view="checks"/);
     assert.doesNotMatch(page.body, /data-view="output"/);
     assert.match(page.body, /id="view-overview" class="view active"/);
+    assert.match(page.body, /id="view-mcp" class="view"/);
     assert.match(page.body, /id="view-commands" class="view"/);
     assert.match(page.body, /id="memoryViewer" class="markdown-viewer"/);
     assert.match(page.body, /id="queryOutput" class="output"/);
     assert.match(page.body, /id="commandButtons" class="command-groups"/);
+    assert.match(page.body, /id="mcpTools" class="mcp-tool-list"/);
+    assert.match(page.body, /id="mcpConfigState"/);
     assert.match(page.body, /id="commandSearch"/);
     assert.match(page.body, /id="operationLog" class="operation-log"/);
+    assert.match(page.body, /id="serverAuditLog" class="operation-log audit-log"/);
+    assert.match(page.body, /id="reloadServerAuditLog"/);
     assert.match(page.body, /id="appendTemplate"/);
     assert.match(page.body, /id="commandModal"/);
     assert.match(page.body, /id="commandModalDiffPanel" class="diff-preview"/);
@@ -699,6 +738,17 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(status.body.features.commandSearch, true);
     assert.equal(status.body.features.diffPreview, true);
     assert.equal(status.body.features.operationLog, true);
+    assert.equal(status.body.features.serverAuditLog, true);
+    assert.equal(status.body.features.mcpStatus, true);
+    assert.equal(status.body.mcp.protocolVersion, "2025-06-18");
+    assert.equal(status.body.mcp.commands.global, "guardian mcp");
+    assert.match(status.body.mcp.commands.local, /guardian\.js mcp/);
+    assert.equal(status.body.mcp.configValid, true);
+    assert.equal(status.body.mcp.readOnly, false);
+    assert.equal(status.body.mcp.effectiveReadOnly, false);
+    assert.equal(status.body.mcp.allowedTools.length, 0);
+    assert.ok(status.body.mcp.tools.some((tool) => tool.name === "guardian_query" && tool.enabled && !tool.write));
+    assert.ok(status.body.mcp.tools.some((tool) => tool.name === "guardian_update" && tool.enabled && tool.write));
     assert.ok(status.body.actions.includes("verify"));
     assert.ok(status.body.commands.some((command) => command.id === "help" && command.kind === "read"));
     assert.ok(status.body.commands.some((command) => command.id === "append-memory" && command.kind === "linked"));
@@ -819,6 +869,16 @@ test("Run web server exposes Project Guardian UI API with confirmed memory write
     assert.equal(brief.body.ok, true);
     assert.match(brief.body.stdout, /Project Guardian brief/);
     assert.match(brief.body.stdout, /Mode: full/);
+
+    const audit = await requestJson(server, "/api/audit-log?limit=20");
+    assert.equal(audit.status, 200);
+    assert.equal(audit.body.ok, true);
+    assert.equal(audit.body.path, ".project-guardian/run-audit.jsonl");
+    assert.equal(audit.body.exists, true);
+    assert.ok(audit.body.entries.some((entry) => entry.action === "help" && entry.ok));
+    assert.ok(audit.body.entries.some((entry) => entry.action === "append-memory" && entry.memoryPath === "memory/STATE.md"));
+    assert.ok(audit.body.entries.some((entry) => entry.action === "brief" && entry.questionLength === "handover onboarding".length));
+    assert.doesNotMatch(JSON.stringify(audit.body.entries), /handover onboarding/);
   } finally {
     if (server.listening) await new Promise((resolve) => server.close(resolve));
     cleanup(root);
@@ -1133,6 +1193,39 @@ test("mcp server exposes Project Guardian tools", async () => {
     assert.ok(toolNames.includes("guardian_adapters_doctor"));
   } finally {
     cleanup(root);
+  }
+});
+
+test("mcp public status summarizes permissions for the Run console", () => {
+  const mcp = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "mcp.js"));
+  const previousEnv = process.env.PROJECT_GUARDIAN_MCP_READ_ONLY;
+  try {
+    delete process.env.PROJECT_GUARDIAN_MCP_READ_ONLY;
+    const limited = mcp.publicMcpStatus({ readOnly: false, allowedTools: ["guardian_query"] }, {
+      globalCommand: "guardian mcp",
+      localCommand: "node plugins/project-guardian/scripts/guardian.js mcp",
+    });
+    assert.equal(limited.configValid, true);
+    assert.equal(limited.commands.global, "guardian mcp");
+    assert.deepEqual(limited.allowedTools, ["guardian_query"]);
+    assert.equal(limited.effectiveReadOnly, false);
+    assert.equal(limited.tools.find((tool) => tool.name === "guardian_query").enabled, true);
+    assert.equal(limited.tools.find((tool) => tool.name === "guardian_verify").enabled, false);
+
+    process.env.PROJECT_GUARDIAN_MCP_READ_ONLY = "1";
+    const readOnly = mcp.publicMcpStatus({ readOnly: false, allowedTools: [] });
+    assert.equal(readOnly.envReadOnly, true);
+    assert.equal(readOnly.effectiveReadOnly, true);
+    assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_update").enabled, false);
+    assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_query").enabled, true);
+
+    const invalid = mcp.publicMcpStatus({ readOnly: "yes", allowedTools: ["unknown_tool"] });
+    assert.equal(invalid.configValid, false);
+    assert.ok(invalid.configIssues.some((issue) => /readOnly/.test(issue)));
+    assert.equal(invalid.enabledTools, 0);
+  } finally {
+    if (previousEnv === undefined) delete process.env.PROJECT_GUARDIAN_MCP_READ_ONLY;
+    else process.env.PROJECT_GUARDIAN_MCP_READ_ONLY = previousEnv;
   }
 });
 

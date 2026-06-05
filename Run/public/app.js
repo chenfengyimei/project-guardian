@@ -58,6 +58,7 @@ const viewTitles = {
   append: ["追加记忆", "手动追加项目记忆"],
   brief: ["读取计划", "生成记忆读取计划"],
   query: ["知识查询", "查询本地项目知识"],
+  mcp: ["MCP 系统", "MCP 系统配置"],
   commands: ["命令操作", "运行命令与查看输出"],
 };
 
@@ -75,12 +76,14 @@ const state = {
   memoryFiles: [],
   memoryAppendTemplates: [],
   commands: [],
+  mcp: null,
   selectedMemory: "",
   currentView: "overview",
   sidebarCollapsed: false,
   activeCommand: null,
   commandSearch: "",
   operationLog: [],
+  serverAuditLog: [],
 };
 
 const nodes = typeof document === "undefined" ? {} : {
@@ -105,6 +108,17 @@ const nodes = typeof document === "undefined" ? {} : {
   output: document.querySelector("#output"),
   queryOutput: document.querySelector("#queryOutput"),
   operationLog: document.querySelector("#operationLog"),
+  serverAuditLog: document.querySelector("#serverAuditLog"),
+  reloadServerAuditLog: document.querySelector("#reloadServerAuditLog"),
+  mcpConfigState: document.querySelector("#mcpConfigState"),
+  mcpGlobalCommand: document.querySelector("#mcpGlobalCommand"),
+  mcpLocalCommand: document.querySelector("#mcpLocalCommand"),
+  mcpProtocol: document.querySelector("#mcpProtocol"),
+  mcpReadOnly: document.querySelector("#mcpReadOnly"),
+  mcpAllowedTools: document.querySelector("#mcpAllowedTools"),
+  mcpEnabledCount: document.querySelector("#mcpEnabledCount"),
+  mcpConfigIssues: document.querySelector("#mcpConfigIssues"),
+  mcpTools: document.querySelector("#mcpTools"),
   refreshStatus: document.querySelector("#refreshStatus"),
   clearOutput: document.querySelector("#clearOutput"),
   clearQueryOutput: document.querySelector("#clearQueryOutput"),
@@ -138,6 +152,7 @@ if (typeof document !== "undefined") {
   state.operationLog = loadOperationLog();
   setSidebarCollapsed(localStorage.getItem("projectGuardianSidebar") === "collapsed");
   renderOperationLog();
+  renderServerAuditLog();
   nodes.sidebarToggle.addEventListener("click", () => {
     setSidebarCollapsed(!state.sidebarCollapsed);
   });
@@ -159,6 +174,7 @@ if (typeof document !== "undefined") {
     saveOperationLog();
     renderOperationLog();
   });
+  if (nodes.reloadServerAuditLog) nodes.reloadServerAuditLog.addEventListener("click", loadServerAuditLog);
   nodes.commandSearch.addEventListener("input", () => {
     state.commandSearch = nodes.commandSearch.value;
     renderCommandButtons();
@@ -206,6 +222,7 @@ if (typeof document !== "undefined") {
       clearFields(nodes.appendTemplateFields);
       nodes.appendConfirm.value = "";
       await loadStatus();
+      await loadServerAuditLog();
       await loadMemoryFile(result.name);
       showView("memory");
     } catch (error) {
@@ -248,6 +265,7 @@ async function loadStatus() {
     state.confirmations = payload.confirmations || state.confirmations;
     state.memoryFiles = payload.memoryFiles || [];
     state.memoryAppendTemplates = payload.memoryAppendTemplates || [];
+    state.mcp = payload.mcp || null;
     nodes.projectRoot.textContent = payload.projectRoot || "-";
     nodes.nodeVersion.textContent = payload.nodeVersion || "-";
     nodes.guardianState.textContent = payload.guardianAvailable ? "已找到 CLI" : "未找到 CLI";
@@ -262,6 +280,8 @@ async function loadStatus() {
     renderMemorySelect(state.memoryFiles);
     renderAppendTemplateOptions();
     renderCommandButtons();
+    renderMcpStatus(state.mcp);
+    await loadServerAuditLog();
   } catch (error) {
     setBadge("连接失败", true);
     appendOutput("status", false, "", error.message);
@@ -305,6 +325,66 @@ function renderCompatibilityWarning(payload) {
     "",
     "node Run/server.js",
   ].join("\n");
+}
+
+function renderMcpStatus(mcp) {
+  if (!nodes.mcpTools) return;
+  const data = mcp || {};
+  const commands = data.commands || {};
+  const tools = Array.isArray(data.tools) ? data.tools : [];
+  const allowedTools = Array.isArray(data.allowedTools) ? data.allowedTools : [];
+  const configIssues = Array.isArray(data.configIssues) ? data.configIssues : [];
+  const configValid = data.configValid !== false;
+
+  nodes.mcpConfigState.textContent = configValid ? "配置有效" : "配置异常";
+  nodes.mcpConfigState.classList.toggle("bad", !configValid);
+  nodes.mcpGlobalCommand.textContent = commands.global || "guardian mcp";
+  nodes.mcpLocalCommand.textContent = commands.local || "未找到本地脚本";
+  nodes.mcpProtocol.textContent = data.protocolVersion || "-";
+  nodes.mcpReadOnly.textContent = mcpReadOnlyText(data);
+  nodes.mcpAllowedTools.textContent = allowedTools.length ? allowedTools.join(", ") : "全部工具";
+  nodes.mcpEnabledCount.textContent = `${Number(data.enabledTools || 0)}/${Number(data.totalTools || tools.length)}`;
+  nodes.mcpConfigIssues.textContent = configIssues.length
+    ? configIssues.map((issue) => `- ${issue}`).join("\n")
+    : "MCP 配置有效。";
+  renderMcpTools(tools);
+}
+
+function mcpReadOnlyText(data) {
+  if (!data) return "-";
+  if (data.envReadOnly) return "只读（环境变量）";
+  if (data.readOnly) return "只读（配置）";
+  return data.effectiveReadOnly ? "只读" : "按配置开放写入工具";
+}
+
+function renderMcpTools(tools) {
+  nodes.mcpTools.innerHTML = "";
+  if (!tools.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "没有可显示的 MCP 工具。";
+    nodes.mcpTools.appendChild(empty);
+    return;
+  }
+  for (const tool of tools) {
+    const card = document.createElement("article");
+    card.className = `mcp-tool ${tool.enabled ? "enabled" : "disabled"}`;
+    const required = Array.isArray(tool.required) && tool.required.length ? tool.required.join(", ") : "无";
+    const properties = Array.isArray(tool.properties) && tool.properties.length ? tool.properties.join(", ") : "无";
+    card.innerHTML = [
+      '<div class="mcp-tool-head">',
+      `<strong>${escapeHtml(tool.name)}</strong>`,
+      '<span class="tool-badges">',
+      `<span class="chip ${tool.enabled ? "ok" : "disabled"}">${tool.enabled ? "启用" : "禁用"}</span>`,
+      `<span class="chip ${tool.write ? "write" : "read"}">${tool.write ? "写入" : "只读"}</span>`,
+      "</span>",
+      "</div>",
+      `<p class="muted">${escapeHtml(tool.description || "")}</p>`,
+      `<p><span>必填</span><code>${escapeHtml(required)}</code></p>`,
+      `<p><span>参数</span><code>${escapeHtml(properties)}</code></p>`,
+    ].join("");
+    nodes.mcpTools.appendChild(card);
+  }
 }
 
 function renderMemoryFiles(files) {
@@ -643,12 +723,14 @@ async function postAndRender(route, payload, label, options = {}) {
     const result = await postJson(route, payload);
     appendOutput(label, result.ok, result.stdout || "", result.stderr || "", outputNode, emptyText, pendingText);
     recordOperation(label, result.ok, result.stderr || result.stdout || "");
+    await loadServerAuditLog();
     if (options.nextView) showView(options.nextView);
     else showView("commands");
     return result;
   } catch (error) {
     appendOutput(label, false, "", error.message, outputNode, emptyText, pendingText);
     recordOperation(label, false, error.message);
+    await loadServerAuditLog();
     return null;
   } finally {
     setBusy(false);
@@ -712,6 +794,57 @@ function renderOperationLog() {
     item.summary ? `<p>${escapeHtml(item.summary)}</p>` : "",
     "</article>",
   ].join("")).join("");
+}
+
+async function loadServerAuditLog() {
+  if (!nodes.serverAuditLog) return;
+  if (!state.features.serverAuditLog) {
+    nodes.serverAuditLog.textContent = "\u91cd\u542f Run \u670d\u52a1\u540e\u53ef\u67e5\u770b\u670d\u52a1\u7aef\u5ba1\u8ba1\u65e5\u5fd7\u3002";
+    return;
+  }
+  try {
+    const payload = await requestJson("/api/audit-log?limit=30");
+    state.serverAuditLog = payload.entries || [];
+    renderServerAuditLog(payload.path);
+  } catch (error) {
+    nodes.serverAuditLog.textContent = `\u8bfb\u53d6\u670d\u52a1\u7aef\u5ba1\u8ba1\u5931\u8d25\uff1a${error.message}`;
+  }
+}
+
+function renderServerAuditLog(logPath) {
+  if (!nodes.serverAuditLog) return;
+  if (!state.serverAuditLog.length) {
+    nodes.serverAuditLog.textContent = logPath
+      ? `\u6682\u65e0\u670d\u52a1\u7aef\u5ba1\u8ba1\u8bb0\u5f55\u3002\u65e5\u5fd7\u6587\u4ef6\uff1a${logPath}`
+      : "\u6682\u65e0\u670d\u52a1\u7aef\u5ba1\u8ba1\u8bb0\u5f55";
+    return;
+  }
+  nodes.serverAuditLog.innerHTML = state.serverAuditLog.map((item) => [
+    `<article class="operation-item ${item.ok ? "ok" : "failed"}">`,
+    `<strong>${escapeHtml(item.action || "-")} ${item.ok ? "OK" : "FAILED"}</strong>`,
+    `<span>${escapeHtml(formatAuditTime(item.timestamp))}</span>`,
+    `<p>${escapeHtml(auditSummary(item))}</p>`,
+    "</article>",
+  ].join("")).join("");
+}
+
+function auditSummary(item) {
+  const parts = [
+    item.route,
+    item.kind,
+    Number.isInteger(item.status) ? `status ${item.status}` : "",
+    item.durationMs ? `${item.durationMs}ms` : "",
+    item.timedOut ? "timed out" : "",
+    item.memoryPath ? `memory ${item.memoryPath}` : "",
+    item.args && item.args.length ? item.args.join(" ") : "",
+    item.error ? `error ${item.error}` : "",
+  ];
+  return parts.filter(Boolean).join(" | ");
+}
+
+function formatAuditTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value || "-") : date.toLocaleString();
 }
 
 function loadOperationLog() {

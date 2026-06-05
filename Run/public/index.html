@@ -23,6 +23,7 @@
           <button class="nav-button" type="button" data-view="append" data-short="追加" title="追加记忆">追加记忆</button>
           <button class="nav-button" type="button" data-view="brief" data-short="计划" title="读取计划">读取计划</button>
           <button class="nav-button" type="button" data-view="query" data-short="查询" title="知识查询">知识查询</button>
+          <button class="nav-button" type="button" data-view="mcp" data-short="MCP" title="MCP 系统">MCP 系统</button>
           <button class="nav-button" type="button" data-view="commands" data-short="命令" title="命令操作">命令操作</button>
         </nav>
       </aside>
@@ -187,6 +188,56 @@
             </section>
           </section>
 
+          <section id="view-mcp" class="view">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>MCP 运行方式</h3>
+                <span id="mcpConfigState" class="badge">加载中</span>
+              </div>
+              <div class="mcp-grid">
+                <article class="mcp-card">
+                  <span class="metric-label">全局 CLI</span>
+                  <code id="mcpGlobalCommand" class="command-line">guardian mcp</code>
+                </article>
+                <article class="mcp-card">
+                  <span class="metric-label">本地脚本</span>
+                  <code id="mcpLocalCommand" class="command-line">-</code>
+                </article>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>MCP 权限</h3>
+              </div>
+              <dl class="status-grid mcp-status-grid">
+                <div>
+                  <dt>协议版本</dt>
+                  <dd id="mcpProtocol">-</dd>
+                </div>
+                <div>
+                  <dt>只读状态</dt>
+                  <dd id="mcpReadOnly">-</dd>
+                </div>
+                <div>
+                  <dt>allowedTools</dt>
+                  <dd id="mcpAllowedTools">-</dd>
+                </div>
+                <div>
+                  <dt>启用工具</dt>
+                  <dd id="mcpEnabledCount">-</dd>
+                </div>
+              </dl>
+              <pre id="mcpConfigIssues" class="mcp-issues">配置加载中...</pre>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>MCP 工具</h3>
+                <span class="muted">按当前配置过滤后的可见状态</span>
+              </div>
+              <div id="mcpTools" class="mcp-tool-list"></div>
+            </section>
+          </section>
+
           <section id="view-commands" class="view">
             <section class="panel">
               <div class="panel-head">
@@ -204,6 +255,13 @@
                 <button id="clearOperationLog" class="ghost-button" type="button">&#x6E05;&#x7A7A;</button>
               </div>
               <div id="operationLog" class="operation-log" aria-live="polite">&#x6682;&#x65E0;&#x64CD;&#x4F5C;</div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>&#x670D;&#x52A1;&#x7AEF;&#x5BA1;&#x8BA1;&#x65E5;&#x5FD7;</h3>
+                <button id="reloadServerAuditLog" class="ghost-button" type="button">&#x5237;&#x65B0;</button>
+              </div>
+              <div id="serverAuditLog" class="operation-log audit-log" aria-live="polite">&#x6682;&#x65E0;&#x670D;&#x52A1;&#x7AEF;&#x5BA1;&#x8BA1;&#x8BB0;&#x5F55;</div>
             </section>
             <section class="panel">
               <div class="panel-head">

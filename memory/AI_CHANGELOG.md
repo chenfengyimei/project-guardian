@@ -4,6 +4,30 @@
 
 ## 2026 记录
 
+### 2026-06-05 10:31 - 继续拆分 Git/安全模块并为 Run 增加服务端审计日志
+
+- 用户需求：继续处理剩余风险，包括 `guardian.js` 仍然没有完全拆完，以及 Run 操作日志只是浏览器本地辅助记录、不算正式审计日志。
+- AI 总结：新增 `plugins/project-guardian/scripts/lib/git-utils.js`，承接 Git 子进程封装、变更文件集合、diff stat、变更行范围、项目文件扫描和 ignore 规则，并保留 `.vue` / `.svelte` 等前端源码收集能力；新增 `plugins/project-guardian/scripts/lib/security.js`，承接 `scan-secrets` 的记忆文件与单独决策文件扫描、关键词密钥识别、高熵字符串识别和脱敏输出；`guardian.js` 删除对应内联实现并改为模块编排。Run 后端新增 `.project-guardian/run-audit.jsonl` 服务端本地审计日志和只读 `/api/audit-log`，前端命令操作页新增服务端审计日志面板；`.gitignore` 忽略 `.project-guardian/`，避免本地审计文件污染工作区。
+- 变更文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/security.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`package.json`、`.gitignore`、`tests/guardian.test.js`、`Run/README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-05-git-run.md`。
+- 业务原因：继续降低 CLI 主文件维护压力，让 Git/diff 和安全扫描有清晰模块边界；同时让 Run 控制台的操作记录从只存在浏览器 `localStorage` 的短记录，升级为本机服务端落盘的 JSONL 审计轨迹，便于刷新页面后继续追踪操作。
+- 技术说明：`git-utils.js` 复用固定 `git` 子进程参数，不开放任意 shell；`security.js` 兼容当前 `config.memoryFiles` 和旧式 `config.memory` 字段，避免拆分后配置字段不一致导致扫描崩溃。Run 审计只记录操作摘要、路由、状态、耗时、受控参数摘要和错误摘要；`brief`/`query` 不记录问题原文，手动追加记忆不记录正文，疑似 token/password/api_key 会脱敏。
+- 验证方式：先运行 `npm.cmd run lint` 通过；第一次 `npm.cmd test` 发现新安全模块误读 `config.memory` 导致 4 个测试失败，随后修复为兼容 `memoryFiles`，并修正密钥预览只截取赋值右侧；再次运行失败子集 `node --test --test-name-pattern "Git and security|reviews due|scan-secrets" tests/guardian.test.js` 通过；最终运行 `npm.cmd test` 通过，当前 62 个测试全部通过；再次运行 `npm.cmd run lint` 通过。最终复核时又补回 `.vue` / `.svelte` 文件收集测试，随后运行统一 `npm.cmd run verify`，当前 63 个测试全部通过。
+- 风险：服务端审计日志是本机 JSONL，不是带登录鉴权、集中采集和保留策略的企业审计；`.project-guardian/` 默认被 Git 忽略，如果团队需要正式审计，需要自行采集该文件。`guardian.js` 已继续瘦身，但 decision/reviews/handover 等命令编排仍在主文件中，后续还能继续低风险拆分。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私；审计日志实现会对疑似敏感值脱敏，测试中的密钥样例为假值且断言不会完整输出。
+- 下一步：运行最终 `guardian verify`、`git diff --check` 和 `git status`；后续可继续拆分 decision/reviews/handover，或为 Run 增加审计日志导出、集中采集说明和更完整的 diff 详情查看。
+
+### 2026-06-05 09:54 - 将 MCP 系统接入 Run 可视化控制台
+
+- 用户需求：帮我将 MCP 系统一起写入到可视化控制台里。
+- AI 总结：Run 控制台新增 `MCP 系统` 页面，展示 `guardian mcp`、本地脚本启动命令、协议版本、MCP 只读状态、`mcp.allowedTools` 和每个 MCP 工具的启用/禁用、只读/写入属性；Run `/api/status` 新增只读 MCP 状态摘要，`mcp.js` 新增 `publicMcpStatus()` 给控制台复用 MCP 元数据。
+- 变更文件：`plugins/project-guardian/scripts/lib/mcp.js`、`Run/server.js`、`Run/public/index.html`、`Run/public/app.js`、`Run/public/styles.css`、`tests/guardian.test.js`、`Run/README.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/2026-06-05-run-mcp-console.md`。
+- 业务原因：用户需要在可视化控制台里看见 MCP 系统状态和可用工具，降低配置 AI IDE 时的理解成本，同时保持 Run 控制台不变成任意 shell 或长连接服务管理器。
+- 技术说明：`publicMcpStatus()` 基于现有 `TOOLS`、`WRITE_TOOL_NAMES`、`validateMcpConfig()` 和 `enabledToolNames()` 生成展示摘要；Run 后端只读取 `project-guardian.config.json` 的 MCP 配置并返回状态，不启动 MCP server；前端新增独立 MCP 视图和工具卡片渲染。
+- 验证方式：已运行 `node --check Run/server.js`、`node --check Run/public/app.js`、`node --check plugins/project-guardian/scripts/lib/mcp.js`、`node --check tests/guardian.test.js`、`node --check plugins/project-guardian/scripts/guardian.js`、`node --check Run/lib/commands.js`、`npm.cmd run lint` 和 `npm.cmd test`；当前 63 个测试全部通过。
+- 风险：MCP 页面只是配置和工具元数据视图，不是 MCP 客户端调试器；`PROJECT_GUARDIAN_MCP_READ_ONLY=1` 只反映当前 Run 进程环境，真实 AI IDE 启动 MCP 时仍要确认 IDE 侧环境变量和工作目录。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据；MCP 状态载荷只包含工具名、描述、配置状态和启动命令。
+- 下一步：运行最终 `guardian verify` 和 diff 检查；后续如要支持控制台内 MCP 调试，应先补连接生命周期、逐次确认、审计日志和权限边界设计。
+
 ### 2026-06-04 18:04 - 拆分 CLI 核心模块并增强 Run 命令操作
 
 - 用户需求：`guardian.js` 仍然偏大，下一步按低风险顺序拆配置加载/校验、文档校验、query/brief 检索；Run 后续继续补命令搜索、写入前 diff 预览和操作日志，并完善这些功能。

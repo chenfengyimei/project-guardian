@@ -4,7 +4,6 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const readline = require("readline");
-const { execFileSync } = require("child_process");
 const { SUPPORTED_ADAPTERS, adapterFiles, adapterMatrix, resolveAdapters } = require("./lib/adapters");
 const {
   CONFIG_FILE,
@@ -18,6 +17,14 @@ const {
   validateConfig,
 } = require("./lib/config");
 const { latestChangelog, runDocValidation } = require("./lib/doc-validation");
+const {
+  changedFilesForUpdate,
+  changedLineRanges,
+  collectFiles,
+  getChangeSets,
+  git,
+  gitChangeSummary,
+} = require("./lib/git-utils");
 const { buildBrief, chunks, formatBrief, formatResults, searchIndex } = require("./lib/knowledge");
 const { runMcpServer } = require("./lib/mcp");
 const {
@@ -27,6 +34,7 @@ const {
   publicMemoryAppendTemplates,
   resolveMemoryTarget: resolveManualMemoryTarget,
 } = require("./lib/manual-memory");
+const { runSecretScan } = require("./lib/security");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -34,28 +42,6 @@ const AGENT_RULE_FILES = ["AGENTS.md", ".cursorrules"];
 const DEFAULT_QUERY_LIMIT = 6;
 const MAX_QUERY_LIMIT = 10;
 const BRIEF_MODES = ["auto", "quick", "deep", "full"];
-const SOURCE_EXTENSIONS = new Set([
-  ".js",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".py",
-  ".java",
-  ".go",
-  ".rs",
-  ".php",
-  ".rb",
-  ".cs",
-  ".html",
-  ".css",
-  ".scss",
-  ".vue",
-  ".svelte",
-  ".md",
-  ".json",
-  ".yaml",
-  ".yml",
-]);
 
 async function main() {
   const [command, ...args] = process.argv.slice(2);
@@ -758,24 +744,6 @@ function runReviewValidation(root, config) {
   return { ok: due.length === 0, items, due, issues };
 }
 
-function runSecretScan(root, config) {
-  const ignore = loadIgnorePatterns(root, config);
-  const files = unique([...getKnowledgeFiles(config), ...getDecisionFiles(root, config), CONFIG_FILE]).filter((file) => {
-    const full = path.join(root, file);
-    return fs.existsSync(full) && !isIgnored(file, ignore);
-  });
-  const findings = [];
-  for (const file of files) {
-    const text = readMaybe(path.join(root, file));
-    text.split(/\r?\n/).forEach((line, index) => {
-      for (const finding of scanSecretLine(line)) {
-        findings.push({ file, line: index + 1, ...finding });
-      }
-    });
-  }
-  return { ok: findings.length === 0, findings };
-}
-
 function printDoctor(result, silent) {
   if (silent) return;
   console.log("Project Guardian doctor report");
@@ -1063,115 +1031,9 @@ function buildGitHistoryDocs(root) {
   return history ? chunks("git-history", history, 1200, 200, "history") : [];
 }
 
-function collectFiles(root, config, limit) {
-  const tracked = lines(git(root, ["ls-files"]));
-  const untracked = lines(git(root, ["ls-files", "--others", "--exclude-standard"]));
-  const files = tracked.length > 0 ? unique([...tracked, ...untracked]) : walk(root);
-  const ignore = loadIgnorePatterns(root, config);
-  return files
-    .filter((file) => !file.startsWith("plugins/project-guardian/"))
-    .filter((file) => !file.startsWith(".git/"))
-    .filter((file) => !file.includes("node_modules/"))
-    .filter((file) => !isIgnored(file, ignore))
-    .filter((file) => SOURCE_EXTENSIONS.has(path.extname(file).toLowerCase()))
-    .slice(0, limit);
-}
-
-function gitChangeSummary(root) {
-  const parts = [];
-  const staged = git(root, ["diff", "--cached", "--stat"]);
-  const working = git(root, ["diff", "--stat"]);
-  const untracked = git(root, ["ls-files", "--others", "--exclude-standard"]);
-  if (staged) parts.push(`Staged changes:\n${staged}`);
-  if (working) parts.push(`Working tree changes:\n${working}`);
-  if (untracked) parts.push(`Untracked files:\n${untracked}`);
-  return parts.join("\n\n");
-}
-
-function changedFilesForUpdate(root) {
-  return unique([
-    ...lines(git(root, ["diff", "--cached", "--name-only"])),
-    ...lines(git(root, ["diff", "--name-only"])),
-    ...lines(git(root, ["ls-files", "--others", "--exclude-standard"])),
-  ]);
-}
-
-function changedLineRanges(root) {
-  const diff = git(root, ["diff", "--cached", "--unified=0"]) || git(root, ["diff", "--unified=0"]);
-  const ranges = [];
-  let currentFile = "";
-  for (const line of diff.split(/\r?\n/)) {
-    const fileMatch = line.match(/^\+\+\+\s+b\/(.+)$/);
-    if (fileMatch) currentFile = fileMatch[1];
-    const hunkMatch = line.match(/^@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,(\d+))?/);
-    if (currentFile && hunkMatch) {
-      const start = Number(hunkMatch[1]);
-      const length = Number(hunkMatch[2] || "1");
-      const end = Math.max(start, start + length - 1);
-      ranges.push(`${currentFile}:${start}${end === start ? "" : `-${end}`}`);
-    }
-  }
-  return unique(ranges);
-}
-
-function getChangeSets(root) {
-  return {
-    staged: lines(git(root, ["diff", "--cached", "--name-only"])),
-    working: lines(git(root, ["diff", "--name-only"])),
-    untracked: lines(git(root, ["ls-files", "--others", "--exclude-standard"])),
-  };
-}
-
 function memoryContainsPattern(root, config, pattern) {
   const regex = new RegExp(pattern);
   return getCoreMemoryFiles(config).some((file) => regex.test(readMaybe(path.join(root, file))));
-}
-
-function scanSecretLine(line) {
-  const findings = [];
-  const keyword = line.match(/\b(password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)\b\s*[:=]\s*["']?([^"'\s]{8,})/i);
-  if (keyword) findings.push({ type: "keyword-secret", preview: redact(keyword[2]) });
-  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(line)) findings.push({ type: "private-key", preview: "[redacted private key]" });
-  for (const match of line.matchAll(/[A-Za-z0-9+/=_-]{40,}/g)) {
-    const token = match[0];
-    if (looksHighEntropy(token)) findings.push({ type: "high-entropy", preview: redact(token) });
-  }
-  return findings;
-}
-
-function looksHighEntropy(value) {
-  return /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[+/_=-]/.test(value);
-}
-
-function redact(value) {
-  if (!value || value.length <= 8) return "[redacted]";
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
-}
-
-function loadIgnorePatterns(root, config) {
-  const file = path.join(root, ".guardianignore");
-  const fromFile = fs.existsSync(file)
-    ? fs.readFileSync(file, "utf8").split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#"))
-    : [];
-  return [...fromFile, ...(config.ignore || [])];
-}
-
-function isIgnored(file, patterns) {
-  return patterns.some((pattern) => file.replace(/\\/g, "/").includes(pattern.replace(/\\/g, "/")));
-}
-
-function walk(root, current = root, collected = []) {
-  for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-    const full = path.join(current, entry.name);
-    const rel = relative(root, full);
-    if (entry.isDirectory()) {
-      if ([".git", "node_modules", "dist", "build", ".next", "coverage"].includes(entry.name)) continue;
-      walk(root, full, collected);
-    } else {
-      collected.push(rel);
-    }
-  }
-  return collected;
 }
 
 function readPackageInfo(root) {
@@ -1424,14 +1286,6 @@ function prompt(label) {
 function areaFor(file) {
   const first = file.split(/[\\/]/)[0];
   return first === file ? "root" : first;
-}
-
-function git(root, args) {
-  try {
-    return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch (_) {
-    return "";
-  }
 }
 
 function unique(values) {

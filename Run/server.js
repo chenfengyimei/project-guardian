@@ -20,18 +20,24 @@ const {
   COMMANDS,
   publicCommandDefinition,
 } = require("./lib/commands");
+const { loadConfig } = require("../plugins/project-guardian/scripts/lib/config");
+const { publicMcpStatus } = require("../plugins/project-guardian/scripts/lib/mcp");
 
 const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4357;
 const CONFIG_FILE = "project-guardian.config.json";
-const API_VERSION = 4;
+const API_VERSION = 5;
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_OUTPUT_BYTES = 512 * 1024;
 const MAX_DIFF_PREVIEW_BYTES = 96 * 1024;
 const MAX_MEMORY_FILE_BYTES = 256 * 1024;
+const AUDIT_DIR = ".project-guardian";
+const AUDIT_LOG_FILE = "run-audit.jsonl";
+const MAX_AUDIT_EVENTS = 200;
+const MAX_AUDIT_DETAIL = 240;
 const BRIEF_MODES = new Set(["auto", "quick", "deep", "full"]);
 const INIT_LANGUAGES = new Set(["zh-CN", "en"]);
 const INIT_ADAPTERS = new Set(["default", "all"]);
@@ -166,6 +172,11 @@ async function handleApi(req, res, requestUrl, context) {
     return;
   }
 
+  if (req.method === "GET" && requestUrl.pathname === "/api/audit-log") {
+    sendJson(res, 200, readAuditLogPayload(context, requestUrl.searchParams.get("limit")));
+    return;
+  }
+
   if (req.method === "GET" && requestUrl.pathname === "/api/memory") {
     sendJson(res, 200, readMemoryPayload(context, requestUrl.searchParams.get("name")));
     return;
@@ -195,7 +206,7 @@ async function handleApi(req, res, requestUrl, context) {
     }
     if (command.kind === "write") validateConfirmation(body.confirm, COMMAND_CONFIRMATION);
     const args = command.kind === "write" ? command.buildArgs(body) : command.args;
-    await sendCommandResult(res, context, args, action);
+    await sendCommandResult(res, context, args, action, { route: requestUrl.pathname, kind: command.kind });
     return;
   }
 
@@ -203,14 +214,25 @@ async function handleApi(req, res, requestUrl, context) {
     const question = validateQuestion(body.question);
     const limit = validateLimit(body.limit, 3);
     const mode = validateMode(body.mode || "auto");
-    await sendCommandResult(res, context, ["brief", question, "--mode", mode, "--limit", String(limit)], "brief");
+    await sendCommandResult(res, context, ["brief", question, "--mode", mode, "--limit", String(limit)], "brief", {
+      route: requestUrl.pathname,
+      kind: "read",
+      questionLength: question.length,
+      limit,
+      mode,
+    });
     return;
   }
 
   if (requestUrl.pathname === "/api/query") {
     const question = validateQuestion(body.question);
     const limit = validateLimit(body.limit, 3);
-    await sendCommandResult(res, context, ["query", question, "--limit", String(limit)], "query");
+    await sendCommandResult(res, context, ["query", question, "--limit", String(limit)], "query", {
+      route: requestUrl.pathname,
+      kind: "read",
+      questionLength: question.length,
+      limit,
+    });
     return;
   }
 
@@ -220,13 +242,24 @@ async function handleApi(req, res, requestUrl, context) {
     const adapter = validateInitAdapter(body.adapter);
     const args = ["init", "--language", language];
     if (adapter === "all") args.push("--adapter", "all");
-    await sendCommandResult(res, context, args, "init");
+    await sendCommandResult(res, context, args, "init", { route: requestUrl.pathname, kind: "write", language, adapter });
     return;
   }
 
   if (requestUrl.pathname === "/api/memory/append") {
     validateConfirmation(body.confirm, WRITE_CONFIRMATIONS.appendMemory);
     const result = appendManualMemory(context, body.name, body);
+    appendAuditEvent(context, {
+      action: "append-memory",
+      route: requestUrl.pathname,
+      kind: "write",
+      ok: true,
+      status: 0,
+      memoryName: result.name,
+      memoryPath: result.path,
+      templateId: String(body.templateId || ""),
+      fieldNames: Object.keys(body.fields || {}).sort(),
+    });
     sendJson(res, 200, result);
     return;
   }
@@ -235,6 +268,7 @@ async function handleApi(req, res, requestUrl, context) {
 }
 
 function statusPayload(context) {
+  const config = loadConfig(context.projectRoot);
   return {
     ok: true,
     projectRoot: context.projectRoot,
@@ -251,7 +285,13 @@ function statusPayload(context) {
       commandSearch: true,
       diffPreview: true,
       operationLog: true,
+      serverAuditLog: true,
+      mcpStatus: true,
     },
+    mcp: publicMcpStatus(config.mcp, {
+      globalCommand: "guardian mcp",
+      localCommand: guardianScriptCommand(context),
+    }),
     readOnly: false,
     commandApiReadOnly: false,
     writeRequiresConfirmation: true,
@@ -268,6 +308,39 @@ function statusPayload(context) {
       };
     }),
   };
+}
+
+function guardianScriptCommand(context) {
+  if (!context.guardianScript) return "";
+  const relativeScript = path.relative(context.projectRoot, context.guardianScript).replace(/\\/g, "/");
+  const displayScript = relativeScript && !relativeScript.startsWith("..") && !path.isAbsolute(relativeScript)
+    ? relativeScript
+    : context.guardianScript;
+  return `node ${quoteCliPath(displayScript)} mcp`;
+}
+
+function quoteCliPath(value) {
+  return /\s/.test(value) ? `"${value}"` : value;
+}
+
+function readAuditLogPayload(context, rawLimit) {
+  const limit = validateAuditLimit(rawLimit);
+  const file = auditLogPath(context);
+  const payload = {
+    ok: true,
+    path: auditLogRelativePath(),
+    exists: fs.existsSync(file),
+    entries: [],
+  };
+  if (!payload.exists) return payload;
+  const text = fs.readFileSync(file, "utf8");
+  payload.entries = text.split(/\r?\n/)
+    .filter(Boolean)
+    .slice(-limit)
+    .map(parseAuditLine)
+    .filter(Boolean)
+    .reverse();
+  return payload;
 }
 
 async function diffPreviewPayload(context) {
@@ -389,8 +462,32 @@ function validateConfirmation(value, expected) {
   if (String(value || "").trim() !== expected) throw badRequest(`Type ${expected} to confirm this write operation.`);
 }
 
-async function sendCommandResult(res, context, args, action) {
+function validateAuditLimit(value) {
+  if (value === undefined || value === null || value === "") return 80;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_AUDIT_EVENTS) throw badRequest(`Limit must be an integer from 1 to ${MAX_AUDIT_EVENTS}.`);
+  return limit;
+}
+
+async function sendCommandResult(res, context, args, action, auditMeta = {}) {
+  const startedAt = Date.now();
   const result = await runGuardian(context, args);
+  appendAuditEvent(context, {
+    action,
+    route: auditMeta.route || "/api/command",
+    kind: auditMeta.kind || "command",
+    ok: result.status === 0,
+    status: result.status,
+    timedOut: result.timedOut,
+    durationMs: Date.now() - startedAt,
+    args: summarizeAuditArgs(action, args),
+    questionLength: auditMeta.questionLength,
+    limit: auditMeta.limit,
+    mode: auditMeta.mode,
+    language: auditMeta.language,
+    adapter: auditMeta.adapter,
+    error: result.status === 0 ? "" : result.stderr || result.stdout,
+  });
   sendJson(res, 200, {
     ok: result.status === 0,
     action,
@@ -400,6 +497,71 @@ async function sendCommandResult(res, context, args, action) {
     stdout: result.stdout,
     stderr: result.stderr,
   });
+}
+
+function appendAuditEvent(context, event) {
+  try {
+    fs.mkdirSync(path.join(context.projectRoot, AUDIT_DIR), { recursive: true });
+    fs.appendFileSync(auditLogPath(context), `${JSON.stringify(sanitizeAuditEvent(event))}\n`, "utf8");
+  } catch (_) {
+    // Audit logging must never break the user-facing command.
+  }
+}
+
+function sanitizeAuditEvent(event) {
+  return {
+    timestamp: new Date().toISOString(),
+    action: sanitizeAuditText(event.action, 80),
+    route: sanitizeAuditText(event.route, 80),
+    kind: sanitizeAuditText(event.kind, 32),
+    ok: Boolean(event.ok),
+    status: Number.isInteger(event.status) ? event.status : null,
+    timedOut: Boolean(event.timedOut),
+    durationMs: Number.isInteger(event.durationMs) ? event.durationMs : null,
+    args: Array.isArray(event.args) ? event.args.map((item) => sanitizeAuditText(item, 120)).slice(0, 20) : [],
+    questionLength: Number.isInteger(event.questionLength) ? event.questionLength : undefined,
+    limit: Number.isInteger(event.limit) ? event.limit : undefined,
+    mode: event.mode ? sanitizeAuditText(event.mode, 32) : undefined,
+    language: event.language ? sanitizeAuditText(event.language, 32) : undefined,
+    adapter: event.adapter ? sanitizeAuditText(event.adapter, 32) : undefined,
+    memoryName: event.memoryName ? sanitizeAuditText(event.memoryName, 80) : undefined,
+    memoryPath: event.memoryPath ? sanitizeAuditText(event.memoryPath, 160) : undefined,
+    templateId: event.templateId ? sanitizeAuditText(event.templateId, 80) : undefined,
+    fieldNames: Array.isArray(event.fieldNames) ? event.fieldNames.map((item) => sanitizeAuditText(item, 80)).slice(0, 20) : undefined,
+    error: event.error ? sanitizeAuditText(event.error, MAX_AUDIT_DETAIL) : undefined,
+  };
+}
+
+function summarizeAuditArgs(action, args) {
+  if (action === "query") return ["query", "<question>", ...args.slice(2)];
+  if (action === "brief") return ["brief", "<question>", ...args.slice(2)];
+  return args;
+}
+
+function sanitizeAuditText(value, limit) {
+  return redactLikelySecret(String(value || "").replace(/\s+/g, " ").trim()).slice(0, limit);
+}
+
+function redactLikelySecret(value) {
+  return value
+    .replace(/\b(password|passwd|secret|token|api[_-]?key|private[_-]?key)\b\s*[:=]\s*["']?[^"'\s]+/gi, "$1=[redacted]")
+    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted-token]");
+}
+
+function parseAuditLine(line) {
+  try {
+    return JSON.parse(line);
+  } catch (_) {
+    return null;
+  }
+}
+
+function auditLogPath(context) {
+  return path.join(context.projectRoot, AUDIT_DIR, AUDIT_LOG_FILE);
+}
+
+function auditLogRelativePath() {
+  return path.join(AUDIT_DIR, AUDIT_LOG_FILE).replace(/\\/g, "/");
 }
 
 function runGit(context, args) {
