@@ -1255,7 +1255,7 @@ async function loadReviews() {
 function renderReviewList(data) {
   if (!nodes.reviewList) return;
   if (!data || !data.ok || !data.items || data.items.length === 0) {
-    nodes.reviewList.innerHTML = '<p class="muted">暂无决策复审记录。</p>';
+    nodes.reviewList.innerHTML = '<p class="muted">?????????</p>';
     return;
   }
 
@@ -1270,12 +1270,11 @@ function renderReviewList(data) {
   for (const item of items) {
     const statusInfo = statusLabels[item.status] || { label: item.status, cls: '' };
     const fileName = item.file.split('/').pop();
-    const dateLabel = item.reviewAfter ? '复审日期: ' + item.reviewAfter : '';
     html += '<button class="review-item" type="button" data-file="' + escapeHtml(item.file) + '">';
-    html += '  <strong>' + escapeHtml(item.title) + '</strong>';
-    html += '  <span class="review-meta">' + escapeHtml(fileName) + '</span>';
-    if (dateLabel) html += '  <span class="review-meta">' + escapeHtml(dateLabel) + '</span>';
-    html += '  <span class="review-badge ' + statusInfo.cls + '">' + statusInfo.label + '</span>';
+    html += '<strong>' + escapeHtml(item.title) + '</strong>';
+    html += '<span class="review-meta filename">' + escapeHtml(fileName) + '</span>';
+    if (item.reviewAfter) html += '<span class="review-meta">' + escapeHtml(item.reviewAfter) + '</span>';
+    html += '<span class="review-badge ' + statusInfo.cls + '">' + statusInfo.label + '</span>';
     html += '</button>';
   }
   html += '</div>';
