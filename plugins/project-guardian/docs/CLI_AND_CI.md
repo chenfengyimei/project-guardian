@@ -84,6 +84,40 @@ node plugins/project-guardian/scripts/guardian.js verify
 
 `verify` 会依次运行 `doctor`、`check`、`validate-docs`、`reviews`，并在配置开启时运行 `scan-secrets`。
 
+## 1.1 AI IDE 受控命令层
+
+`plugins/project-guardian/cmd/` 是给 AI IDE 和 Agent 使用的受控命令替代层。它把常见系统操作收敛为固定命令 ID，并在每次运行时自动写入本地代码级日志：
+
+```bash
+guardian-cmd list
+guardian-cmd git-status
+guardian-cmd git-diff-stat
+guardian-cmd npm-test
+guardian-cmd guardian-verify
+guardian-cmd guardian-query "登录流程" --limit 3
+guardian-cmd guardian-update "完成登录修复"
+guardian-cmd guardian-handover
+```
+
+没有全局安装时使用源码路径：
+
+```bash
+node plugins/project-guardian/cmd/guardian-cmd.js list
+node plugins/project-guardian/cmd/guardian-cmd.js git-status
+```
+
+日志文件：
+
+```text
+.project-guardian/cmd-audit.jsonl
+```
+
+日志字段包括调用时间、命令 ID、参数摘要、工作目录、命令类型、成功状态、退出码和耗时。参数会做基础脱敏，疑似密钥不会完整写入。日志写入失败时，`guardian-cmd` 会在 STDERR 输出 `Failed to write command audit log`；原本成功的命令会返回失败状态，避免出现“执行了但没有记录”的假成功。
+
+这不是任意 shell 代理。`guardian-cmd` 只运行内置白名单命令，不支持管道、命令拼接或用户自定义可执行文件。AI IDE 执行命令时应先运行 `guardian-cmd list` 查找替代项；如果确实没有对应替代命令，才临时使用原始终端命令，并评估是否需要把该命令补进 `cmd/guardian-cmd.js`。
+
+当前 Guardian 类替代命令覆盖 `init`、`update`、`append-memory`、`decision add`、`doctor`、`check`、`validate-docs`、`verify`、`scan-secrets`、`reviews`、`reviews due`、`reviews complete`、`handover`、`conflicts`、`install-adapters`、`adapters doctor`、`install-hooks`、`install-ci`、`query` 和 `brief`。`guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置中启动，不放进普通短命令目录。
+
 ## 2. 初始化命令
 
 ```bash
@@ -141,7 +175,7 @@ guardian adapters doctor
 
 如果团队改过 `project-guardian.config.json` 中的 `memoryFiles` 路径，适配器模板会在生成时注入真实路径，不会继续写死默认的 `memory/...`。
 
-VS Code tasks 默认执行 `guardian` 命令。使用 VS Code 任务前，请先确认 `guardian --version` 在当前终端能运行；如果团队只复制了插件源码、没有全局安装 CLI，则继续使用 `node plugins/project-guardian/scripts/guardian.js ...`，或把任务命令改成本地脚本路径。
+VS Code tasks 默认执行 `guardian-cmd` 命令。使用 VS Code 任务前，请先确认 `guardian-cmd list` 在当前终端能运行；如果团队只复制了插件源码、没有全局安装 CLI，则继续使用 `node plugins/project-guardian/cmd/guardian-cmd.js ...`，或把 `.vscode/tasks.json` 中的任务命令改成本地脚本路径。
 
 ### 2.2 适配器体检
 

@@ -958,6 +958,11 @@ Usage:
   guardian install-hooks
   guardian install-ci
 
+Controlled command runner for AI IDEs:
+  guardian-cmd list
+  guardian-cmd guardian-verify
+  node plugins/project-guardian/cmd/guardian-cmd.js list
+
 Commands:
   init           Create standard project memory files, AI rules, and config. Default language is zh-CN; use --language en for English templates.
   update         Append an AI-assisted change record and refresh the state memory file.

@@ -8,6 +8,7 @@ const test = require("node:test");
 
 const repoRoot = path.resolve(__dirname, "..");
 const guardian = path.join(repoRoot, "plugins", "project-guardian", "scripts", "guardian.js");
+const guardianCmd = path.join(repoRoot, "plugins", "project-guardian", "cmd", "guardian-cmd.js");
 
 function tempDir(name) {
   const dir = path.join(repoRoot, "tests", `.tmp-${name}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -21,6 +22,14 @@ function cleanup(dir) {
 
 function run(cwd, args) {
   return spawnSync(process.execPath, [guardian, ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, NO_COLOR: "1" },
+  });
+}
+
+function runCmd(cwd, args) {
+  return spawnSync(process.execPath, [guardianCmd, ...args], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, NO_COLOR: "1" },
@@ -491,11 +500,111 @@ test("init --language en keeps English memory templates", () => {
 test("package exposes guardian CLI bin entries", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(pkg.bin.guardian, "plugins/project-guardian/scripts/guardian.js");
+  assert.equal(pkg.bin["guardian-cmd"], "plugins/project-guardian/cmd/guardian-cmd.js");
   assert.equal(pkg.bin["project-guardian"], "plugins/project-guardian/scripts/guardian.js");
   assert.equal(pkg.engines.node, ">=18");
   assert.ok(pkg.files.includes("Run"));
   assert.ok(pkg.files.includes("plugins/project-guardian"));
   assert.equal(pkg.scripts.ui, "node Run/server.js");
+});
+
+test("guardian-cmd runs controlled commands and writes an audit log", () => {
+  const root = tempDir("guardian-cmd-log");
+  try {
+    git(root, ["init"]);
+    writeFile(path.join(root, "index.js"), "const value = 1;\n");
+
+    const result = runCmd(root, ["git-status"]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /index\.js/);
+
+    const logFile = path.join(root, ".project-guardian", "cmd-audit.jsonl");
+    assert.ok(fs.existsSync(logFile));
+    const entries = fs.readFileSync(logFile, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].method, "git-status");
+    assert.deepEqual(entries[0].args, []);
+    assert.equal(entries[0].ok, true);
+    assert.equal(entries[0].exitCode, 0);
+    assert.match(entries[0].timestamp, /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd rejects unsupported arguments and records the failed attempt", () => {
+  const root = tempDir("guardian-cmd-reject");
+  try {
+    git(root, ["init"]);
+    const result = runCmd(root, ["git-status", "--porcelain=v1"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /does not accept extra arguments/);
+
+    const logFile = path.join(root, ".project-guardian", "cmd-audit.jsonl");
+    const entry = JSON.parse(fs.readFileSync(logFile, "utf8").trim());
+    assert.equal(entry.method, "git-status");
+    assert.deepEqual(entry.args, ["--porcelain=v1"]);
+    assert.equal(entry.ok, false);
+    assert.equal(entry.exitCode, 2);
+    assert.match(entry.error, /does not accept extra arguments/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd node-check validates relative files", () => {
+  const root = tempDir("guardian-cmd-node-check");
+  try {
+    writeFile(path.join(root, "src", "app.js"), "function app() { return 1; }\n");
+    const result = runCmd(root, ["node-check", "src/app.js"]);
+    assert.equal(result.status, 0);
+
+    const logFile = path.join(root, ".project-guardian", "cmd-audit.jsonl");
+    const entry = JSON.parse(fs.readFileSync(logFile, "utf8").trim());
+    assert.equal(entry.method, "node-check");
+    assert.deepEqual(entry.args, ["src/app.js"]);
+    assert.equal(entry.ok, true);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd reports audit log write failures", () => {
+  const root = tempDir("guardian-cmd-log-failure");
+  try {
+    fs.writeFileSync(path.join(root, ".project-guardian"), "not a directory\n", "utf8");
+    const result = runCmd(root, ["pwd"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Failed to write command audit log/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd exposes guardian workflow commands and logs init", () => {
+  const root = tempDir("guardian-cmd-init");
+  try {
+    const list = runCmd(root, ["list"]);
+    assert.equal(list.status, 0);
+    assert.match(list.stdout, /guardian-init/);
+    assert.match(list.stdout, /guardian-update/);
+    assert.match(list.stdout, /guardian-handover/);
+    assert.match(list.stdout, /guardian-install-adapters/);
+
+    const result = runCmd(root, ["guardian-init", "--language", "en"]);
+    assert.equal(result.status, 0);
+    assert.ok(fs.existsSync(path.join(root, "memory", "PROJECT_CONTEXT.md")));
+    assert.ok(fs.existsSync(path.join(root, "memory", "STATE.md")));
+
+    const logFile = path.join(root, ".project-guardian", "cmd-audit.jsonl");
+    const entries = fs.readFileSync(logFile, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(entries.at(-1).method, "guardian-init");
+    assert.deepEqual(entries.at(-1).args, ["--language", "en"]);
+    assert.equal(entries.at(-1).kind, "guardian");
+    assert.equal(entries.at(-1).ok, true);
+  } finally {
+    cleanup(root);
+  }
 });
 
 test("Run frontend includes local Markdown table rendering", () => {
@@ -1261,7 +1370,7 @@ test("vscode adapter creates VS Code tasks and Copilot instructions", () => {
     assert.doesNotThrow(() => JSON.parse(tasks));
     assert.match(tasks, /Project Guardian: Verify/);
     assert.match(tasks, /Project Guardian: Brief/);
-    assert.match(tasks, /guardian query .*--limit 3/);
+    assert.match(tasks, /guardian-cmd guardian-query .*--limit 3/);
     assert.ok(fs.existsSync(path.join(root, ".github", "copilot-instructions.md")));
 
     const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));

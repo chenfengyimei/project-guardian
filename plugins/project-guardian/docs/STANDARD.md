@@ -393,12 +393,42 @@ MCP 参数必须遵守工具 schema。`guardian_brief` 用于生成预算友好�
 
 只读模式会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete` 和 `guardian_handover`。MCP 客户端临时接入时，也可以使用环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 强制只读。MCP server 启动时会校验 `mcp.readOnly` 和 `mcp.allowedTools`，配置写错会直接拒绝启动，防止配置错误时意外开放全部工具。
 
-## 13. 当前限制和风险
+## 13. 受控命令标准
+
+AI IDE 或 Agent 需要执行常见系统命令时，应先查看并使用 `guardian-cmd`：
+
+```bash
+guardian-cmd list
+guardian-cmd git-status
+guardian-cmd guardian-verify
+```
+
+没有全局安装时使用：
+
+```bash
+node plugins/project-guardian/cmd/guardian-cmd.js list
+node plugins/project-guardian/cmd/guardian-cmd.js git-status
+```
+
+标准要求：
+
+- `guardian-cmd` 只提供固定白名单命令，不开放任意 shell。
+- 每次调用必须自动追加 `.project-guardian/cmd-audit.jsonl`。
+- 日志必须记录时间、命令 ID、参数摘要、工作目录、成功状态、退出码和耗时。
+- 日志写入失败时必须显式报错；原本成功的命令应返回失败状态，避免 AI IDE 误判为已执行且已记录。
+- 参数摘要必须做基础脱敏，不能完整记录密码、token、私钥、客户隐私或大段业务正文。
+- 新增命令时必须补测试，至少覆盖成功执行、非法参数拒绝和日志写入。
+- 如果当前没有替代命令，可以临时使用原始终端命令，但应评估是否把它补进受控命令目录。
+
+`guardian-cmd` 适合记录 AI IDE 常规命令执行轨迹，不等同企业集中审计。正式审计场景需要把 `.project-guardian/cmd-audit.jsonl` 采集到集中日志或不可变存储。
+
+## 14. 当前限制和风险
 
 - CLI 需要 Node.js 18 或更新版本；`check`、`update`、`verify`、hooks 和 CI 需要 Git。
 - Project Guardian 不依赖 Codex 才能使用；Codex 只是支持度最高的插件形态。其它 IDE 主要通过 CLI 和规则文件适配。
-- VS Code 当前是 `.vscode/tasks.json` 加 Copilot instructions，不是原生 VS Code 扩展。任务默认调用 `guardian`，使用前要保证 CLI 在 PATH 中。
+- VS Code 当前是 `.vscode/tasks.json` 加 Copilot instructions，不是原生 VS Code 扩展。任务默认调用 `guardian-cmd`，使用前要保证该命令在 PATH 中；源码内置模式可把任务命令改成 `node plugins/project-guardian/cmd/guardian-cmd.js ...`。
 - MCP 当前是 stdio JSON-RPC 入口，支持配置化工具限制，但不包含身份认证或逐次审批；接入公开仓库或多人环境时，要继续依赖 Git 权限和代码评审。
+- `guardian-cmd` 只能覆盖已加入白名单的常见命令；没有替代项时仍可能需要原始终端命令，后续应按团队高频场景逐步补齐。
 - `query` 是本地关键词检索，不是语义向量检索；表达差异大时可能搜不到，需要换关键词或查看来源文件。
 - 各 AI IDE 的规则文件约定可能变化，新增或升级 IDE 后要运行 `guardian adapters doctor` 并复核官方文档。
 - 记忆文件不能写入生产密码、真实 token、客户隐私或私钥；提交前运行 `guardian verify`，并保留人工复核。

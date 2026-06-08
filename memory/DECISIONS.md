@@ -136,7 +136,7 @@
 - 决策：将默认项目记忆路径迁移到根目录 memory 文件夹，核心记忆文件和单独决策文件都放在 memory 下；CLI 默认配置、项目配置、AI 规则、文档和测试同步使用新路径。
 - 备选方案：暂无记录。
 - 影响文件/模块：plugins/project-guardian/scripts/guardian.js, project-guardian.config.json, memory/*, tests/guardian.test.js, Project Guardian docs and adapter templates
-- 关联变更：未指定。
+- 关联变更：默认 `memoryFiles` 路径迁移到 `memory/`，同步项目配置、CLI 初始化逻辑、AI 规则、文档和测试，旧项目仍尊重显式配置。
 - 验证方式：运行 doctor、validate-docs、lint、test、verify 和临时目录 init 冒烟测试。
 - 风险：已有项目如果保留旧 project-guardian.config.json，CLI 会继续尊重旧配置；迁移旧项目时需要同步更新配置或重新初始化。
 - 复审时间：2026-06-15
@@ -285,3 +285,16 @@
 - 复审时间：2026-07-05
 - 后续动作：真实团队使用后评估是否需要集中审计采集、不可变存储、登录鉴权、Run API 路由拆分，以及继续拆分 init/update/check/doctor/query/hooks/CI。
 - 决策文件：`memory/decisions/2026-06-05-cli-run-audit.md`
+
+### 2026-06-08 - 新增 AI IDE 受控命令层
+
+- 背景：AI IDE 经常需要执行 Git、npm、Node 和 Guardian 命令，如果直接运行系统 shell，缺少统一轨迹，也难以约束参数和审计边界。
+- 决策：新增 plugins/project-guardian/cmd/guardian-cmd.js，提供固定命令目录和 guardian-cmd bin；AI 规则模板与 VS Code tasks 优先使用 guardian-cmd；每次调用自动写入 .project-guardian/cmd-audit.jsonl，且不开放任意 shell。
+- 备选方案：继续直接运行原始 shell；只依赖 Run 审计；做任意 shell 代理。
+- 影响文件/模块：plugins/project-guardian/cmd/guardian-cmd.js, plugins/project-guardian/cmd/README.md, package.json, tests/guardian.test.js, AI rule templates, VS Code tasks, Project Guardian docs
+- 关联变更：新增 `guardian-cmd` package bin、受控命令目录、VS Code tasks 改造、AI 规则模板改造和命令审计文档。
+- 验证方式：运行 `node --check`、`guardian-cmd list`、受控命令相关测试、VS Code adapter 回归测试、`guardian-cmd npm-lint`、`guardian-cmd npm-test`、`guardian-cmd guardian-verify`、`guardian-cmd git-diff-check` 和 `guardian-cmd npm-audit`。
+- 风险：白名单不能覆盖所有命令；本地 JSONL 不是企业集中审计；没有替代项时仍可能临时直跑 shell。
+- 复审时间：2026-07-08
+- 后续动作：根据真实 AI IDE 高频命令继续补充受控命令 ID；企业审计场景再接集中日志或不可变存储。
+- 决策文件：`memory/decisions/2026-06-08-ai-ide.md`

@@ -18,6 +18,8 @@ Use budget-aware memory reading before project-specific answers or edits:
 7. Use `guardian brief "task or question" --mode deep` for bugs, regressions, unclear history, or high-risk modules; use `--mode full` for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.
 8. Budget-aware reading is a starting point, not a hard restriction. If evidence is weak, conflicting, or risky, escalate before editing.
 
+Before running common system commands, prefer `guardian-cmd list` and use `guardian-cmd <command-id> [args]` when a controlled replacement exists. This records the invocation in `.project-guardian/cmd-audit.jsonl`. Fall back to direct shell commands only when no controlled replacement exists.
+
 After code changes, update `memory/STATE.md` and `memory/AI_CHANGELOG.md`. Add or update `memory/DECISIONS.md` when the change introduces an important architecture, workflow, dependency, security, or compatibility decision.
 
-Prefer running `guardian verify` before handoff, review, or commit. Do not write secrets or customer private data into memory.
+Prefer running `guardian-cmd guardian-verify` before handoff, review, or commit when available; otherwise run `guardian verify`. Do not write secrets or customer private data into memory.

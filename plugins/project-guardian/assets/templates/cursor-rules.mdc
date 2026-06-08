@@ -18,12 +18,18 @@ Before editing code or answering project-specific questions, use budget-aware me
 7. Use `guardian brief "task or question" --mode deep` for bugs, regressions, unclear history, or high-risk modules; use `--mode full` for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.
 8. Budget-aware reading is a starting point, not a hard restriction. If evidence is weak, conflicting, or risky, escalate before editing.
 
+Before running common system commands, prefer the controlled command runner when it has a replacement:
+
+- Run `guardian-cmd list` to inspect available command IDs.
+- Use `guardian-cmd <command-id> [args]` for supported Git, npm, Node, and Guardian commands so `.project-guardian/cmd-audit.jsonl` records the invocation automatically.
+- Fall back to direct shell commands only when no controlled replacement exists, then consider whether a new command ID should be added.
+
 After AI-assisted code changes:
 
 - Update `memory/STATE.md` with current status, known issues, next steps, and latest change.
 - Append a concise entry to `memory/AI_CHANGELOG.md`.
 - Update `memory/DECISIONS.md` for important architecture, business-rule, dependency, data-model, security, workflow, or compatibility decisions.
-- Run `guardian verify` before committing when the CLI is available.
+- Run `guardian-cmd guardian-verify` before committing when the controlled command runner is available; otherwise run `guardian verify`.
 
 Answers should explain what changed, why the project currently works this way, what was verified, and what the next developer should know.
 Do not write production passwords, real tokens, customer private data, or other secrets into project memory.

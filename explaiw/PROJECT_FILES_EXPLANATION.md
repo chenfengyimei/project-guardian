@@ -45,6 +45,9 @@ project_ai/
     project-guardian/
       .codex-plugin/
         plugin.json
+      cmd/
+        README.md
+        guardian-cmd.js
       assets/
         icon.svg
         templates/
@@ -187,6 +190,8 @@ project_ai/
 | `project-guardian.config.json` | Project Guardian 配置 | 让项目无需改 CLI 源码就能调整规则 | 记忆文件路径、质量规则、hook、CI、security、MCP 权限、language、adapters、ignore | 记忆路径、语言、适配器、MCP 工具权限、CI 分支、扫描规则变化时 |
 | `.agents/plugins/marketplace.json` | Codex 本地插件市场入口 | 让 Codex 能发现本仓库中的插件 | 插件 id、路径、显示顺序或市场元数据 | 插件路径、插件入口、市场展示信息变化时 |
 | `plugins/project-guardian/.codex-plugin/plugin.json` | Codex 插件元数据 | Codex 插件标准需要它 | 插件名称、版本、描述、skill 入口等 | 插件版本、描述、能力、入口变化时 |
+| `plugins/project-guardian/cmd/README.md` | 受控命令层说明 | 让 AI IDE 和维护者知道如何通过固定命令目录替代常见系统命令 | `guardian-cmd` 使用方式、日志位置、安全边界、常用命令和新增替代命令标准 | 受控命令目录、日志字段、安全边界或使用方式变化时 |
+| `plugins/project-guardian/cmd/guardian-cmd.js` | AI IDE 受控命令代理 | 给常见 Git、npm、Node 和 Project Guardian 命令提供固定替代入口，并自动写入本地命令审计日志 | 命令白名单、参数校验、子进程执行、参数脱敏、`.project-guardian/cmd-audit.jsonl` 写入和错误记录 | 新增命令替代项、修改日志字段、调整脱敏规则或安全边界时 |
 | `plugins/project-guardian/scripts/guardian.js` | CLI 主程序 | Project Guardian 的所有命令都从这里进入，并协调各拆分模块 | init、update、append-memory、handover、check、doctor、validate-docs、brief、brief mode、query、query limit、decision、reviews、conflicts、mcp、hooks、CI、安全扫描、可移植 package scripts 等命令编排 | 新增命令、修改规则、修 bug、改变生成内容时 |
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
 | `plugins/project-guardian/scripts/lib/config.js` | CLI 配置模块 | 把配置加载、默认值合并和配置校验从主 CLI 中拆出来 | `project-guardian.config.json` 默认值、语言列表、加载、深度合并、init 语言参数应用、配置合法性校验 | 新增配置项、调整默认值、改变配置校验规则时 |

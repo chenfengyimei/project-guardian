@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-08 11:51 - 新增 AI IDE 受控命令层和命令审计日志
+
+- 用户需求：新增系统级别日志功能，单独放在插件 `cmd/` 文件夹中，让 AI IDE 运行常见系统命令时优先从这里找到替代命令；每次运行都由代码自动追加日志，记录调用时间、方法和参数，而不是让 AI Agent 手写日志。
+- AI 总结：新增 `plugins/project-guardian/cmd/guardian-cmd.js` 和 `plugins/project-guardian/cmd/README.md`；`guardian-cmd` 使用固定命令目录覆盖 Git、npm、Node 和主要 Project Guardian 子命令，执行时不用 shell 字符串拼接，并自动写入 `.project-guardian/cmd-audit.jsonl`；失败、未知命令和非法参数也会记录。package 新增 `guardian-cmd` bin，VS Code tasks 和多套 AI 规则模板已同步为优先使用受控命令层。
+- 变更文件：`plugins/project-guardian/cmd/guardian-cmd.js`、`plugins/project-guardian/cmd/README.md`、`package.json`、`package-lock.json`、`tests/guardian.test.js`、`AGENTS.md`、`.cursorrules`、`plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`plugins/project-guardian/docs/INTEGRATION.md`、`plugins/project-guardian/docs/STANDARD.md`、`plugins/project-guardian/docs/WORKFLOW.md`、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
+- 业务原因：让 AI IDE 的命令执行形成稳定、可查、自动产生的本地轨迹，同时避免把能力做成任意 shell 代理；团队后续可以根据真实高频命令逐步扩展白名单。
+- 技术说明：`guardian-cmd` 使用 `spawnSync` 参数数组和 `shell: false`；命令 ID 固定注册；无参数命令拒绝额外参数；路径参数必须留在项目相对路径内；日志参数会做基础脱敏，疑似 password、secret、token、api_key、private_key 和长 token 字符串不会完整写入；如果审计日志无法写入，原本成功的命令会返回失败状态，避免出现“执行了但没有记录”的假成功。
+- 验证方式：已运行 `node --check plugins/project-guardian/cmd/guardian-cmd.js`、`node --check plugins/project-guardian/scripts/guardian.js`、`node plugins/project-guardian/cmd/guardian-cmd.js list`、`node --test --test-name-pattern "guardian-cmd|package exposes" tests/guardian.test.js`、`node --test --test-name-pattern "vscode adapter|guardian-cmd|package exposes" tests/guardian.test.js`、`node --test --test-name-pattern "guardian-cmd" tests/guardian.test.js`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-lint`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-test`、`node plugins/project-guardian/cmd/guardian-cmd.js guardian-verify`、`node plugins/project-guardian/cmd/guardian-cmd.js git-diff-check` 和 `node plugins/project-guardian/cmd/guardian-cmd.js npm-audit`；全量测试 71 个通过，`guardian verify` 通过，npm audit 0 漏洞，diff 检查只有 Windows LF/CRLF 提示。
+- 风险：`guardian-cmd` 是本地 JSONL 命令轨迹，不是企业集中审计或不可篡改存储；只覆盖白名单命令，未覆盖的命令仍可能需要临时直接运行；`guardian mcp` 是长时间 stdio 服务，不放入普通短命令目录。
+- 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据；新增日志实现会对疑似敏感参数做基础脱敏。
+- 下一步：提交到 Gitee 前复查 `git status`；后续按真实 AI IDE 使用频率补充更多受控命令 ID。
+
 ### 2026-06-05 15:58 - 拆分决策复审交接模块并增强 Run 审计边界
 
 - 用户需求：继续处理剩余风险，Run 审计日志已经从浏览器本地辅助记录升级为项目本地 JSONL，但仍不是企业级集中审计；`guardian.js` 已继续瘦身，但 decision/reviews/handover 还可以继续拆成独立模块。

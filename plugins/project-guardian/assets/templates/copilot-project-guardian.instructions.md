@@ -16,4 +16,6 @@ Use repository memory as the primary source of project truth, but read it in a b
 - Use `guardian brief "task or question" --mode full` for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.
 - Budget-aware reading is a starting point, not a hard restriction. If evidence is weak, conflicting, or risky, escalate before editing.
 
-When helping with implementation, explain historical context, affected files, verification, risks, and memory updates. Prefer small, safe changes and run or recommend `guardian verify` before commit.
+Before running common system commands, prefer `guardian-cmd list` and use `guardian-cmd <command-id> [args]` when a controlled replacement exists. This records the invocation in `.project-guardian/cmd-audit.jsonl`.
+
+When helping with implementation, explain historical context, affected files, verification, risks, and memory updates. Prefer small, safe changes and run or recommend `guardian-cmd guardian-verify` before commit when available; otherwise run or recommend `guardian verify`.

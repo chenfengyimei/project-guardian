@@ -185,7 +185,7 @@ guardian adapters doctor
 
 不建议默认生成所有 IDE 文件，否则小项目根目录会被太多工具配置占满。团队应按实际使用的 IDE 安装适配器。
 
-VS Code tasks 默认调用 `guardian`，所以在 VS Code 里运行任务前要先确认终端能执行 `guardian --version`。如果你的团队没有全局安装 CLI，而是把插件源码复制到项目内，请使用终端里的本地脚本路径，或把 `.vscode/tasks.json` 中的命令改成 `node plugins/project-guardian/scripts/guardian.js ...`。
+VS Code tasks 默认调用 `guardian-cmd`，所以在 VS Code 里运行任务前要先确认终端能执行 `guardian-cmd list`。如果你的团队没有全局安装 CLI，而是把插件源码复制到项目内，请使用终端里的本地脚本路径，或把 `.vscode/tasks.json` 中的命令改成 `node plugins/project-guardian/cmd/guardian-cmd.js ...`。
 
 ### 3.5 MCP 接入方式
 

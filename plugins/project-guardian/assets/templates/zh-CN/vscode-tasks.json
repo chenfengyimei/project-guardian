@@ -16,31 +16,31 @@
     {
       "label": "Project Guardian: Verify",
       "type": "shell",
-      "command": "guardian verify",
+      "command": "guardian-cmd guardian-verify",
       "problemMatcher": []
     },
     {
       "label": "Project Guardian: Update Memory",
       "type": "shell",
-      "command": "guardian update \"${input:guardianTask}\"",
+      "command": "guardian-cmd guardian-update \"${input:guardianTask}\"",
       "problemMatcher": []
     },
     {
       "label": "Project Guardian: Brief",
       "type": "shell",
-      "command": "guardian brief \"${input:guardianQuestion}\"",
+      "command": "guardian-cmd guardian-brief \"${input:guardianQuestion}\"",
       "problemMatcher": []
     },
     {
       "label": "Project Guardian: Query",
       "type": "shell",
-      "command": "guardian query \"${input:guardianQuestion}\" --limit 3",
+      "command": "guardian-cmd guardian-query \"${input:guardianQuestion}\" --limit 3",
       "problemMatcher": []
     },
     {
       "label": "Project Guardian: Handover",
       "type": "shell",
-      "command": "guardian handover",
+      "command": "guardian-cmd guardian-handover",
       "problemMatcher": []
     }
   ]

@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-06-05 15:58
+最后更新：2026-06-08 11:51
 
 ## 当前状态
 
@@ -18,6 +18,7 @@
 - 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
 - AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为“先 brief、再核心记忆、历史文件按需读取”的默认方式。
 - `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
+- 新增 `plugins/project-guardian/cmd/guardian-cmd.js` 受控命令层，AI IDE 可优先通过固定命令 ID 执行 Git、npm、Node 和 Project Guardian 常见命令，并自动写入 `.project-guardian/cmd-audit.jsonl`。
 - 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、模板化手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；命令操作会按专用模块、只读检查、写入维护和终端服务分组，支持命令搜索、短操作日志和写入前固定 Git diff 预览，写入类命令必须输入 `RUN_COMMAND`，需要参数的命令会在弹窗里填写后再运行。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
 
@@ -57,16 +58,17 @@
 - MCP 模块现在提供可复用的工具执行器，Run 控制台通过 `/api/mcp/call` 调用同一套 MCP 工具定义、权限过滤和参数校验；写入类 MCP 工具必须输入 `RUN_MCP`，审计日志只记录工具名和参数名。
 - 新增 `plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js` 和 `plugins/project-guardian/scripts/lib/handover.js`，把决策记录、复审检测/完成和交接指南生成继续从 `guardian.js` 中拆出；主 CLI 现在更偏命令编排。
 - 新增 `Run/lib/audit.js`，把 Run 服务端本地审计日志、hash 链完整性校验、敏感摘要脱敏和可选 `GUARDIAN_RUN_TOKEN` API 口令保护从 `Run/server.js` 中拆出；Run 页面会显示审计链完整性。
+- 新增 `guardian-cmd` package bin、受控命令目录和自动命令审计日志；AI 规则模板、VS Code tasks、README、CLI/CI、接入、规范、工作流和文件说明已同步要求 AI IDE 优先使用受控命令替代项。
 
 ## 进行中
 
-- 当前剩余风险已完成收口复核：新增模块均为当前代码硬依赖，`npm.cmd run verify`、`npm.cmd audit --audit-level=moderate` 和 diff 空白检查均已通过，准备作为同一个完整提交范围处理。
+- 暂无正在进行的未验证功能；受控命令层已完成本轮代码、文档、测试和记忆收尾。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认 MCP Web 调用、Run hash 链审计、CLI 拆分模块、文档、测试和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
-2. 后续如果团队需要企业级审计，再设计集中采集、登录鉴权、访问控制、HTTPS、保留策略和不可变存储，而不是继续把 Run 本地 JSONL 当作正式审计系统。
-3. 后续可继续按低风险顺序拆分 `guardian.js` 中的 init/update/check/doctor/query/hooks/CI 编排，或把 Run API 路由再拆成独立模块。
+1. 提交到 Gitee 前复查 `git status`，确认 `cmd/` 受控命令层、AI 规则模板、VS Code tasks、文档、测试和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
+2. 后续根据真实 AI IDE 高频命令继续补充 `guardian-cmd` 白名单；没有替代项时仍可临时直跑 shell，但应评估是否新增受控命令 ID。
+3. 如果团队需要企业级命令审计，应把 `.project-guardian/cmd-audit.jsonl` 和 Run 审计日志采集到集中日志或不可变存储，并补充登录鉴权、访问控制、HTTPS 和保留策略。
 
 ## 已知问题
 
@@ -80,10 +82,12 @@
 | MCP 不做身份认证或逐次审批 | 支持 MCP 的 IDE 仍能调用已开放的本地 Guardian 命令 | 维护者 | 已新增 `mcp.readOnly` 和 `mcp.allowedTools` 降低误调用风险；仍需依赖仓库权限、Git 权限和代码评审 |
 | 记忆读取仍会消耗模型上下文 | 其它项目接入后，AI 读取规则、核心记忆和查询片段会增加少量 token | 维护者 | 使用 `guardian brief` / `guardian_brief` 先做读取计划，再用 `guardian_query.limit` 或 `guardian query --limit` 控制返回片段数；风险升高时用 `--mode deep` 或 `--mode full`，默认不做 RAG 全量注入 |
 | 复审检测依赖标准字段 | 手工改坏 `复审时间` 或完成标记会导致漏检或误报 | 维护者 | 使用 `guardian decision add --review-after` 和 `guardian reviews complete` 生成标准内容 |
+| `guardian-cmd` 只能覆盖白名单命令 | 没有替代项时 AI IDE 仍可能需要临时直跑 shell | 维护者 | 优先运行 `guardian-cmd list`；高频直跑命令应补进 `plugins/project-guardian/cmd/guardian-cmd.js` 并补测试 |
 
 ## 风险区域
 
 - `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI、决策、复审、交接和扫描。
+- `plugins/project-guardian/cmd/guardian-cmd.js` 只允许固定白名单命令；新增替代项时必须校验参数、禁止任意 shell、记录日志并补测试。
 - Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但仍然不是企业集中审计或不可变存储；如果离开 localhost 或多人共享，需要单独补登录鉴权、访问控制、HTTPS、集中采集和保留策略。
 - 文档校验既要严格阻止空模板，又不能严格到让新团队难以逐步接入。
 - 安全扫描必须隐藏敏感值，也要避免在普通文档中产生过多误报。
@@ -91,8 +95,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：继续处理剩余风险，拆分 `guardian.js` 的 decision/reviews/handover，并把 Run 审计从普通本地 JSONL 提升为带完整性提示和可选访问口令的本地审计。
-- 总结：新增 `decisions.js`、`reviews.js` 和 `handover.js`，主 CLI 只负责命令分发和校验衔接；新增 `Run/lib/audit.js`，Run 审计日志新记录带 hash 链，`/api/audit-log` 返回完整性校验结果，`GUARDIAN_RUN_TOKEN` 可为 `/api/*` 增加本地口令保护。
-- 文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js`、`Run/lib/audit.js`、`Run/server.js`、`Run/public/app.js`、`tests/guardian.test.js`、`package.json`、`Run/README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
-- 验证：已运行 `npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check`、`npm.cmd run verify` 和 `npm.cmd audit --audit-level=moderate`；66 个测试通过，`guardian verify` 通过，npm 审计 0 漏洞，diff 空白检查无错误，仅有 Windows LF/CRLF 提示。
-- 后续：Run 审计仍不是企业集中审计；若要局域网或多人使用，应启用 `GUARDIAN_RUN_TOKEN` 并补充反向代理、登录鉴权、集中采集和不可变存储。
+- 任务：新增系统级受控命令日志功能，让 AI IDE 执行常见命令时先从插件 `cmd/` 目录找到替代入口，并由代码自动追加命令审计日志。
+- 总结：新增 `plugins/project-guardian/cmd/guardian-cmd.js` 和 `cmd/README.md`；新增 `guardian-cmd` package bin；固定命令目录覆盖 Git、npm、Node 和主要 Project Guardian 子命令；每次调用自动写入 `.project-guardian/cmd-audit.jsonl`，失败和非法参数也会记录；AI 规则模板和 VS Code tasks 已改为优先使用 `guardian-cmd`。
+- 文件：`plugins/project-guardian/cmd/*`、`package.json`、`package-lock.json`、`tests/guardian.test.js`、`AGENTS.md`、`.cursorrules`、AI 规则模板、VS Code tasks、README、Project Guardian 文档、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
+- 验证：已运行 `node --check plugins/project-guardian/cmd/guardian-cmd.js`、`node --check plugins/project-guardian/scripts/guardian.js`、`node plugins/project-guardian/cmd/guardian-cmd.js list`、`node --test --test-name-pattern "guardian-cmd|package exposes" tests/guardian.test.js`、`node --test --test-name-pattern "guardian-cmd" tests/guardian.test.js`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-lint`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-test`、`node plugins/project-guardian/cmd/guardian-cmd.js guardian-verify`、`node plugins/project-guardian/cmd/guardian-cmd.js git-diff-check` 和 `node plugins/project-guardian/cmd/guardian-cmd.js npm-audit`；全量测试 71 个通过，`guardian verify` 通过，npm audit 0 漏洞，diff 检查只有 Windows LF/CRLF 提示。
+- 后续：`guardian-cmd` 不是任意 shell，也不是企业集中审计；没有白名单替代项的命令仍可能需要临时直跑，后续按真实使用频率补命令 ID。

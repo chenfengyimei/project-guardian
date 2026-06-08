@@ -18,6 +18,8 @@ alwaysApply: true
 7. bug、回归、历史不清楚或高风险模块使用 `guardian brief "任务或问题" --mode deep`；新人接手、交接、上线、审计、大重构或用户明确要求完整上下文时使用 `--mode full`。
 8. 预算友好读取只是起点，不是硬限制。证据不足、结果冲突或风险较高时，必须先升级读取再修改。
 
+运行常见系统命令前，如果存在受控替代命令，优先运行 `guardian-cmd list`，再使用 `guardian-cmd <command-id> [args]`。这会把调用自动记录到 `.project-guardian/cmd-audit.jsonl`。只有没有受控替代命令时，才临时使用原始终端命令。
+
 代码修改后，更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`。如果引入重要架构、流程、依赖、安全或兼容性决策，补充 `memory/DECISIONS.md`。
 
-交接、评审或提交前优先运行 `guardian verify`。不要把密钥或客户隐私写入项目记忆。
+交接、评审或提交前优先运行 `guardian-cmd guardian-verify`；受控命令层不可用时运行 `guardian verify`。不要把密钥或客户隐私写入项目记忆。

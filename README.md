@@ -22,6 +22,9 @@ project-guardian/
   scripts/guardian.js
   scripts/lib/adapters.js
   scripts/lib/mcp.js
+  cmd/
+    README.md
+    guardian-cmd.js
   assets/icon.svg
   assets/templates/
     PROJECT_CONTEXT.md
@@ -67,6 +70,7 @@ Run/
 
 - `SKILL.md`：Codex 使用本插件时遵守的项目记忆规则。
 - `guardian.js`：本地 CLI，负责初始化、更新、交接、检查和查询。
+- `cmd/guardian-cmd.js`：受控命令替代层，给 AI IDE 优先调用常见 Git、npm、Node 和 Guardian 命令，并自动写入 `.project-guardian/cmd-audit.jsonl`。
 - `.codex-plugin/plugin.json`：Codex 本地插件入口元数据，必须进入仓库。
 - `assets/icon.svg`：插件图标资源。
 - `assets/templates/`：标准记忆文件模板。
@@ -153,6 +157,29 @@ node Run/server.js --cwd D:\your-project
 ```
 
 不要直接把它暴露到公网；如果必须局域网访问，需要团队自行加登录认证、访问控制和审计。
+
+## AI IDE 受控命令层
+
+AI IDE 或 Agent 需要执行常见系统命令时，优先使用 `guardian-cmd`，这样每次调用都会自动追加一行代码级日志，不需要 AI 手写记录：
+
+```bash
+guardian-cmd list
+guardian-cmd git-status
+guardian-cmd npm-test
+guardian-cmd guardian-verify
+guardian-cmd guardian-update "完成登录修复"
+guardian-cmd guardian-handover
+```
+
+如果没有全局安装 CLI，可以使用源码路径：
+
+```bash
+node plugins/project-guardian/cmd/guardian-cmd.js list
+node plugins/project-guardian/cmd/guardian-cmd.js git-status
+```
+
+日志默认写入 `.project-guardian/cmd-audit.jsonl`。这是一层固定白名单命令目录，不开放任意 shell；如果日志无法写入，`guardian-cmd` 会提示失败，原本成功的命令也会返回失败状态，避免出现“执行了但没有记录”的假成功。如果常用命令还没有替代项，应先评估是否新增受控命令，再临时使用原始终端命令。
+`guardian mcp` 属于长时间运行的 stdio 服务，仍建议在 AI IDE 的 MCP 配置里启动，不作为 `guardian-cmd` 的普通短命令。
 
 ## 快速使用
 
@@ -251,7 +278,7 @@ guardian adapters doctor
 guardian adapters doctor
 ```
 
-VS Code tasks 默认调用 `guardian` 命令，因此使用前要保证 CLI 已全局安装，或项目已把 Project Guardian 作为依赖安装到可执行路径中。如果团队选择把插件源码直接复制进项目，也可以继续在终端使用 `node plugins/project-guardian/scripts/guardian.js ...`。
+VS Code tasks 默认调用 `guardian-cmd` 命令，因此使用前要保证 npm 包已全局安装，或项目已把 Project Guardian 作为依赖安装到可执行路径中。如果团队选择把插件源码直接复制进项目，也可以继续在终端使用 `node plugins/project-guardian/cmd/guardian-cmd.js ...`；需要使用 VS Code 任务时，把 `.vscode/tasks.json` 中的命令改成本地脚本路径即可。
 
 ## MCP 工具调用
 

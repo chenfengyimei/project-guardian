@@ -7,11 +7,16 @@ Before editing code or answering project-specific questions, read:
 - memory/AI_CHANGELOG.md
 - memory/HANDOVER.md
 
+Before running common system commands, prefer the controlled command runner when it has a replacement:
+- Run node plugins/project-guardian/cmd/guardian-cmd.js list to inspect available command IDs.
+- Use node plugins/project-guardian/cmd/guardian-cmd.js <command-id> [args] for supported Git, npm, Node, and Guardian commands so .project-guardian/cmd-audit.jsonl records the invocation automatically.
+- Fall back to direct shell commands only when no controlled replacement exists, then consider whether a new command ID should be added.
+
 After AI-assisted code changes:
 - Update memory/STATE.md with current status, known issues, next steps, and latest change.
 - Append a concise entry to memory/AI_CHANGELOG.md.
 - Update memory/DECISIONS.md for important architecture, business-rule, dependency, data-model, security, workflow, or compatibility decisions.
-- Run node plugins/project-guardian/scripts/guardian.js verify before committing when the CLI is available.
+- Run node plugins/project-guardian/cmd/guardian-cmd.js guardian-verify before committing when the controlled command runner is available; otherwise run node plugins/project-guardian/scripts/guardian.js verify.
 
 Answers should explain not only what to change, but also why the project currently works this way.
 Do not write production passwords, real tokens, customer private data, or other secrets into project memory.

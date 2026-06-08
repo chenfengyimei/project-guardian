@@ -27,7 +27,7 @@ guardian brief "新人接手 Project Guardian" --mode full
 
 ## 如何运行
 
-全局安装后的推荐 CLI 是 `guardian`。如果没有全局安装 package，则使用随项目提交路径 `node plugins/project-guardian/scripts/guardian.js <command>`。`guardian init` 在业务项目中补充 `package.json` scripts 时，会根据 CLI 是否位于项目内选择 `guardian ...` 或本地脚本路径。
+全局安装后的推荐 CLI 是 `guardian`，AI IDE 执行常见系统命令时优先使用 `guardian-cmd`。如果没有全局安装 package，则使用随项目提交路径 `node plugins/project-guardian/scripts/guardian.js <command>`；受控命令层使用 `node plugins/project-guardian/cmd/guardian-cmd.js <command-id>`。`guardian init` 在业务项目中补充 `package.json` scripts 时，会根据 CLI 是否位于项目内选择 `guardian ...` 或本地脚本路径。
 
 ```bash
 # 检查 CLI 语法
@@ -35,6 +35,11 @@ node --check plugins/project-guardian/scripts/guardian.js
 
 # 查看可用命令
 guardian help
+
+# 查看 AI IDE 受控命令替代项，并自动写入 .project-guardian/cmd-audit.jsonl
+guardian-cmd list
+guardian-cmd git-status
+guardian-cmd guardian-verify
 
 # 安装 AI 工具适配器并查看状态
 guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
@@ -66,6 +71,7 @@ npm.cmd test
 | --- | --- | --- |
 | 插件元数据 | `plugins/project-guardian/.codex-plugin/plugin.json`、`.agents/plugins/marketplace.json` | 让 Codex 发现和安装本地插件 |
 | Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | 告诉 Codex 在回答或编辑前如何使用项目记忆 |
+| 受控命令层 | `plugins/project-guardian/cmd/guardian-cmd.js`、`plugins/project-guardian/cmd/README.md` | 给 AI IDE 常见 Git、npm、Node 和 Guardian 命令提供固定替代入口，并自动写入 `.project-guardian/cmd-audit.jsonl` |
 | CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、reviews、conflicts、verify、安全扫描、配置加载、Git/diff/文件扫描、文档校验、query/brief 检索、手动记忆模板、AI 工具适配器解析、决策记录、复审检测和交接生成 |
 | 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件、AI 工具规则和 VS Code tasks |
 | 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
@@ -77,6 +83,7 @@ npm.cmd test
 - 新项目接入：全局安装 CLI 或复制插件源码，运行 `guardian init`，按实际 IDE 运行 `guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`，补齐记忆，运行 `guardian verify`，然后提交。
 - 语言选择：中文是默认语言。英文项目应在第一次初始化时运行 `guardian init --language en`，之后保持配置稳定。
 - 日常开发：先运行 `guardian brief "任务"`，按需阅读记忆，做最小安全变更，运行项目测试，运行 `guardian update`，补齐 changelog 字段，运行 `guardian verify`。bug、回归、测试失败、高风险模块或准备重构时用 `--mode deep`；新人接手、交接、上线、审计或大范围重构时用 `--mode full`。
+- AI IDE 执行命令：先运行 `guardian-cmd list` 查找受控替代项，能替代的 Git、npm、Node 和 Guardian 命令优先通过 `guardian-cmd <command-id>` 执行，自动写入 `.project-guardian/cmd-audit.jsonl`。
 - 冲突处理：运行 `guardian conflicts`，解决代码和记忆冲突，保留双方有价值的历史，再重新运行 `guardian verify`。
 - 交接：运行 `guardian update`，运行 `guardian handover`，审阅生成的交接指南，运行 `guardian verify`，然后推送。
 - 决策复审：对临时方案、安全权限、质量闸门、MCP、CI 或兼容策略设置 `--review-after`；到期后运行 `guardian reviews due`，由 AI 或人工完成检查，再运行 `guardian reviews complete ...` 标记正常和无需继续复审。
@@ -93,7 +100,7 @@ npm.cmd test
 | CI 中 hook 不执行 | Git hooks 只在本地运行 | 使用 `guardian install-ci` 生成 Gitee Go 流水线，或手动加入等价 CI 命令 |
 | Query 回答不完整 | 当前 query 是关键词检索 | 先运行 `guardian brief "问题"` 判断该读哪些记忆，再使用文件名或业务关键词提问，并查看列出的来源路径 |
 | 英文 init 生成中文 AI 规则 | 旧版语言处理没有把 init 参数传给适配器生成 | 使用当前 CLI，并运行覆盖 `guardian init --language en` 的回归测试 |
-| VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian`，但 CLI 没在 PATH 中 | 先运行 `guardian --version` 确认可用；源码内置模式可改用本地 `node plugins/project-guardian/scripts/guardian.js ...` |
+| VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian-cmd`，但命令没在 PATH 中 | 先运行 `guardian-cmd list` 确认可用；源码内置模式可把 task 命令改用本地 `node plugins/project-guardian/cmd/guardian-cmd.js ...` |
 | MCP 工具调用没有结果 | IDE 没有正确配置 stdio 命令或工作目录 | 先在项目根目录手动运行 `guardian mcp`，再检查 IDE 的 MCP 配置 |
 | 担心 MCP 误调用写入命令 | MCP 客户端会看到已开放的工具 | 在 `project-guardian.config.json` 设置 `mcp.readOnly: true` 或配置 `mcp.allowedTools` |
 | MCP 启动失败并提示配置错误 | `mcp.readOnly` 或 `mcp.allowedTools` 写错 | 按 `project-guardian.config.json` 默认格式修正，或先运行 `guardian doctor` |

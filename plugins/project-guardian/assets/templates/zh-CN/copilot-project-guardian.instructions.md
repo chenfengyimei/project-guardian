@@ -16,4 +16,6 @@ applyTo: "**"
 - 新人接手、交接、上线、审计、大重构或用户明确要求完整上下文时使用 `guardian brief "任务或问题" --mode full`。
 - 预算友好读取只是起点，不是硬限制。证据不足、结果冲突或风险较高时，必须先升级读取再修改。
 
-协助实现时，需要说明历史背景、影响文件、验证方式、风险和记忆更新。优先做小而安全的改动，提交前运行或建议运行 `guardian verify`。
+运行常见系统命令前，如果存在受控替代命令，优先运行 `guardian-cmd list`，再使用 `guardian-cmd <command-id> [args]`。这会把调用自动记录到 `.project-guardian/cmd-audit.jsonl`。
+
+协助实现时，需要说明历史背景、影响文件、验证方式、风险和记忆更新。优先做小而安全的改动，提交前优先运行或建议运行 `guardian-cmd guardian-verify`；受控命令层不可用时运行或建议运行 `guardian verify`。

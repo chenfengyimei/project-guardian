@@ -240,6 +240,31 @@ npm run guardian:mcp
 
 如果不是 Node 项目，也可以直接使用 `node plugins/project-guardian/scripts/guardian.js <命令>`。
 
+### 4.4 AI IDE 执行系统命令的记录方式
+
+AI IDE 或 Agent 需要执行 Git、npm、Node 或 Project Guardian 常见命令时，先查看受控命令目录：
+
+```bash
+guardian-cmd list
+```
+
+如果没有全局安装，使用源码路径：
+
+```bash
+node plugins/project-guardian/cmd/guardian-cmd.js list
+```
+
+找到替代项后优先通过 `guardian-cmd` 运行，例如：
+
+```bash
+guardian-cmd git-status
+guardian-cmd git-diff-stat
+guardian-cmd npm-test
+guardian-cmd guardian-verify
+```
+
+这样会自动写入 `.project-guardian/cmd-audit.jsonl`，记录什么时间调用了什么命令、参数摘要是什么、是否成功和退出码。这个记录由代码自动完成，不需要 AI 手动改记忆文件。没有替代项时可以临时使用原始终端命令，但建议后续把高频命令补进 `plugins/project-guardian/cmd/guardian-cmd.js`。
+
 ## 5. 每日开发循环
 
 每天开始开发前，当前开发者先做：
