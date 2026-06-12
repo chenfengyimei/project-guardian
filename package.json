@@ -20,6 +20,7 @@
   "files": [
     "Run",
     "plugins/project-guardian",
+    "CONTRIBUTING.md",
     "README.md",
     "LICENSE"
   ],

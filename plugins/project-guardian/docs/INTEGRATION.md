@@ -94,7 +94,7 @@ node plugins/project-guardian/scripts/guardian.js init
 - Node.js 18 或更新版本。
 - Git。正式项目建议先 `git init` 或使用已有代码仓库；`check`、`update`、`verify`、hooks 和 CI 都依赖 Git 状态。
 - npm。只有全局安装 CLI、运行测试或发布包时需要；业务项目本身不必须是 Node 项目。
-- 不需要数据库、后端服务、OpenAI API Key 或向量库。当前版本的 `query` 是本地关键词检索；MCP 已提供 stdio 工具入口，RAG/向量检索仍属于后续增强。
+- 不需要数据库、后端服务、OpenAI API Key 或向量库。当前版本的 `query` 是本地混合检索，结合关键词、同义词扩展和 n-gram 相似度；MCP 已提供 stdio 工具入口，可选向量检索仍属于后续增强。
 
 ### 3.1 放入插件
 

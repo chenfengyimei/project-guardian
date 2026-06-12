@@ -429,6 +429,6 @@ node plugins/project-guardian/cmd/guardian-cmd.js git-status
 - VS Code 当前是 `.vscode/tasks.json` 加 Copilot instructions，不是原生 VS Code 扩展。任务默认调用 `guardian-cmd`，使用前要保证该命令在 PATH 中；源码内置模式可把任务命令改成 `node plugins/project-guardian/cmd/guardian-cmd.js ...`。
 - MCP 当前是 stdio JSON-RPC 入口，支持配置化工具限制，但不包含身份认证或逐次审批；接入公开仓库或多人环境时，要继续依赖 Git 权限和代码评审。
 - `guardian-cmd` 只能覆盖已加入白名单的常见命令；没有替代项时仍可能需要原始终端命令，后续应按团队高频场景逐步补齐。
-- `query` 是本地关键词检索，不是语义向量检索；表达差异大时可能搜不到，需要换关键词或查看来源文件。
+- `query` 是本地混合检索，结合关键词、同义词扩展和 n-gram 相似度；它仍不是语义向量检索或外部 RAG，表达差异特别大时仍要换关键词、提高 limit 或查看来源文件。
 - 各 AI IDE 的规则文件约定可能变化，新增或升级 IDE 后要运行 `guardian adapters doctor` 并复核官方文档。
 - 记忆文件不能写入生产密码、真实 token、客户隐私或私钥；提交前运行 `guardian verify`，并保留人工复核。

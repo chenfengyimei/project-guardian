@@ -98,7 +98,7 @@ npm.cmd test
 | `validate-docs` 在 `init` 后失败 | 生成的记忆仍是模板 | 补齐真实项目上下文、状态、决策、变更日志和交接细节 |
 | 提交前 `check` 失败 | 代码有变更，但没有对应记忆更新 | 运行 `guardian update "任务摘要"`，补齐新记录，并暂存记忆文件 |
 | CI 中 hook 不执行 | Git hooks 只在本地运行 | 使用 `guardian install-ci` 生成 Gitee Go 流水线，或手动加入等价 CI 命令 |
-| Query 回答不完整 | 当前 query 是关键词检索 | 先运行 `guardian brief "问题"` 判断该读哪些记忆，再使用文件名或业务关键词提问，并查看列出的来源路径 |
+| Query 回答不完整 | 当前 query 是本地混合检索，但仍不是完整语义向量检索 | 先运行 `guardian brief "问题"` 判断该读哪些记忆，再使用文件名、业务关键词或同义表达提问，并查看列出的来源路径 |
 | 英文 init 生成中文 AI 规则 | 旧版语言处理没有把 init 参数传给适配器生成 | 使用当前 CLI，并运行覆盖 `guardian init --language en` 的回归测试 |
 | VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian-cmd`，但命令没在 PATH 中 | 先运行 `guardian-cmd list` 确认可用；源码内置模式可把 task 命令改用本地 `node plugins/project-guardian/cmd/guardian-cmd.js ...` |
 | MCP 工具调用没有结果 | IDE 没有正确配置 stdio 命令或工作目录 | 先在项目根目录手动运行 `guardian mcp`，再检查 IDE 的 MCP 配置 |

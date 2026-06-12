@@ -4,8 +4,8 @@
 
 当前统计口径：
 
-- 仓库文件总数：82 个。
-- 普通文件清单：76 个。
+- 仓库文件总数：84 个。
+- 普通文件清单：78 个。
 - 隐藏配置和隐藏插件元数据：6 个。
 - 统计不包含 `.git/`、`node_modules/` 和被 `.gitignore` 排除的本地材料。
 
@@ -113,6 +113,7 @@ project_ai/
   .gitignore
   .guardianignore
   AGENTS.md
+  CONTRIBUTING.md
   LICENSE
   README.md
   package-lock.json
@@ -126,6 +127,7 @@ project_ai/
 | 文件 | 干嘛的 | 为什么会有它 | 内容是什么 | 什么时候新增或修改 |
 | --- | --- | --- | --- | --- |
 | `README.md` | 仓库入口文档 | 第一次打开项目的人需要先知道这是什么、怎么开始 | 插件介绍、适用场景、安装方式、快速使用、常用命令、推荐工作流 | 安装方式、命令、目录、主要能力或用户入口变化时 |
+| `CONTRIBUTING.md` | 贡献指南 | 降低单人维护风险，让后续贡献者知道如何安全改项目 | 开发前检查、提交前验证、查询能力贡献标准、文档和记忆更新要求、优先贡献方向 | 贡献流程、测试要求、发布标准或查询增强方向变化时 |
 | `零基础超简单入门.md` | 小白教程 | 给完全没编程基础的人按步骤照做 | 从 0 开始使用插件、初始化、记录、验证、提交的傻瓜式流程 | 新手反馈看不懂、命令变化、接入步骤变化时 |
 | `LICENSE` | 开源许可证 | 明确代码使用、复制、分发和修改规则 | Apache-2.0 许可证文本 | 基本不修改；只有更换许可证时才改 |
 | `AGENTS.md` | 通用 AI Agent 规则 | 让 Codex 或其它通用 AI Agent 知道本项目使用 Project Guardian 记忆 | 修改前先做 `brief` 读取计划、按需读记忆、修改后更新记忆、禁止写入密钥 | AI 工作规则、记忆文件路径或质量要求变化时 |
@@ -139,6 +141,7 @@ project_ai/
 | `memory/decisions/2026-05-14-use-per-decision-files.md` | 单条决策文件 | 降低多人同时修改 `memory/DECISIONS.md` 的冲突概率 | “使用单独决策文件”的决策详情 | 每次通过 `guardian decision add` 记录重要决策时可新增类似文件 |
 | `memory/decisions/2026-05-15-ai-ide.md` | 单条决策文件 | 记录扩展 AI IDE 适配器的原因和范围 | 支持矩阵、CLI 通用层、适配器扩展、验证方式、风险和后续动作 | AI IDE 兼容策略调整或新增适配器时复审 |
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
+| `memory/decisions/2026-06-08-hybrid-search-and-contributing.md` | 单条决策文件 | 记录本次先做零依赖混合检索而不直接引入向量库的原因 | 背景、决策、备选方案、影响文件、验证方式、风险和后续动作 | 查询策略、可选向量索引或贡献标准变化时复审 |
 | `memory/decisions/2026-06-04-run-command-catalog-module.md` | 单条决策文件 | 记录本次把 Run 命令目录从 HTTP server 拆成独立模块的原因 | 背景、决策、备选方案、影响文件、验证方式、风险、复审时间和后续动作 | Run 命令目录继续扩展、API 路由继续拆分或复审该架构选择时 |
 | `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
 | `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、可收起侧边栏、Markdown 记忆预览、初始化、手动追加记忆、知识查询独立输出、命令搜索、写入前 diff 预览、浏览器本地操作日志、服务端本地审计日志、全量 CLI 命令目录、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
@@ -199,7 +202,7 @@ project_ai/
 | `plugins/project-guardian/scripts/lib/doc-validation.js` | 文档质量校验模块 | 把 `validate-docs` 的文档检查规则从主 CLI 中拆出来，降低主文件体积 | 核心记忆文件规则、占位符检查、必填字段检查、表格空行检查、决策有效性、最新 changelog TODO 和 00:00 时间检查 | 文档质量标准、记忆字段、changelog 时间规则或决策规则变化时 |
 | `plugins/project-guardian/scripts/lib/git-utils.js` | Git 和项目文件扫描模块 | 把 Git diff、变更集合、变更行范围和源码文件收集从主 CLI 中拆出来，降低 `guardian.js` 对 Git 细节的耦合 | `git` 安全子进程封装、staged/working/untracked 变更读取、diff stat、changed line ranges、源码/文档候选文件收集、`.guardianignore` 和配置 ignore 解析 | Git 行为、query/handover 文件收集、check/update 变更识别或 ignore 规则变化时 |
 | `plugins/project-guardian/scripts/lib/handover.js` | 交接指南生成模块 | 把 `guardian handover` 的记忆汇总和交接文档生成从主 CLI 中拆出来 | 读取上下文、状态、决策、项目文件和 package 信息，生成中英文交接指南，并在主命令中继续配合文档校验 | 交接文档结构、生成语言、读取范围或新人接手步骤变化时 |
-| `plugins/project-guardian/scripts/lib/knowledge.js` | query/brief 检索模块 | 把关键词检索、结果格式化和 token 预算读取计划从主 CLI 中拆出来 | query 排名、memory/source/git-history 结果格式化、brief 文件推荐、token 粗估、quick/deep/full/auto 读取计划格式化 | 检索策略、brief 模式、token 预算或输出格式变化时 |
+| `plugins/project-guardian/scripts/lib/knowledge.js` | query/brief 检索模块 | 把混合检索、结果格式化和 token 预算读取计划从主 CLI 中拆出来 | query 排名、同义词扩展、n-gram 相似度、memory/source/git-history 结果格式化、brief 文件推荐、token 粗估、quick/deep/full/auto 读取计划格式化 | 检索策略、brief 模式、token 预算或输出格式变化时 |
 | `plugins/project-guardian/scripts/lib/manual-memory.js` | 手动记忆模板模块 | 让 CLI 和 Run 控制台共用同一套追加记忆模板、白名单和基础敏感词拦截 | 核心记忆文件配置、追加模板字段、模板渲染、追加记录格式、路径解析和敏感内容拦截 | 追加记忆字段、模板、写入格式或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 可以直接调用 Project Guardian CLI 能力 | stdio JSON-RPC 处理、MCP 工具定义、`guardian_brief` 读取计划和 mode 参数、配置化工具过滤、入参 schema 校验、CLI 子命令转发、复审查询和完成工具映射 | MCP 协议工具、暴露命令或安全策略变化时 |
 | `plugins/project-guardian/scripts/lib/reviews.js` | 决策复审模块 | 把 `guardian reviews`、`reviews due` 和 `reviews complete` 从主 CLI 中拆出来 | 扫描 `memory/decisions/*.md`、解析复审时间、检测到期未完成复审、追加复审完成记录和限制复审文件路径 | 复审字段、到期判断、完成记录格式或复审命令行为变化时 |

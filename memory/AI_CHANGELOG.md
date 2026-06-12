@@ -4,6 +4,18 @@
 
 ## 2026 记录
 
+### 2026-06-08 14:59 - 增强查询能力并补充贡献指南
+
+- 用户需求：根据同类项目对比复盘 Project Guardian，学习百家之长，优先处理查询能力弱于向量检索方案、单人维护风险较高的问题，同时保持当前功能闭环优势。
+- AI 总结：将 `plugins/project-guardian/scripts/lib/knowledge.js` 的 query 排名从纯关键词计数升级为零依赖混合检索，加入常见中英文同义词扩展、n-gram 相似度、匹配词输出和更温和的记忆/源码结果过滤；新增根目录 `CONTRIBUTING.md`，明确开发前检查、提交前验证、查询能力贡献标准、文档记忆同步要求和优先贡献方向；README、CLI/CI、接入、规范、交接和项目上下文文档同步更新为“本地混合检索，不是外部 RAG”。
+- 变更文件：`plugins/project-guardian/scripts/lib/knowledge.js`、`tests/guardian.test.js`、`CONTRIBUTING.md`、`package.json`、`README.md`、`plugins/project-guardian/docs/CLI_AND_CI.md`、`plugins/project-guardian/docs/INTEGRATION.md`、`plugins/project-guardian/docs/STANDARD.md`、`memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/HANDOVER.md`、`memory/DECISIONS.md` 和 `memory/decisions/2026-06-08-hybrid-search-and-contributing.md`。
+- 业务原因：对小团队来说，直接引入向量数据库或外部 API 会提高部署和隐私成本；先用零依赖混合检索缓解表达差异和中英文查询问题，可以保留开箱即用优势，同时为后续可选向量索引留下清晰边界。
+- 技术说明：query 会保留来源路径输出，并新增 `Matched:` 说明命中的词；评分组合包括原始查询词、扩展同义词、文件路径命中、短语匹配、n-gram 相似度和知识文件权重；测试新增英文 onboarding/handoff/risk 查询命中文中“新人接手/交接/风险”的回归用例。
+- 验证方式：已运行 `node --check plugins/project-guardian/scripts/lib/knowledge.js`、`node --test --test-name-pattern "knowledge module|query supports lightweight semantic|query supports Chinese|query prefers memory|query still returns" tests/guardian.test.js`、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check` 和 `npm.cmd audit --audit-level=moderate`；全量测试 72 个通过，`guardian verify` 通过，npm audit 0 漏洞，diff 检查只有 Windows LF/CRLF 提示。
+- 风险：这仍不是真正向量检索或 RAG，特别大的记忆库和更复杂的语义问答仍可能需要可选索引、摘要缓存或向量后端；同义词表需要随着真实使用继续维护。
+- 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据；新增贡献文档也明确禁止把敏感数据写入文档、测试或记忆。
+- 下一步：提交到 Gitee 前复查 `git status`；后续根据真实查询失败案例继续补同义词、分片策略、摘要缓存或可选向量索引。
+
 ### 2026-06-08 11:51 - 新增 AI IDE 受控命令层和命令审计日志
 
 - 用户需求：新增系统级别日志功能，单独放在插件 `cmd/` 文件夹中，让 AI IDE 运行常见系统命令时优先从这里找到替代命令；每次运行都由代码自动追加日志，记录调用时间、方法和参数，而不是让 AI Agent 手写日志。

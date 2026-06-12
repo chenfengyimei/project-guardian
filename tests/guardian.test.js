@@ -504,6 +504,7 @@ test("package exposes guardian CLI bin entries", () => {
   assert.equal(pkg.bin["project-guardian"], "plugins/project-guardian/scripts/guardian.js");
   assert.equal(pkg.engines.node, ">=18");
   assert.ok(pkg.files.includes("Run"));
+  assert.ok(pkg.files.includes("CONTRIBUTING.md"));
   assert.ok(pkg.files.includes("plugins/project-guardian"));
   assert.equal(pkg.scripts.ui, "node Run/server.js");
 });
@@ -757,6 +758,14 @@ test("knowledge module ranks query results and builds token-aware briefs", () =>
 
     assert.equal(results[0].doc.kind, "knowledge");
     assert.match(knowledge.formatResults(results), /Source: memory\/PROJECT_CONTEXT\.md/);
+    assert.match(knowledge.formatResults(results), /Matched:/);
+
+    const semanticResults = knowledge.searchIndex([
+      { file: "memory/HANDOVER.md", kind: "knowledge", text: "新人接手时先阅读交接指南、当前状态和风险区域。" },
+      { file: "src/noise.js", kind: "source", text: "render button layout component" },
+    ], "onboarding handoff risk", 2);
+    assert.equal(semanticResults[0].doc.file, "memory/HANDOVER.md");
+    assert.ok(semanticResults[0].score > 0);
 
     const brief = knowledge.buildBrief(root, defaultConfig({ language: "en" }), "recent risk history", 3, "auto");
     assert.ok(brief.fullTokens > 0);
@@ -2317,6 +2326,22 @@ test("query supports Chinese keywords", () => {
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /Source:/);
     assert.match(result.stdout, /验证码登录模块/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("query supports lightweight semantic synonyms without external services", () => {
+  const root = tempDir("query-semantic");
+  try {
+    writeValidMemory(root);
+    const handoverPath = path.join(root, "memory", "HANDOVER.md");
+    const handover = fs.readFileSync(handoverPath, "utf8");
+    fs.writeFileSync(handoverPath, `# Handover Guide\n\n## 接手提醒\n\n新人接手时先阅读交接指南，确认风险区域和验证方式。\n\n${handover.replace(/^# Handover Guide\r?\n/, "")}`, "utf8");
+    const result = run(root, ["query", "onboarding handoff risk", "--limit", "2"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /Source: memory\/HANDOVER\.md/);
+    assert.match(result.stdout, /新人接手/);
   } finally {
     cleanup(root);
   }

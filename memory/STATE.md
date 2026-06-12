@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-06-08 11:51
+最后更新：2026-06-08 14:59
 
 ## 当前状态
 
@@ -21,6 +21,7 @@
 - 新增 `plugins/project-guardian/cmd/guardian-cmd.js` 受控命令层，AI IDE 可优先通过固定命令 ID 执行 Git、npm、Node 和 Project Guardian 常见命令，并自动写入 `.project-guardian/cmd-audit.jsonl`。
 - 新增并增强 `Run/` 可选本地可视化层，提供网页控制台查看项目状态、可收起侧边栏功能导航、文档样式核心记忆预览、运行 `guardian init`、模板化手动追加记忆、生成 brief、知识查询独立输出，以及固定 CLI 全量命令目录；命令操作会按专用模块、只读检查、写入维护和终端服务分组，支持命令搜索、短操作日志和写入前固定 Git diff 预览，写入类命令必须输入 `RUN_COMMAND`，需要参数的命令会在弹窗里填写后再运行。
 - 本仓库已经自举使用自己的 Project Guardian 记忆文件，后续变更可以按它推荐给其它团队的同一套工作流审查。
+- 查询模块已从纯关键词计数升级为零依赖混合检索，结合关键词、同义词扩展和 n-gram 相似度，同时继续保持来源路径输出和 limit 控制。
 
 ## 已完成
 
@@ -59,10 +60,11 @@
 - 新增 `plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js` 和 `plugins/project-guardian/scripts/lib/handover.js`，把决策记录、复审检测/完成和交接指南生成继续从 `guardian.js` 中拆出；主 CLI 现在更偏命令编排。
 - 新增 `Run/lib/audit.js`，把 Run 服务端本地审计日志、hash 链完整性校验、敏感摘要脱敏和可选 `GUARDIAN_RUN_TOKEN` API 口令保护从 `Run/server.js` 中拆出；Run 页面会显示审计链完整性。
 - 新增 `guardian-cmd` package bin、受控命令目录和自动命令审计日志；AI 规则模板、VS Code tasks、README、CLI/CI、接入、规范、工作流和文件说明已同步要求 AI IDE 优先使用受控命令替代项。
+- 新增零依赖混合检索评分和根目录 `CONTRIBUTING.md`，用于缓解查询退化和单人维护风险。
 
 ## 进行中
 
-- 暂无正在进行的未验证功能；受控命令层已完成本轮代码、文档、测试和记忆收尾。
+- 暂无正在进行的未验证功能；混合检索和贡献指南增强已完成本轮代码、文档、测试和记忆收尾。
 
 ## 下一步
 
@@ -74,7 +76,7 @@
 
 | 问题 | 影响 | 负责人 | 备注 |
 | --- | --- | --- | --- |
-| 查询仍是关键词检索，不是语义检索 | 不同表达方式的问题可能搜不到答案 | 维护者 | RAG 和向量检索规划在后续迭代 |
+| 查询仍不是完整语义向量检索 | 表达差异特别大或长文本规模很大时仍可能搜不到最佳答案 | 维护者 | 已升级为零依赖混合检索；可选向量索引和 RAG 仍规划在后续迭代 |
 | 决策记录会同时写入索引和单独决策文件 | 文档输出略多 | 维护者 | 这是为了兼容现有 `memory/DECISIONS.md`，同时降低未来协作冲突 |
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
 | 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 本次保持尊重显式配置；旧项目迁移时应同步更新 `project-guardian.config.json` |
@@ -95,8 +97,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：新增系统级受控命令日志功能，让 AI IDE 执行常见命令时先从插件 `cmd/` 目录找到替代入口，并由代码自动追加命令审计日志。
-- 总结：新增 `plugins/project-guardian/cmd/guardian-cmd.js` 和 `cmd/README.md`；新增 `guardian-cmd` package bin；固定命令目录覆盖 Git、npm、Node 和主要 Project Guardian 子命令；每次调用自动写入 `.project-guardian/cmd-audit.jsonl`，失败和非法参数也会记录；AI 规则模板和 VS Code tasks 已改为优先使用 `guardian-cmd`。
-- 文件：`plugins/project-guardian/cmd/*`、`package.json`、`package-lock.json`、`tests/guardian.test.js`、`AGENTS.md`、`.cursorrules`、AI 规则模板、VS Code tasks、README、Project Guardian 文档、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
-- 验证：已运行 `node --check plugins/project-guardian/cmd/guardian-cmd.js`、`node --check plugins/project-guardian/scripts/guardian.js`、`node plugins/project-guardian/cmd/guardian-cmd.js list`、`node --test --test-name-pattern "guardian-cmd|package exposes" tests/guardian.test.js`、`node --test --test-name-pattern "guardian-cmd" tests/guardian.test.js`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-lint`、`node plugins/project-guardian/cmd/guardian-cmd.js npm-test`、`node plugins/project-guardian/cmd/guardian-cmd.js guardian-verify`、`node plugins/project-guardian/cmd/guardian-cmd.js git-diff-check` 和 `node plugins/project-guardian/cmd/guardian-cmd.js npm-audit`；全量测试 71 个通过，`guardian verify` 通过，npm audit 0 漏洞，diff 检查只有 Windows LF/CRLF 提示。
-- 后续：`guardian-cmd` 不是任意 shell，也不是企业集中审计；没有白名单替代项的命令仍可能需要临时直跑，后续按真实使用频率补命令 ID。
+- 任务：学习同类项目优点，缓解 Project Guardian 当前最主要的查询短板和单人维护风险。
+- 总结：`plugins/project-guardian/scripts/lib/knowledge.js` 从纯关键词计数升级为零依赖混合检索，加入常见中英文同义词扩展、n-gram 相似度和匹配词输出；新增根目录 `CONTRIBUTING.md`，把贡献流程、测试命令、查询能力贡献标准和文档记忆更新要求写清楚。
+- 文件：`plugins/project-guardian/scripts/lib/knowledge.js`、`tests/guardian.test.js`、`CONTRIBUTING.md`、`package.json`、README、Project Guardian 文档、`explaiw/PROJECT_FILES_EXPLANATION.md` 和项目记忆文件。
+- 验证：已运行 `node --check plugins/project-guardian/scripts/lib/knowledge.js`、查询相关目标测试、`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、`git diff --check` 和 `npm.cmd audit --audit-level=moderate`；全量测试 72 个通过，`guardian verify` 通过，npm audit 0 漏洞，diff 检查只有 Windows LF/CRLF 提示。
+- 后续：当前查询仍不是向量数据库或完整语义 RAG；大型仓库、跨项目搜索和更复杂语义问答可以在保持零依赖默认路径的前提下继续做可选索引或向量检索。
