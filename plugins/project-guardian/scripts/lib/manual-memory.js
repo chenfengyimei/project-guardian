@@ -1,9 +1,9 @@
 "use strict";
 
 const path = require("node:path");
+const { containsLikelySecret } = require("./shared");
 
 const MAX_MANUAL_MEMORY_BYTES = 16 * 1024;
-const SENSITIVE_TEXT_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(authorization|bearer)\b|\b(password|passwd|secret|token|api[_-]?key|private\s+key)\b\s*[:=：]|(密码|密钥|令牌|私钥)\s*[:=：]/i;
 
 const MEMORY_FILE_CONFIG = [
   { name: "PROJECT_CONTEXT", configKey: "context", fallbackPath: "memory/PROJECT_CONTEXT.md", label: "项目上下文" },
@@ -131,7 +131,7 @@ function validateMemoryField(value, label, maxLength, required, pattern = "") {
   if (Buffer.byteLength(text, "utf8") > maxLength) {
     throw new Error(`${label} must be ${maxLength} bytes or fewer.`);
   }
-  if (SENSITIVE_TEXT_PATTERN.test(text)) {
+  if (containsLikelySecret(text)) {
     throw new Error(`${label} looks like it may contain a password, token, API key, or other secret.`);
   }
   if (pattern && !(new RegExp(pattern).test(text))) {
@@ -146,7 +146,7 @@ function validateManualMemoryContent(value) {
   if (Buffer.byteLength(content, "utf8") > MAX_MANUAL_MEMORY_BYTES) {
     throw new Error(`Memory content must be ${MAX_MANUAL_MEMORY_BYTES} bytes or fewer.`);
   }
-  if (SENSITIVE_TEXT_PATTERN.test(content)) {
+  if (containsLikelySecret(content)) {
     throw new Error("Memory content looks like it may contain a password, token, API key, or other secret.");
   }
   return content;
@@ -307,9 +307,9 @@ module.exports = {
   MAX_MANUAL_MEMORY_BYTES,
   MEMORY_APPEND_TEMPLATES,
   MEMORY_FILE_CONFIG,
-  SENSITIVE_TEXT_PATTERN,
   buildManualMemoryContent,
   buildManualMemoryEntry,
+  containsLikelySecret,
   defaultTemplateForMemory,
   memoryFilesForConfig,
   normalizeMemoryName,

@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { redactLikelySecret } = require("../scripts/lib/shared");
 
 const LOG_DIR = ".project-guardian";
 const LOG_FILE = "cmd-audit.jsonl";
@@ -305,11 +306,7 @@ function sanitizeText(value, limit) {
   return redactLikelySecret(String(value || "").replace(/\s+/g, " ").trim()).slice(0, limit);
 }
 
-function redactLikelySecret(value) {
-  return value
-    .replace(/\b(password|passwd|secret|token|api[_-]?key|private[_-]?key)\b\s*[:=]\s*["']?[^"'\s]+/gi, "$1=[redacted]")
-    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted-token]");
-}
+
 
 if (require.main === module) {
   process.exitCode = main();

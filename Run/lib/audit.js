@@ -4,6 +4,8 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const { redactLikelySecret } = require("../../plugins/project-guardian/scripts/lib/shared");
+
 const AUDIT_DIR = ".project-guardian";
 const AUDIT_LOG_FILE = "run-audit.jsonl";
 const HASH_ALGORITHM = "sha256";
@@ -153,12 +155,6 @@ function summarizeAuditArgs(action, args) {
 
 function sanitizeAuditText(value, limit) {
   return redactLikelySecret(String(value || "").replace(/\s+/g, " ").trim()).slice(0, limit);
-}
-
-function redactLikelySecret(value) {
-  return value
-    .replace(/\b(password|passwd|secret|token|api[_-]?key|private[_-]?key)\b\s*[:=]\s*["']?[^"'\s]+/gi, "$1=[redacted]")
-    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted-token]");
 }
 
 function hashAuditEvent(event) {

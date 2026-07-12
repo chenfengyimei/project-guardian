@@ -1,7 +1,7 @@
 "use strict";
 
 const path = require("node:path");
-const { SENSITIVE_TEXT_PATTERN } = require("../../plugins/project-guardian/scripts/lib/manual-memory");
+const { containsLikelySecret } = require("../../plugins/project-guardian/scripts/lib/shared");
 
 const COMMAND_CONFIRMATION = "RUN_COMMAND";
 const INSTALL_ADAPTERS = new Set([
@@ -152,7 +152,7 @@ function validateTextField(value, label, maxLength) {
   const text = String(value || "").replace(/\r\n/g, "\n").trim();
   if (!text) throw commandBadRequest(`${label} is required.`);
   if (text.length > maxLength) throw commandBadRequest(`${label} must be ${maxLength} characters or fewer.`);
-  if (SENSITIVE_TEXT_PATTERN.test(text)) {
+  if (containsLikelySecret(text)) {
     throw commandBadRequest(`${label} looks like it may contain a password, token, API key, or other secret.`);
   }
   return text;
@@ -162,7 +162,7 @@ function validateOptionalTextField(value, label, maxLength) {
   const text = String(value || "").replace(/\r\n/g, "\n").trim();
   if (!text) return "";
   if (text.length > maxLength) throw commandBadRequest(`${label} must be ${maxLength} characters or fewer.`);
-  if (SENSITIVE_TEXT_PATTERN.test(text)) {
+  if (containsLikelySecret(text)) {
     throw commandBadRequest(`${label} looks like it may contain a password, token, API key, or other secret.`);
   }
   return text;

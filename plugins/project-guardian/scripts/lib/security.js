@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { CONFIG_FILE } = require("./config");
 const { isIgnored, loadIgnorePatterns, unique } = require("./git-utils");
-const { getCoreMemoryFiles } = require("./shared");
+const { getCoreMemoryFiles, looksHighEntropy: sharedLooksHighEntropy } = require("./shared");
 
 const AGENT_RULE_FILES = ["AGENTS.md", ".cursorrules"];
 
@@ -31,18 +31,16 @@ function runSecretScan(root, config, files) {
 function scanSecretLine(line) {
   const safeLine = line.length > 10000 ? line.slice(0, 10000) : line;
   const findings = [];
-  const keyword = safeLine.match(/\b(password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key|access[_-]?key)\b\s*[:=]\s*["']?([^"'\s]{8,})/i);
+  const keyword = safeLine.match(/\b(password|passwd|pwd|secret|token|api[_-]?key|private[_\s-]?key|access[_-]?key)\b\s*[:=]\s*["']?([^"'\s]{8,})/i);
   if (keyword) findings.push({ type: "keyword-secret", preview: redact(keyword[2]) });
+  const keywordCn = safeLine.match(/(密码|密钥|令牌|私钥)\s*[:=：]\s*(\S{8,})/);
+  if (keywordCn) findings.push({ type: "keyword-secret", preview: redact(keywordCn[2]) });
   if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(safeLine)) findings.push({ type: "private-key", preview: "[redacted private key]" });
   const matches = safeLine.match(/[A-Za-z0-9+/=_-]{40,}/g) || [];
   for (const value of matches.slice(0, 20)) {
-    if (looksHighEntropy(value)) findings.push({ type: "high-entropy", preview: redact(value) });
+    if (sharedLooksHighEntropy(value)) findings.push({ type: "high-entropy", preview: redact(value) });
   }
   return findings;
-}
-
-function looksHighEntropy(value) {
-  return new Set(value).size >= 18 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value) && /[+/_=-]/.test(value);
 }
 
 function redact(value) {
@@ -65,7 +63,7 @@ function getKnowledgeFiles(config) {
 
 function getDecisionFiles(root, config) {
   const memoryFiles = config.memoryFiles || config.memory || {};
-  const decisionsDir = memoryFiles.decisionsDirectory || memoryFiles.decisionsDir;
+  const decisionsDir = memoryFiles.decisionsDirectory;
   if (!decisionsDir) return [];
   if (path.isAbsolute(decisionsDir) || path.normalize(decisionsDir).replace(/\\/g, "/").split("/").includes("..")) return [];
   const dir = path.join(root, decisionsDir);
@@ -79,7 +77,6 @@ function getDecisionFiles(root, config) {
 }
 
 module.exports = {
-  looksHighEntropy,
   redact,
   runSecretScan,
   scanSecretLine,
