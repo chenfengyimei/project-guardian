@@ -111,10 +111,10 @@ function looksHighEntropy(token) {
 }
 
 function containsLikelySecret(text) {
-  if (SECRET_KEYWORD_RE.test(text)) return true;
   SECRET_KEYWORD_RE.lastIndex = 0;
-  if (SECRET_KEYWORD_CN_RE.test(text)) return true;
+  if (SECRET_KEYWORD_RE.test(text)) return true;
   SECRET_KEYWORD_CN_RE.lastIndex = 0;
+  if (SECRET_KEYWORD_CN_RE.test(text)) return true;
   if (PEM_KEY_RE.test(text)) return true;
   const matches = text.match(HIGH_ENTROPY_RE);
   if (matches) {

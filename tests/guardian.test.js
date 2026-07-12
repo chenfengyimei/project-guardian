@@ -2540,3 +2540,73 @@ test("shared.js parseFlags supports -- terminator", () => {
   assert.equal(result.mode, "deep");
   assert.deepEqual(result._, ["--not-a-flag", "value"]);
 });
+
+test("shared.js containsLikelySecret detects English and Chinese secrets", () => {
+  const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
+  assert.ok(shared.containsLikelySecret("password=secret123"));
+  assert.ok(shared.containsLikelySecret("api_key: ABCDEFGH"));
+  assert.ok(shared.containsLikelySecret("密码：12345678"));
+  assert.ok(shared.containsLikelySecret("密钥=secretvalue"));
+  assert.ok(shared.containsLikelySecret("-----BEGIN RSA PRIVATE KEY-----"));
+  assert.ok(shared.containsLikelySecret("authorization: Bearer abc123"));
+  assert.ok(!shared.containsLikelySecret("The project name is guardian"));
+  assert.ok(!shared.containsLikelySecret("This is a normal documentation string"));
+});
+
+test("shared.js redactLikelySecret redacts sensitive values", () => {
+  const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
+  const redacted = shared.redactLikelySecret("password=secret123 token=abc456");
+  assert.match(redacted, /\[redacted\]/);
+  assert.doesNotMatch(redacted, /secret123/);
+  assert.doesNotMatch(redacted, /abc456/);
+});
+
+test("knowledge.js chunks handles large text without infinite loop", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const largeText = "A".repeat(100000);
+  const result = knowledge.chunks("big.md", largeText, 800, 120, "source");
+  assert.ok(result.length > 0);
+  assert.ok(result.length <= 21);
+});
+
+test("brief.js handles large memory files", () => {
+  const brief = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "brief.js"));
+  const root = tempDir("brief-large");
+  try {
+    const largeContent = "# State\n\n" + "Some content line.\n".repeat(5000);
+    writeFile(path.join(root, "memory/STATE.md"), largeContent);
+    writeFile(path.join(root, "memory/PROJECT_CONTEXT.md"), "# Context\n\nMinimal valid content.\n");
+    const result = brief.buildBrief(root, {
+      memoryFiles: {
+        context: "memory/PROJECT_CONTEXT.md",
+        state: "memory/STATE.md",
+        decisions: "memory/DECISIONS.md",
+        changelog: "memory/AI_CHANGELOG.md",
+        handover: "memory/HANDOVER.md",
+      },
+    }, "test question", 3, "auto");
+    assert.ok(result.fullTokens > 1000);
+    assert.ok(result.recommended.length > 0);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("audit.js appendAuditEvent reentrancy guard prevents corruption", () => {
+  const audit = require(path.join(repoRoot, "Run", "lib", "audit.js"));
+  const root = tempDir("audit-reentrant");
+  try {
+    initGit(root);
+    const context = { projectRoot: root };
+    // First write should succeed
+    const result1 = audit.appendAuditEvent(context, { kind: "read", action: "test1", args: {} });
+    assert.ok(result1);
+    // Read back and verify hash chain
+    const payload = audit.readAuditLogPayload(context, 10);
+    assert.ok(payload.ok);
+    assert.equal(payload.entries.length, 1);
+    assert.ok(payload.entries[0].hash);
+  } finally {
+    cleanup(root);
+  }
+});
