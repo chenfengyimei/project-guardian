@@ -14,6 +14,7 @@ const { printReviewValidation, reviews, runReviewValidation } = require("./lib/r
 const { runSecretScan } = require("./lib/security");
 const { ensureInitialized, fail, getCoreMemoryFiles, lines, parseFlags, readMaybe, relative, timestamp, unique } = require("./lib/shared");
 const { CONFIG_FILE, DEFAULT_CONFIG, isChinese, loadConfig } = require("./lib/config");
+const { setLanguage, t } = require("./lib/messages");
 const { SUPPORTED_ADAPTERS } = require("./lib/adapters");
 const { init, installAdapters, adaptersDoctor, resolveAdaptersOrFail } = require("./lib/init");
 const { runDoctor, runCheck, printDoctor, printCheck, printDocValidation, printSecretScan, finish, isMemoryFile, isMemoryRelatedFile, isDecisionDirectoryFile, getKnowledgeFiles, memoryContainsPattern } = require("./lib/check");
@@ -28,6 +29,7 @@ const BRIEF_MODES = ["auto", "quick", "deep", "full"];
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   const root = process.cwd();
+  setLanguage(loadConfig(root).language);
 
   switch (command) {
     case "init":
@@ -184,9 +186,9 @@ function verify(root) {
     ok = ok && result.ok;
   }
   if (!ok) {
-    fail("Project Guardian verify failed.");
+    fail(t("verify.failed"));
   }
-  console.log("Project Guardian verify passed.");
+  console.log(t("verify.passed"));
 }
 
 async function queryLoop(root, limit = DEFAULT_QUERY_LIMIT) {
