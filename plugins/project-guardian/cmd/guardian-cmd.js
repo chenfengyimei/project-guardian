@@ -64,6 +64,7 @@ registerGuardian("guardian-install-hooks", "Run Project Guardian install-hooks."
 registerGuardian("guardian-install-ci", "Run Project Guardian install-ci.", ["install-ci"]);
 registerGuardianPassthrough("guardian-query", "Run Project Guardian query with provided question and flags.", ["query"]);
 registerGuardianPassthrough("guardian-brief", "Run Project Guardian brief with provided task/question and flags.", ["brief"]);
+registerGuardianPassthrough("guardian-repair-memory", "Check or repair memory ordering and decision-index drift.", ["repair-memory"], { allowEmpty: true });
 
 function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   const startedAt = Date.now();

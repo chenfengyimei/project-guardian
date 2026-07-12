@@ -1,7 +1,7 @@
 {
   "name": "project-guardian",
-  "version": "0.3.0",
-  "description": "A lightweight project memory guardian for AI-assisted coding handover, onboarding, and self-service knowledge lookup.",
+  "version": "0.4.0",
+  "description": "A reliable local project-memory guardian with integrity checks, repair workflows, MCP tools, handover, and evidence-based knowledge lookup.",
   "author": {
     "name": "Project Guardian Maintainers",
     "url": "https://gitee.com/chenfengloveyuri/project-guardian"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Project Guardian",
     "shortDescription": "Keep durable project memory for AI-assisted coding teams.",
-    "longDescription": "Project Guardian creates and maintains standard project memory files, AI behavior rules, handover guides, pre-commit checks, project audits, and a local multi-turn knowledge query loop so new developers and AI agents can understand why the project works the way it does.",
+    "longDescription": "Project Guardian creates, validates, repairs, and queries durable project memory. It provides structured change and decision records, budget-aware reading plans, evidence locations, guarded CLI and MCP tools, review workflows, handover guides, and local audit trails without requiring a database or hosted AI service.",
     "developerName": "Internal AI Engineering",
     "category": "Productivity",
     "capabilities": [
@@ -36,6 +36,7 @@
     "defaultPrompt": [
       "初始化项目记忆文件",
       "查询这个项目的历史上下文",
+      "检查并修复项目记忆完整性",
       "生成新人交接文档"
     ],
     "brandColor": "#2563EB",

@@ -1,6 +1,6 @@
 # 交接指南
 
-最后生成：2026-06-02
+最后生成：2026-07-12
 
 ## 优先阅读
 
@@ -58,6 +58,10 @@ guardian reviews
 guardian reviews due
 guardian reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
 
+# 检查或修复记忆完整性
+guardian repair-memory
+guardian repair-memory --write
+
 # 运行完整本地质量闸门
 guardian verify
 
@@ -83,6 +87,8 @@ npm.cmd test
 - 新项目接入：全局安装 CLI 或复制插件源码，运行 `guardian init`，按实际 IDE 运行 `guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`，补齐记忆，运行 `guardian verify`，然后提交。
 - 语言选择：中文是默认语言。英文项目应在第一次初始化时运行 `guardian init --language en`，之后保持配置稳定。
 - 日常开发：先运行 `guardian brief "任务"`，按需阅读记忆，做最小安全变更，运行项目测试，运行 `guardian update`，补齐 changelog 字段，运行 `guardian verify`。bug、回归、测试失败、高风险模块或准备重构时用 `--mode deep`；新人接手、交接、上线、审计或大范围重构时用 `--mode full`。
+- 完整记录：已知总结、原因、验证、风险、敏感信息检查和下一步时，优先用结构化 `guardian update` 一次写全，避免生成后遗留占位字段。
+- 记忆修复：`guardian repair-memory` 默认只读；只有确认报告后才使用 `--write`。独立决策文件是事实源，修复后必须审阅 diff 并重新运行 verify。
 - AI IDE 执行命令：先运行 `guardian-cmd list` 查找受控替代项，能替代的 Git、npm、Node 和 Guardian 命令优先通过 `guardian-cmd <command-id>` 执行，自动写入 `.project-guardian/cmd-audit.jsonl`。
 - 冲突处理：运行 `guardian conflicts`，解决代码和记忆冲突，保留双方有价值的历史，再重新运行 `guardian verify`。
 - 交接：运行 `guardian update`，运行 `guardian handover`，审阅生成的交接指南，运行 `guardian verify`，然后推送。
@@ -115,6 +121,7 @@ npm.cmd test
 - Gitee 工作流生成必须保持可配置，因为组织之间的分支名和流水线语法可能不同。
 - MCP 支持只读模式和工具允许列表，但不做身份认证或逐次审批；接入后仍需依赖本地仓库权限、Git 权限、代码评审和 `guardian verify`。
 - MCP 工具调用会严格校验参数；如果 AI IDE 传多余字段或错误类型，应修正工具参数，而不是绕过校验。
+- MCP 读取可并发，但排队中的写任务具有公平性，后到读取不能越过它；`guardian_memory_health` 只读，`guardian_memory_repair` 受写工具权限限制。
 - Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但本质仍是项目本地 JSONL；如果要满足企业审计，需要集中采集、登录鉴权、访问控制、HTTPS、保留策略和不可变存储。
 - 复审检测依赖标准字段名和 `YYYY-MM-DD` 日期；不要手写破坏 `Review after` / `复审时间` 和完成标记。
 

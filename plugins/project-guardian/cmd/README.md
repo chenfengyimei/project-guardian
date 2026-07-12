@@ -65,10 +65,12 @@ guardian-cmd list
 当前内置分类：
 
 - 基础：`help`、`list`、`log-path`、`pwd`、`ls`
-- Git：`git-status`、`git-diff-stat`、`git-diff-name-only`、`git-diff-check`、`git-log`
+- Git：`git-status`、`git-diff-stat`、`git-diff-name-only`、`git-diff-check`、`git-log`、`git-branch`、`git-stash`
 - npm：`npm-lint`、`npm-test`、`npm-verify`、`npm-audit`
 - Node：`node-check`
-- Project Guardian：`guardian-init`、`guardian-update`、`guardian-append-memory`、`guardian-decision-add`、`guardian-doctor`、`guardian-check`、`guardian-validate-docs`、`guardian-verify`、`guardian-scan-secrets`、`guardian-reviews`、`guardian-reviews-due`、`guardian-reviews-complete`、`guardian-handover`、`guardian-conflicts`、`guardian-install-adapters`、`guardian-adapters-doctor`、`guardian-install-hooks`、`guardian-install-ci`、`guardian-query`、`guardian-brief`
+- Project Guardian：`guardian-init`、`guardian-update`、`guardian-append-memory`、`guardian-decision-add`、`guardian-doctor`、`guardian-check`、`guardian-validate-docs`、`guardian-verify`、`guardian-scan-secrets`、`guardian-reviews`、`guardian-reviews-due`、`guardian-reviews-complete`、`guardian-handover`、`guardian-conflicts`、`guardian-install-adapters`、`guardian-adapters-doctor`、`guardian-install-hooks`、`guardian-install-ci`、`guardian-query`、`guardian-brief`、`guardian-repair-memory`
+
+`guardian-repair-memory` 默认只读报告；只有显式传入 `--write` 才会修改记忆文件。
 
 `guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置里启动，不放进 `guardian-cmd` 的普通短命令目录。
 

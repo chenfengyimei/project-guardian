@@ -76,8 +76,14 @@
 10. 查询本地项目知识。
    - 入口：`guardian query`、`guardian query "问题"` 和 `guardian query "问题" --limit 3`。
    - 重要文件：记忆文件、源码文件、Markdown 文件、YAML 文件和最近 Git 历史。
-   - 规则：当前查询是本地混合检索，结合关键词、常见同义词扩展和 n-gram 相似度，不是托管 AI 服务；结果应显示来源路径和匹配词，方便开发者核实。`--limit` / `guardian_query.limit` 可控制返回片段数量，减少上下文噪声和 token 成本。
+   - 规则：当前查询是本地混合检索，结合关键词、常见同义词扩展和 n-gram 相似度，不是托管 AI 服务；结果显示来源路径、起始行和匹配词，并优先提供不同来源。`--limit` / `guardian_query.limit` 可控制返回片段数量。
    - 已知边界情况：它仍不是向量数据库或完整语义 RAG；大型仓库可在后续引入可选索引或向量检索，但默认零依赖路径必须保留。
+
+11. 检查与修复项目记忆完整性。
+   - 入口：`guardian validate-docs`、`guardian repair-memory`、`guardian repair-memory --write`、MCP `guardian_memory_health` 和 `guardian_memory_repair`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/memory-repair.js`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`、`memory/decisions/*.md`。
+   - 规则：文档校验拒绝疑似编码损坏、非法控制字符和未按最新在前排列的历史；独立决策文件是结构化决策与复审状态的事实源；修复命令默认只读，只有显式 `--write` 才修改文件。
+   - 已知边界情况：确定性修复只能重建已有事实源和顺序，不能凭空恢复缺失历史；写入后必须审阅 Git diff 并重新运行 `guardian verify`。
 
 ## 外部依赖
 
@@ -103,10 +109,11 @@
 | 受控命令日志 | 命令 ID、参数摘要、工作目录、执行类型、成功状态、退出码、耗时、错误摘要 | 存放在 `.project-guardian/cmd-audit.jsonl`；由 `guardian-cmd` 自动追加，默认被 `.gitignore` 忽略 |
 | 读取计划 | 任务问题、读取模式、推荐文件、必读文件、按需文件、粗略 token 估算、建议查询 limit、升级触发条件 | 由 `guardian brief` 和 MCP `guardian_brief` 输出，用于让 AI 在打开大型历史记忆前先做成本判断；支持 `auto`、`quick`、`deep` 和 `full` |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
-| 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | 存放在 `memory/DECISIONS.md`，也可以同步生成单独决策文件 |
-| 决策文件 | 每个重要决策一份 Markdown 文件 | 使用 `guardian decision add` 时存放在 `memory/decisions/`；`guardian reviews` 会扫描这些文件的复审时间 |
+| 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | `memory/DECISIONS.md` 是由独立决策事实源同步生成的总索引 |
+| 决策文件 | 每个重要决策一份 Markdown 文件 | `memory/decisions/` 是结构化决策与复审状态的事实源；`guardian reviews` 和 `repair-memory` 都读取这里 |
 | 复审结果 | 复审状态、完成时间、复审人、结论、验证方式、后续复审 | `guardian reviews complete` 会追加到对应决策文件；标记无需继续复审后不再触发到期失败 |
-| 查询文档 | 文件路径、片段文本、分数、匹配词 | 运行时从记忆文件、源码文件、Markdown/YAML 文件和 Git 历史构建；查询排序使用零依赖混合检索，结合关键词、同义词扩展和 n-gram 相似度 |
+| 查询文档 | 文件路径、起始行、片段文本、分数、匹配词 | 运行时从记忆、源码和 Git 历史构建；排序使用零依赖混合检索，并优先提供不同来源 |
+| 记忆修复计划 | changelog 顺序、决策索引漂移、独立决策文件数量、待写内容 | 默认只读；`--write` 时稳定排序 changelog，并按独立决策事实源重建索引 |
 
 ## 如何运行
 
@@ -127,6 +134,10 @@ guardian install-adapters --adapter cursor,copilot
 # 生成预算友好的读取计划
 guardian brief "我要修改登录流程"
 
+# 检查记忆完整性；确认 diff 后才显式写入修复
+guardian repair-memory
+guardian repair-memory --write
+
 # 运行完整本地质量闸门
 guardian verify
 
@@ -144,7 +155,7 @@ npm.cmd test
 
 - CLI 必须保持轻量，小仓库不需要部署服务、数据库或付费 API 也能使用。
 - 默认工作流必须兼容 Windows PowerShell 和常见 Unix shell。
-- 已有项目记忆必须保留；模板生成和 update 命令应追加或修订，不应删除人工写好的上下文。
+- 已有项目记忆必须保留；模板生成不覆盖人工文件，update/decision 使用最新在前插入，repair 只做可审阅的确定性重排与索引重建。
 - 安全检查必须输出文件和行号，同时隐藏疑似敏感值。
 - 文档要面向非专业开发者保持实用，不依赖没有记录下来的 AI 聊天历史。
 

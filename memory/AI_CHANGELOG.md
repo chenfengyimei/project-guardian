@@ -4,6 +4,289 @@
 
 ## 2026 记录
 
+### 2026-07-12 13:45 - 发布 Project Guardian 0.4.0 记忆完整性与可靠性增强
+
+- 用户需求：发布 Project Guardian 0.4.0 记忆完整性与可靠性增强
+- AI 总结：新增确定性 repair-memory、结构化 update、记忆编码与顺序校验、可重建决策索引、查询行号与来源多样性；修复配置原型污染、畸形配置崩溃、最新记录顺序错误、MCP 写任务饥饿和 abort 后队列计数问题，并恢复历史损坏的决策事实源。
+- 变更文件：
+  - `CHANGELOG.md`
+  - `README.md`
+  - `Run/README.md`
+  - `Run/lib/commands.js`
+  - `explain/PROJECT_FILES_EXPLANATION.md`
+  - `memory/AI_CHANGELOG.md`
+  - `memory/DECISIONS.md`
+  - `memory/HANDOVER.md`
+  - `memory/PROJECT_CONTEXT.md`
+  - `memory/STATE.md`
+  - `memory/decisions/2026-06-03-run-command-catalog.md`
+  - `memory/decisions/2026-06-03-run-visual-layer.md`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
+  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
+  - `package-lock.json`
+  - `package.json`
+  - `plugins/project-guardian/.codex-plugin/plugin.json`
+  - `plugins/project-guardian/cmd/README.md`
+  - `plugins/project-guardian/cmd/guardian-cmd.js`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md`
+  - `plugins/project-guardian/docs/STANDARD.md`
+  - `plugins/project-guardian/scripts/guardian.js`
+  - `plugins/project-guardian/scripts/lib/config.js`
+  - `plugins/project-guardian/scripts/lib/decisions.js`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js`
+  - `plugins/project-guardian/scripts/lib/git-utils.js`
+  - `plugins/project-guardian/scripts/lib/knowledge.js`
+  - `plugins/project-guardian/scripts/lib/mcp.js`
+  - `plugins/project-guardian/scripts/lib/update.js`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md`
+  - `tests/guardian.test.js`
+  - `memory/decisions/2026-05-14-portable-cli-and-adapters.md`
+  - `memory/decisions/2026-05-14-repository-memory-source-of-truth.md`
+  - `memory/decisions/2026-05-14-zero-service-cli.md`
+  - `memory/decisions/2026-05-15-default-chinese-memory.md`
+  - `memory/decisions/2026-07-12-以独立决策文件为事实源并增加确定性记忆修复.md`
+  - `plugins/project-guardian/scripts/lib/memory-repair.js`
+- 变更行：
+  - `CHANGELOG.md:3-19`
+  - `README.md:317`
+  - `README.md:330`
+  - `README.md:344-350`
+  - `README.md:439`
+  - `Run/README.md:30`
+  - `Run/README.md:154`
+  - `Run/lib/commands.js:40-47`
+  - `Run/lib/commands.js:145-160`
+  - `explain/PROJECT_FILES_EXPLANATION.md:3`
+  - `explain/PROJECT_FILES_EXPLANATION.md:5`
+  - `explain/PROJECT_FILES_EXPLANATION.md:7-10`
+  - `explain/PROJECT_FILES_EXPLANATION.md:32`
+  - `explain/PROJECT_FILES_EXPLANATION.md:122`
+  - `explain/PROJECT_FILES_EXPLANATION.md:127`
+  - `explain/PROJECT_FILES_EXPLANATION.md:129-185`
+  - `explain/PROJECT_FILES_EXPLANATION.md:189`
+  - `explain/PROJECT_FILES_EXPLANATION.md:191-230`
+  - `explain/PROJECT_FILES_EXPLANATION.md:232`
+  - `explain/PROJECT_FILES_EXPLANATION.md:236-240`
+  - `explain/PROJECT_FILES_EXPLANATION.md:244-249`
+  - `memory/AI_CHANGELOG.md:7-18`
+  - `memory/AI_CHANGELOG.md:31-203`
+  - `memory/AI_CHANGELOG.md:611`
+  - `memory/AI_CHANGELOG.md:624-635`
+  - `memory/AI_CHANGELOG.md:649`
+  - `memory/DECISIONS.md:3`
+  - `memory/DECISIONS.md:7`
+  - `memory/DECISIONS.md:9-18`
+  - `memory/DECISIONS.md:20`
+  - `memory/DECISIONS.md:22-31`
+  - `memory/DECISIONS.md:33`
+  - `memory/DECISIONS.md:35-44`
+  - `memory/DECISIONS.md:46`
+  - `memory/DECISIONS.md:48-57`
+  - `memory/DECISIONS.md:59-70`
+  - `memory/DECISIONS.md:72`
+  - `memory/DECISIONS.md:74-83`
+  - `memory/DECISIONS.md:85`
+  - `memory/DECISIONS.md:87-96`
+  - `memory/DECISIONS.md:98-109`
+  - `memory/DECISIONS.md:111-122`
+  - `memory/DECISIONS.md:124`
+  - `memory/DECISIONS.md:126-135`
+  - `memory/DECISIONS.md:137-173`
+  - `memory/DECISIONS.md:177-185`
+  - `memory/DECISIONS.md:190-198`
+  - `memory/DECISIONS.md:201`
+  - `memory/DECISIONS.md:203-212`
+  - `memory/DECISIONS.md:214`
+  - `memory/DECISIONS.md:216-225`
+  - `memory/DECISIONS.md:227`
+  - `memory/DECISIONS.md:229-238`
+  - `memory/DECISIONS.md:240`
+  - `memory/DECISIONS.md:242-251`
+  - `memory/DECISIONS.md:253`
+  - `memory/DECISIONS.md:255-264`
+  - `memory/DECISIONS.md:266`
+  - `memory/DECISIONS.md:268-269`
+  - `memory/DECISIONS.md:271`
+  - `memory/DECISIONS.md:273-329`
+  - `memory/HANDOVER.md:3`
+  - `memory/HANDOVER.md:61-64`
+  - `memory/HANDOVER.md:90-91`
+  - `memory/HANDOVER.md:124`
+  - `memory/PROJECT_CONTEXT.md:79`
+  - `memory/PROJECT_CONTEXT.md:82-87`
+  - `memory/PROJECT_CONTEXT.md:112-113`
+  - `memory/PROJECT_CONTEXT.md:115-116`
+  - `memory/PROJECT_CONTEXT.md:137-140`
+  - `memory/PROJECT_CONTEXT.md:158`
+  - `memory/STATE.md:8-13`
+  - `memory/STATE.md:89-90`
+  - `memory/STATE.md:98-102`
+  - `memory/STATE.md:109`
+  - `memory/STATE.md:117`
+  - `memory/decisions/2026-06-03-run-command-catalog.md:1`
+  - `memory/decisions/2026-06-03-run-command-catalog.md:3`
+  - `memory/decisions/2026-06-03-run-command-catalog.md:7`
+  - `memory/decisions/2026-06-03-run-command-catalog.md:9-17`
+  - `memory/decisions/2026-06-03-run-command-catalog.md:22-23`
+  - `memory/decisions/2026-06-03-run-visual-layer.md:3`
+  - `memory/decisions/2026-06-03-run-visual-layer.md:9-17`
+  - `memory/decisions/2026-06-03-run-visual-layer.md:22-23`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md:1`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md:3-17`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md:22-23`
+  - `memory/decisions/2026-06-04-run-command-catalog-module.md:9-17`
+  - `memory/decisions/2026-06-04-run-command-catalog-module.md:22-23`
+  - `package-lock.json:3`
+  - `package-lock.json:9`
+  - `package.json:3`
+  - `package.json:39`
+  - `package.json:42-59`
+  - `plugins/project-guardian/.codex-plugin/plugin.json:3-4`
+  - `plugins/project-guardian/.codex-plugin/plugin.json:23`
+  - `plugins/project-guardian/.codex-plugin/plugin.json:39`
+  - `plugins/project-guardian/cmd/README.md:68`
+  - `plugins/project-guardian/cmd/README.md:71-73`
+  - `plugins/project-guardian/cmd/guardian-cmd.js:67`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:34-36`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:122`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:208`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:218-219`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:367-369`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:464-468`
+  - `plugins/project-guardian/docs/STANDARD.md:314`
+  - `plugins/project-guardian/docs/STANDARD.md:378-379`
+  - `plugins/project-guardian/docs/STANDARD.md:396-398`
+  - `plugins/project-guardian/scripts/guardian.js:23`
+  - `plugins/project-guardian/scripts/guardian.js:41`
+  - `plugins/project-guardian/scripts/guardian.js:118-120`
+  - `plugins/project-guardian/scripts/guardian.js:332`
+  - `plugins/project-guardian/scripts/guardian.js:354-355`
+  - `plugins/project-guardian/scripts/guardian.js:383`
+  - `plugins/project-guardian/scripts/lib/config.js:11`
+  - `plugins/project-guardian/scripts/lib/config.js:49`
+  - `plugins/project-guardian/scripts/lib/config.js:60`
+  - `plugins/project-guardian/scripts/lib/config.js:69`
+  - `plugins/project-guardian/scripts/lib/config.js:89-92`
+  - `plugins/project-guardian/scripts/lib/config.js:101-123`
+  - `plugins/project-guardian/scripts/lib/config.js:147`
+  - `plugins/project-guardian/scripts/lib/decisions.js:7`
+  - `plugins/project-guardian/scripts/lib/decisions.js:34`
+  - `plugins/project-guardian/scripts/lib/decisions.js:39`
+  - `plugins/project-guardian/scripts/lib/decisions.js:41`
+  - `plugins/project-guardian/scripts/lib/decisions.js:47-55`
+  - `plugins/project-guardian/scripts/lib/decisions.js:96`
+  - `plugins/project-guardian/scripts/lib/decisions.js:138`
+  - `plugins/project-guardian/scripts/lib/decisions.js:140`
+  - `plugins/project-guardian/scripts/lib/decisions.js:153`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js:28`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js:30-33`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js:38`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js:98-140`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js:210-212`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:34-37`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:103-104`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:114-118`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:124-161`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:255-256`
+  - `plugins/project-guardian/scripts/lib/knowledge.js:262`
+  - `plugins/project-guardian/scripts/lib/mcp.js:10`
+  - `plugins/project-guardian/scripts/lib/mcp.js:27-29`
+  - `plugins/project-guardian/scripts/lib/mcp.js:61`
+  - `plugins/project-guardian/scripts/lib/mcp.js:66-71`
+  - `plugins/project-guardian/scripts/lib/mcp.js:77-86`
+  - `plugins/project-guardian/scripts/lib/mcp.js:171`
+  - `plugins/project-guardian/scripts/lib/mcp.js:185-189`
+  - `plugins/project-guardian/scripts/lib/mcp.js:190`
+  - `plugins/project-guardian/scripts/lib/mcp.js:192`
+  - `plugins/project-guardian/scripts/lib/mcp.js:194`
+  - `plugins/project-guardian/scripts/lib/mcp.js:212-217`
+  - `plugins/project-guardian/scripts/lib/mcp.js:231`
+  - `plugins/project-guardian/scripts/lib/mcp.js:625`
+  - `plugins/project-guardian/scripts/lib/mcp.js:644-647`
+  - `plugins/project-guardian/scripts/lib/mcp.js:653-663`
+  - `plugins/project-guardian/scripts/lib/update.js:16`
+  - `plugins/project-guardian/scripts/lib/update.js:20-30`
+  - `plugins/project-guardian/scripts/lib/update.js:35`
+  - `plugins/project-guardian/scripts/lib/update.js:37-38`
+  - `plugins/project-guardian/scripts/lib/update.js:40-44`
+  - `plugins/project-guardian/scripts/lib/update.js:102`
+  - `plugins/project-guardian/scripts/lib/update.js:109`
+  - `plugins/project-guardian/scripts/lib/update.js:114`
+  - `plugins/project-guardian/scripts/lib/update.js:122-125`
+  - `plugins/project-guardian/scripts/lib/update.js:134`
+  - `plugins/project-guardian/scripts/lib/update.js:139`
+  - `plugins/project-guardian/scripts/lib/update.js:147-150`
+  - `plugins/project-guardian/scripts/lib/update.js:155`
+  - `plugins/project-guardian/scripts/lib/update.js:161`
+  - `plugins/project-guardian/scripts/lib/update.js:164-165`
+  - `plugins/project-guardian/scripts/lib/update.js:173`
+  - `plugins/project-guardian/scripts/lib/update.js:176-177`
+  - `plugins/project-guardian/scripts/lib/update.js:182`
+  - `plugins/project-guardian/scripts/lib/update.js:187`
+  - `plugins/project-guardian/scripts/lib/update.js:198-228`
+  - `plugins/project-guardian/scripts/lib/update.js:242-245`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md:35-36`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md:66`
+  - `tests/guardian.test.js:1468-1469`
+  - `tests/guardian.test.js:1497-1498`
+  - `tests/guardian.test.js:2092`
+  - `tests/guardian.test.js:2639-2823`
+- 业务原因：基线测试虽全部通过，但真实项目记忆已出现错误转码、索引漂移和最新记录误判，说明原质量门无法保证事实精确性与长期可用性。
+- 技术说明：
+  ```tex
+  Staged changes:
+  No staged changes.
+
+  Unstaged changes:
+  CHANGELOG.md                                       |  17 +
+   README.md                                          |  13 +-
+   Run/README.md                                      |   4 +-
+   Run/lib/commands.js                                |  25 +-
+   explain/PROJECT_FILES_EXPLANATION.md               | 227 ++++----
+   memory/AI_CHANGELOG.md                             | 394 +++++++-------
+   memory/DECISIONS.md                                | 576 ++++++++++-----------
+   memory/HANDOVER.md                                 |   9 +-
+   memory/PROJECT_CONTEXT.md                          |  21 +-
+   memory/STATE.md                                    |  22 +-
+   memory/decisions/2026-06-03-run-command-catalog.md |  28 +-
+   memory/decisions/2026-06-03-run-visual-layer.md    |  24 +-
+   .../decisions/2026-06-04-cli-module-and-run-ops.md |  30 +-
+   .../2026-06-04-run-command-catalog-module.md       |  22 +-
+   package-lock.json                                  |   4 +-
+   package.json                                       |  23 +-
+   plugins/project-guardian/.codex-plugin/plugin.json |   7 +-
+   plugins/project-guardian/cmd/README.md             |   6 +-
+   plugins/project-guardian/cmd/guardian-cmd.js       |   1 +
+   plugins/project-guardian/docs/CLI_AND_CI.md        |  18 +-
+   plugins/project-guardian/docs/STANDARD.md          |   8 +-
+   plugins/project-guardian/scripts/guardian.js       |  10 +-
+   plugins/project-guardian/scripts/lib/config.js     |  35 +-
+   plugins/project-guardian/scripts/lib/decisions.js  |  22 +-
+   .../project-guardian/scripts/lib/doc-validation.js |  58 ++-
+   plugins/project-guardian/scripts/lib/knowledge.js  |  58 ++-
+   plugins/project-guardian/scripts/lib/mcp.js        |  70 ++-
+   plugins/project-guardian/scripts/lib/update.js     | 104 +++-
+   .../skills/project-guardian/SKILL.md               |   4 +-
+   tests/guardian.test.js                             | 190 +++++++
+   30 files changed, 1284 insertions(+), 746 deletions(-)
+  ```
+- 验证方式：npm run verify 通过（lint、100 项测试、Guardian 全质量门），npm pack --dry-run 成功，npm audit 0 漏洞，git diff --check、repair-memory 幂等检查、UTF-8 全仓扫描和 query 来源行号冒烟全部通过。
+- 风险：新增完整性规则可能暴露旧项目已有乱码或历史顺序问题；repair-memory 不能恢复缺失事实，写入前后必须审阅 Git diff。
+- 敏感信息检查：已运行密钥扫描并检查变更内容，未写入生产密码、真实 token、私钥、客户隐私或其他敏感数据。
+- 下一步：审阅并提交完整 diff；提交后在真实 Windows/Linux、Run 浏览器和至少一个 MCP AI IDE 中联调。
+
+### 2026-07-12 09:17 - P0-P3架构重构+安全统一+TOCTOU修复+i18n+migrate-memory+guardian-cmd白名单补充
+
+- 用户需求：阅读项目全部记忆文件，整理所有遗留问题和待完善功能，一次性完成。
+- AI 总结：按 P0-P3 优先级完成架构重构：P1 拆分 guardian.js（855→341行）为 init.js/check.js/hooks-ci.js/update.js，消除 validateMcpConfig 重复；P2 在 shared.js 统一密钥检测和脱敏函数（containsLikelySecret/redactLikelySecret），消除 3 套不一致正则和 2 处 redactLikelySecret 复制；P3 创建 guardian-bridge.js 解耦 Run 屄对插件内部模块的直接依赖，拆分 knowledge.js 为 knowledge.js + brief.js；修复 Run 审计日志 TOCTOU 竞态（添加重入保护）；新增 i18n 消息机制（messages.js）；新增 guardian migrate-memory 命令；补充 guardian-cmd 白名单（git-branch、git-stash）；新增 6 个测试覆盖密钥检测、大文件、审计重入等场景；修复 containsLikelySecret 的 lastIndex bug。
+- 变更文件：`guardian.js`、`lib/init.js`、`lib/check.js`、`lib/hooks-ci.js`、`lib/update.js`、`lib/brief.js`、`lib/messages.js`、`lib/migrate.js`、`lib/shared.js`、`lib/validators.js`、`lib/config.js`、`lib/knowledge.js`、`lib/security.js`、`lib/manual-memory.js`、`lib/mcp.js`、`cmd/guardian-cmd.js`、`Run/lib/audit.js`、`Run/lib/commands.js`、`Run/lib/guardian-bridge.js`、`Run/server.js`、`tests/guardian.test.js`、`package.json`
+- 业务原因：项目已过多轮功能迭代，架构耦合度问题（工具函数重复、循环依赖、Run 屄直接依赖插件内部模块）影响可维护性和后续扩展；密钥检测不一致导致安全风险；TOCTOU 竞态可能导致审计日志 hash 链断裂；i18n 和 migrate-memory 是 STATE.md 中记录的下一步功能。
+- 技术说明：P1 拆分保持所有函数行为不变，仅移动代码位置；P2 统一密钥检测时保留 security.js 的高熵检测和 manual-memory.js 的中文关键词；P3 的 guardian-bridge.js 是纯转发层无性能开销；TOCTOU 修复使用同步重入标志而非异步队列，因为 Node.js 单线程模型下同步代码块本身是原子的；i18n 的 t() 函数支持 {0} 占位符参数替换。
+- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（90 个测试全部通过）。
+- 风险：guardian.js 拆分后路由逻辑更清晰但文件结构有变化，团队成员需了解新模块位置；i18n 目前只迁移了 verify 命令的输出，后续可逐步迁移其他命令；migrate-memory 会移动文件，使用前应先备份。
+- 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据。
+- 下一步：提交前运行 `guardian verify` 确认记忆质量检查通过；后续可继续向 i18n 迁移更多命令输出。
+
 ### 2026-07-12 08:17 - 修复 chunks 函数未使用安全参数的 Bug
 
 - 用户需求：查看项目是否还有更多 Bug。
@@ -15,6 +298,179 @@
 - 风险：修复仅影响异常参数路径，正常调用参数（size=700-1200, overlap=120-200）不受影响。
 - 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据。
 - 下一步：提交前运行 `guardian verify` 确认记忆质量检查通过。
+
+### 2026-07-12 08:11 - P0-P1 架构重构：提取 lib/shared.js 统一工具函数，提取 lib/validators.js 解除 config.js 循环依赖
+
+- 用户需求：P0-P1 架构重构：提取 lib/shared.js 统一工具函数，提取 lib/validators.js 解除 config.js 循环依赖
+- AI 总结：新建 `lib/shared.js` 统一 `readMaybe`/`writeFile`/`timestamp`/`fail`/`parseFlags`/`lines`/`unique`/`getCoreMemoryFiles`/`ensureInitialized` 等 11 个工具函数（原先在 3-6 个文件中各自复制）；新建 `lib/validators.js` 提取 `validateAdapters` 和 `validateMcpConfig`，解除 config.js 对 adapters.js 和 mcp.js 的直接函数依赖；更新 9 个模块引用 shared.js；修复 `shellQuoteText` 和 `briefFile` 处理 undefined 的预存问题。
+- 变更文件：`explain/PROJECT_FILES_EXPLANATION.md`、`.gitignore`、`Run/lib/audit.js`、`Run/server.js`、`plugins/project-guardian/scripts/lib/shared.js`、`plugins/project-guardian/scripts/lib/validators.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/handover.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`package.json`
+  - `Run/lib/audit.js`
+  - `Run/public/app.js`
+  - `Run/public/styles.css`
+  - `Run/server.js`
+  - `memory/AI_CHANGELOG.md`
+  - `memory/DECISIONS.md`
+  - `memory/STATE.md`
+  - `memory/decisions/2026-06-03-run-command-catalog.md`
+  - `memory/decisions/2026-06-03-run-visual-layer.md`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
+  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
+  - `memory/decisions/2026-06-08-ai-ide.md`
+  - `memory/decisions/2026-06-08-hybrid-search-and-contributing.md`
+  - `package.json`
+  - `plugins/project-guardian/cmd/guardian-cmd.js`
+  - `plugins/project-guardian/scripts/guardian.js`
+  - `plugins/project-guardian/scripts/lib/adapters.js`
+  - `plugins/project-guardian/scripts/lib/config.js`
+  - `plugins/project-guardian/scripts/lib/decisions.js`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js`
+  - `plugins/project-guardian/scripts/lib/git-utils.js`
+  - `plugins/project-guardian/scripts/lib/handover.js`
+  - `plugins/project-guardian/scripts/lib/knowledge.js`
+  - `plugins/project-guardian/scripts/lib/mcp.js`
+  - `plugins/project-guardian/scripts/lib/reviews.js`
+  - `plugins/project-guardian/scripts/lib/security.js`
+  - `tests/guardian.test.js`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-48-498-explore-yj1hs3.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-53-692-explore-racit6.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-20-109-explore-dft1se.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-37-830-explore-e352sw.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-44-107-explore-951za9.json`
+  - `.codely-cli/settings.json`
+  - `CHANGELOG.md`
+  - `memory/decisions/2026-07-12-10.md`
+  - `plugins/project-guardian/scripts/lib/shared.js`
+  - `plugins/project-guardian/scripts/lib/validators.js`
+- 变更行：N/A（新建文件和重构）
+- 业务原因：解决架构分析中识别的工具函数重复、核心记忆文件列表不一致和循环依赖隐患。
+- 技术说明：新建 `shared.js` 和 `validators.js`，更新 9 个模块引用。
+  ```tex
+  Staged changes:
+  {explaiw => explain}/PROJECT_FILES_EXPLANATION.md | 0
+   1 file changed, 0 insertions(+), 0 deletions(-)
+
+  Unstaged changes:
+  .gitignore                                         |   6 +
+   Run/lib/audit.js                                   |  30 +-
+   Run/public/app.js                                  |   4 +-
+   Run/public/styles.css                              |  69 +-
+   Run/server.js                                      |  40 +-
+   explain/PROJECT_FILES_EXPLANATION.md               | 216 +++---
+   memory/AI_CHANGELOG.md                             | 768 +++++++++++----------
+   memory/DECISIONS.md                                | 473 ++++++-------
+   memory/STATE.md                                    | 176 ++---
+   memory/decisions/2026-06-03-run-command-catalog.md |  28 +-
+   memory/decisions/2026-06-03-run-visual-layer.md    |  24 +-
+   .../decisions/2026-06-04-cli-module-and-run-ops.md |  24 +-
+   .../2026-06-04-run-command-catalog-module.md       |  22 +-
+   memory/decisions/2026-06-08-ai-ide.md              |   9 +
+   .../2026-06-08-hybrid-search-and-contributing.md   |   9 +
+   package.json                                       |   3 +-
+   plugins/project-guardian/cmd/guardian-cmd.js       |  27 +
+   plugins/project-guardian/scripts/guardian.js       |  90 +--
+   plugins/project-guardian/scripts/lib/adapters.js   |   8 +-
+   plugins/project-guardian/scripts/lib/config.js     |  20 +-
+   plugins/project-guardian/scripts/lib/decisions.js  |  75 +-
+   .../project-guardian/scripts/lib/doc-validation.js |   9 +-
+   plugins/project-guardian/scripts/lib/git-utils.js  |  13 +-
+   plugins/project-guardian/scripts/lib/handover.js   |  36 +-
+   plugins/project-guardian/scripts/lib/knowledge.js  |  41 +-
+   plugins/project-guardian/scripts/lib/mcp.js        |  16 +-
+   plugins/project-guardian/scripts/lib/reviews.js    |  51 +-
+   plugins/project-guardian/scripts/lib/security.js   |  25 +-
+   tests/guardian.test.js                             | 160 ++++-
+   29 files changed, 1260 insertions(+), 1212 deletions(-)
+  ```
+- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（84 个测试全部通过）。
+- 风险：重构可能引入回归；需保持零依赖和 Windows 兼容；security.js 的 config.memory fallback 统一时需确保不破坏旧行为。
+- 敏感信息检查：本次没有写入生产密码、真实 token、客户隐私或其它敏感数据。
+- 下一步：按计划继续 P2（统一审计和密钥检测）和 P3（拆分 Run/server.js 和 knowledge.js 展示逻辑）。
+
+### 2026-07-12 08:11 - 安全审计与质量修复：修复 Run Web UI CSRF、路径遍历、审计日志静默、MCP stdin 限制、UTF-8 截断、ReDoS 防护、guardian-cmd 参数校验、decisions.js 路径遍历、config 路径校验；重命名 explain 目录；新增 CHANGELOG.md；修复 shared.js 和 knowledge.js 多个问题；新增 12 个测试
+
+- 用户需求：安全审计与质量修复：修复 Run Web UI CSRF、路径遍历、审计日志静默、MCP stdin 限制、UTF-8 截断、ReDoS 防护、guardian-cmd 参数校验、decisions.js 路径遍历、config 路径校验；重命名 explain 目录；新增 CHANGELOG.md；修复 shared.js 和 knowledge.js 多个问题；新增 12 个测试
+- AI 总结：对全部源码进行深度安全审计，修复 Run Web UI CSRF 防护（Origin 头校验）、静态文件路径遍历、审计日志静默失败、MCP stdin 行长度限制、UTF-8 安全截断、安全扫描 ReDoS 防护、guardian-cmd passthrough 参数校验、decisions.js 日期路径遍历、config 路径安全校验；修复 shared.js 和 knowledge.js 多个代码质量问题；重命名 explain 目录；新增 CHANGELOG.md；新增 12 个测试。
+- 变更文件：`Run/server.js`、`Run/lib/audit.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/shared.js`、`plugins/project-guardian/cmd/guardian-cmd.js`、`tests/guardian.test.js`、`package.json`、`.gitignore`、`CHANGELOG.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`
+  - `Run/public/app.js`
+  - `Run/public/styles.css`
+  - `Run/server.js`
+  - `memory/AI_CHANGELOG.md`
+  - `memory/DECISIONS.md`
+  - `memory/STATE.md`
+  - `memory/decisions/2026-06-03-run-command-catalog.md`
+  - `memory/decisions/2026-06-03-run-visual-layer.md`
+  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
+  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
+  - `memory/decisions/2026-06-08-ai-ide.md`
+  - `memory/decisions/2026-06-08-hybrid-search-and-contributing.md`
+  - `package.json`
+  - `plugins/project-guardian/cmd/guardian-cmd.js`
+  - `plugins/project-guardian/scripts/guardian.js`
+  - `plugins/project-guardian/scripts/lib/adapters.js`
+  - `plugins/project-guardian/scripts/lib/config.js`
+  - `plugins/project-guardian/scripts/lib/decisions.js`
+  - `plugins/project-guardian/scripts/lib/doc-validation.js`
+  - `plugins/project-guardian/scripts/lib/git-utils.js`
+  - `plugins/project-guardian/scripts/lib/handover.js`
+  - `plugins/project-guardian/scripts/lib/knowledge.js`
+  - `plugins/project-guardian/scripts/lib/mcp.js`
+  - `plugins/project-guardian/scripts/lib/reviews.js`
+  - `plugins/project-guardian/scripts/lib/security.js`
+  - `tests/guardian.test.js`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-48-498-explore-yj1hs3.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-53-692-explore-racit6.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-20-109-explore-dft1se.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-37-830-explore-e352sw.json`
+  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-44-107-explore-951za9.json`
+  - `.codely-cli/settings.json`
+  - `CHANGELOG.md`
+  - `memory/decisions/2026-07-12-10.md`
+  - `plugins/project-guardian/scripts/lib/shared.js`
+  - `plugins/project-guardian/scripts/lib/validators.js`
+- 变更行：N/A（新建文件和重构）
+- 业务原因：解决架构分析中识别的工具函数重复、核心记忆文件列表不一致和循环依赖隐患。
+- 技术说明：新建 `shared.js` 和 `validators.js`，更新 9 个模块引用。
+  ```tex
+  Staged changes:
+  {explaiw => explain}/PROJECT_FILES_EXPLANATION.md | 0
+   1 file changed, 0 insertions(+), 0 deletions(-)
+
+  Unstaged changes:
+  .gitignore                                         |   6 +
+   Run/lib/audit.js                                   |  30 +-
+   Run/public/app.js                                  |   4 +-
+   Run/public/styles.css                              |  69 +-
+   Run/server.js                                      |  40 +-
+   explain/PROJECT_FILES_EXPLANATION.md               | 216 +++---
+   memory/AI_CHANGELOG.md                             | 858 ++++++++++++---------
+   memory/DECISIONS.md                                | 473 ++++++------
+   memory/STATE.md                                    | 239 +++---
+   memory/decisions/2026-06-03-run-command-catalog.md |  28 +-
+   memory/decisions/2026-06-03-run-visual-layer.md    |  24 +-
+   .../decisions/2026-06-04-cli-module-and-run-ops.md |  24 +-
+   .../2026-06-04-run-command-catalog-module.md       |  22 +-
+   memory/decisions/2026-06-08-ai-ide.md              |   9 +
+   .../2026-06-08-hybrid-search-and-contributing.md   |   9 +
+   package.json                                       |   3 +-
+   plugins/project-guardian/cmd/guardian-cmd.js       |  27 +
+   plugins/project-guardian/scripts/guardian.js       |  90 +--
+   plugins/project-guardian/scripts/lib/adapters.js   |   8 +-
+   plugins/project-guardian/scripts/lib/config.js     |  20 +-
+   plugins/project-guardian/scripts/lib/decisions.js  |  75 +-
+   .../project-guardian/scripts/lib/doc-validation.js |   9 +-
+   plugins/project-guardian/scripts/lib/git-utils.js  |  13 +-
+   plugins/project-guardian/scripts/lib/handover.js   |  36 +-
+   plugins/project-guardian/scripts/lib/knowledge.js  |  41 +-
+   plugins/project-guardian/scripts/lib/mcp.js        |  16 +-
+   plugins/project-guardian/scripts/lib/reviews.js    |  51 +-
+   plugins/project-guardian/scripts/lib/security.js   |  25 +-
+   tests/guardian.test.js                             | 160 +++-
+   29 files changed, 1405 insertions(+), 1220 deletions(-)
+  ```
+- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（84 个测试全部通过）。
+- 风险：重构可能引入回归；需保持零依赖和 Windows 兼容。
+- 敏感信息检查：本次没有写入生产密码、真实 token、客户隐私或其它敏感数据。
+- 下一步：按计划继续 P2（统一审计和密钥检测）和 P3（拆分 Run/server.js 和 knowledge.js 展示逻辑）。
 
 ### 2026-07-12 08:01 - 完整 Bug 排查与修复（8 项）
 
@@ -424,18 +880,6 @@
 - 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
 - 下一步：推送到 Gitee 后，在干净机器上从 Gitee URL 安装，并测试 `guardian init`  `guardian init --language en`。
 
-### 2026-05-14 15:20 - 增加可移 CLI 和 AI 工具适配。
-
-- 用户需求：先解 CLI 易用性问题，再开发其 AI 工具的适配层，并保持文档同步。
-- AI 总结：新package `bin` 入口，让工具可以作为 `guardian`  `project-guardian` 使用；新增`--version`；新增通用/Codex、Cursor  GitHub Copilot 的可配置适配器生成；新增测试验证适配器创建、保留、package 元数据和配置校验。
-- 变更文件：`package.json`、`project-guardian.config.json`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/` 下的适配器模板、`tests/guardian.test.js`、README、Project Guardian 文档和项目记忆文件。
-- 业务原因：团队不应记忆很长的相对 Node 路径；项目记忆工作流应适用 Cursor、Copilot、Codex 和通用 AI Agent，而不是绑定单一生态。
-- 技术说明：`guardian init` 仍然创建核心记忆文件且不覆盖已有内容。`guardian install-adapters --adapter cursor,copilot` 只添 AI 规则文件，并保留同名已有文件。Git 安装源是 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`。
-- 验证方式：`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、help/version 冒烟测试package dry-run。
-- 风险：全局 CLI 使用依赖团队发布或从真实 npm/Git 源安装；Cursor  Copilot 改变规则约定时，需要复核适配器格式。
-- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
-- 下一步：审阅最终 diff 后， CLI、适配器层 Gitee 安装源变更提交到 Gitee。
-
 ### 2026-05-14 15:50 - 从主 CLI 中解耦适配器解析。
 
 - 用户需求：分析目录结构，检查缺失或薄弱点，并对耦合度过高的地方做解耦或重构。
@@ -448,6 +892,18 @@
 - 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
 - 下一步：后续可以考虑把配置加校验或文档校验拆成独立模块。
 
+### 2026-05-14 15:20 - 增加可移 CLI 和 AI 工具适配。
+
+- 用户需求：先解 CLI 易用性问题，再开发其 AI 工具的适配层，并保持文档同步。
+- AI 总结：新package `bin` 入口，让工具可以作为 `guardian`  `project-guardian` 使用；新增`--version`；新增通用/Codex、Cursor  GitHub Copilot 的可配置适配器生成；新增测试验证适配器创建、保留、package 元数据和配置校验。
+- 变更文件：`package.json`、`project-guardian.config.json`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/assets/templates/` 下的适配器模板、`tests/guardian.test.js`、README、Project Guardian 文档和项目记忆文件。
+- 业务原因：团队不应记忆很长的相对 Node 路径；项目记忆工作流应适用 Cursor、Copilot、Codex 和通用 AI Agent，而不是绑定单一生态。
+- 技术说明：`guardian init` 仍然创建核心记忆文件且不覆盖已有内容。`guardian install-adapters --adapter cursor,copilot` 只添 AI 规则文件，并保留同名已有文件。Git 安装源是 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`。
+- 验证方式：`npm.cmd run lint`、`npm.cmd test`、`node plugins/project-guardian/scripts/guardian.js verify`、help/version 冒烟测试package dry-run。
+- 风险：全局 CLI 使用依赖团队发布或从真实 npm/Git 源安装；Cursor  Copilot 改变规则约定时，需要复核适配器格式。
+- 敏感信息检查：未加入生产密码、真实 token、私钥或客户隐私数据。
+- 下一步：审阅最终 diff 后， CLI、适配器层 Gitee 安装源变更提交到 Gitee。
+
 ### 2026-05-14 00:00 - 强化 Project Guardian 质量工作。
 
 - 用户需求：按阶段改进路线一步一步完成，运行多轮测试，并在出现错误时立即修复。
@@ -455,195 +911,10 @@
 - 变更文件：`plugins/project-guardian/scripts/guardian.js`、`.gitignore`、`package.json`、`tests/guardian.test.js`、`plugins/project-guardian/assets/templates/` 下的模板、根目录记忆文件、根目录文档、插件文档，以及现在 Git 可见的插件元数据条目。
 - 业务原因：插件必须从文档模板工具升级为能主动约束 AI 辅助开发团团队交接质量的工具。
 - 技术说明：CLI 仍然是只依赖标准库的单个 Node.js 脚本。新增命令和检查可在本地、hooks  Gitee CI 中运行，不需要外部服务。
-  ```text
+  ```tex
   guardian verify = doctor + check + validate-docs + configured security scan
   ```
 - 验证方式：代码和文档更新后，`npm.cmd run verify`、直接命令冒烟测试、`git diff --check`、JSON 解析检查和文档一致性扫描通过。
 - 风险：更严格的校验规则在真实团队尝试部分文档化项目后可能需要调整。Windows 用户如果 `npm.ps1` 执行策略阻止，应优先 PowerShell 中使用`npm.cmd`。
 - 敏感信息检查：未向记忆文件加入生产密码、真实 token、私钥或客户隐私数据。
 - 下一步：审阅最终 diff，重新运行验证循环，并总结可提交到 Gitee 的变更集。
-
-### 2026-07-12 08:11 - P0-P1 架构重构：提取 lib/shared.js 统一工具函数，提取 lib/validators.js 解除 config.js 循环依赖
-
-- 用户需求：P0-P1 架构重构：提取 lib/shared.js 统一工具函数，提取 lib/validators.js 解除 config.js 循环依赖
-- AI 总结：新建 `lib/shared.js` 统一 `readMaybe`/`writeFile`/`timestamp`/`fail`/`parseFlags`/`lines`/`unique`/`getCoreMemoryFiles`/`ensureInitialized` 等 11 个工具函数（原先在 3-6 个文件中各自复制）；新建 `lib/validators.js` 提取 `validateAdapters` 和 `validateMcpConfig`，解除 config.js 对 adapters.js 和 mcp.js 的直接函数依赖；更新 9 个模块引用 shared.js；修复 `shellQuoteText` 和 `briefFile` 处理 undefined 的预存问题。
-- 变更文件：`explain/PROJECT_FILES_EXPLANATION.md`、`.gitignore`、`Run/lib/audit.js`、`Run/server.js`、`plugins/project-guardian/scripts/lib/shared.js`、`plugins/project-guardian/scripts/lib/validators.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/handover.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/guardian.js`、`tests/guardian.test.js`、`package.json`
-  - `Run/lib/audit.js`
-  - `Run/public/app.js`
-  - `Run/public/styles.css`
-  - `Run/server.js`
-  - `memory/AI_CHANGELOG.md`
-  - `memory/DECISIONS.md`
-  - `memory/STATE.md`
-  - `memory/decisions/2026-06-03-run-command-catalog.md`
-  - `memory/decisions/2026-06-03-run-visual-layer.md`
-  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
-  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
-  - `memory/decisions/2026-06-08-ai-ide.md`
-  - `memory/decisions/2026-06-08-hybrid-search-and-contributing.md`
-  - `package.json`
-  - `plugins/project-guardian/cmd/guardian-cmd.js`
-  - `plugins/project-guardian/scripts/guardian.js`
-  - `plugins/project-guardian/scripts/lib/adapters.js`
-  - `plugins/project-guardian/scripts/lib/config.js`
-  - `plugins/project-guardian/scripts/lib/decisions.js`
-  - `plugins/project-guardian/scripts/lib/doc-validation.js`
-  - `plugins/project-guardian/scripts/lib/git-utils.js`
-  - `plugins/project-guardian/scripts/lib/handover.js`
-  - `plugins/project-guardian/scripts/lib/knowledge.js`
-  - `plugins/project-guardian/scripts/lib/mcp.js`
-  - `plugins/project-guardian/scripts/lib/reviews.js`
-  - `plugins/project-guardian/scripts/lib/security.js`
-  - `tests/guardian.test.js`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-48-498-explore-yj1hs3.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-53-692-explore-racit6.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-20-109-explore-dft1se.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-37-830-explore-e352sw.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-44-107-explore-951za9.json`
-  - `.codely-cli/settings.json`
-  - `CHANGELOG.md`
-  - `memory/decisions/2026-07-12-10.md`
-  - `plugins/project-guardian/scripts/lib/shared.js`
-  - `plugins/project-guardian/scripts/lib/validators.js`
-- 变更行：N/A（新建文件和重构）
-- 业务原因：解决架构分析中识别的工具函数重复、核心记忆文件列表不一致和循环依赖隐患。
-- 技术说明：新建 `shared.js` 和 `validators.js`，更新 9 个模块引用。
-  ```text
-  Staged changes:
-  {explaiw => explain}/PROJECT_FILES_EXPLANATION.md | 0
-   1 file changed, 0 insertions(+), 0 deletions(-)
-  
-  Unstaged changes:
-  .gitignore                                         |   6 +
-   Run/lib/audit.js                                   |  30 +-
-   Run/public/app.js                                  |   4 +-
-   Run/public/styles.css                              |  69 +-
-   Run/server.js                                      |  40 +-
-   explain/PROJECT_FILES_EXPLANATION.md               | 216 +++---
-   memory/AI_CHANGELOG.md                             | 768 +++++++++++----------
-   memory/DECISIONS.md                                | 473 ++++++-------
-   memory/STATE.md                                    | 176 ++---
-   memory/decisions/2026-06-03-run-command-catalog.md |  28 +-
-   memory/decisions/2026-06-03-run-visual-layer.md    |  24 +-
-   .../decisions/2026-06-04-cli-module-and-run-ops.md |  24 +-
-   .../2026-06-04-run-command-catalog-module.md       |  22 +-
-   memory/decisions/2026-06-08-ai-ide.md              |   9 +
-   .../2026-06-08-hybrid-search-and-contributing.md   |   9 +
-   package.json                                       |   3 +-
-   plugins/project-guardian/cmd/guardian-cmd.js       |  27 +
-   plugins/project-guardian/scripts/guardian.js       |  90 +--
-   plugins/project-guardian/scripts/lib/adapters.js   |   8 +-
-   plugins/project-guardian/scripts/lib/config.js     |  20 +-
-   plugins/project-guardian/scripts/lib/decisions.js  |  75 +-
-   .../project-guardian/scripts/lib/doc-validation.js |   9 +-
-   plugins/project-guardian/scripts/lib/git-utils.js  |  13 +-
-   plugins/project-guardian/scripts/lib/handover.js   |  36 +-
-   plugins/project-guardian/scripts/lib/knowledge.js  |  41 +-
-   plugins/project-guardian/scripts/lib/mcp.js        |  16 +-
-   plugins/project-guardian/scripts/lib/reviews.js    |  51 +-
-   plugins/project-guardian/scripts/lib/security.js   |  25 +-
-   tests/guardian.test.js                             | 160 ++++-
-   29 files changed, 1260 insertions(+), 1212 deletions(-)
-  ```
-- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（84 个测试全部通过）。
-- 风险：重构可能引入回归；需保持零依赖和 Windows 兼容；security.js 的 config.memory fallback 统一时需确保不破坏旧行为。
-- 敏感信息检查：本次没有写入生产密码、真实 token、客户隐私或其它敏感数据。
-- 下一步：按计划继续 P2（统一审计和密钥检测）和 P3（拆分 Run/server.js 和 knowledge.js 展示逻辑）。
-
-### 2026-07-12 08:11 - 安全审计与质量修复：修复 Run Web UI CSRF、路径遍历、审计日志静默、MCP stdin 限制、UTF-8 截断、ReDoS 防护、guardian-cmd 参数校验、decisions.js 路径遍历、config 路径校验；重命名 explain 目录；新增 CHANGELOG.md；修复 shared.js 和 knowledge.js 多个问题；新增 12 个测试
-
-- 用户需求：安全审计与质量修复：修复 Run Web UI CSRF、路径遍历、审计日志静默、MCP stdin 限制、UTF-8 截断、ReDoS 防护、guardian-cmd 参数校验、decisions.js 路径遍历、config 路径校验；重命名 explain 目录；新增 CHANGELOG.md；修复 shared.js 和 knowledge.js 多个问题；新增 12 个测试
-- AI 总结：对全部源码进行深度安全审计，修复 Run Web UI CSRF 防护（Origin 头校验）、静态文件路径遍历、审计日志静默失败、MCP stdin 行长度限制、UTF-8 安全截断、安全扫描 ReDoS 防护、guardian-cmd passthrough 参数校验、decisions.js 日期路径遍历、config 路径安全校验；修复 shared.js 和 knowledge.js 多个代码质量问题；重命名 explain 目录；新增 CHANGELOG.md；新增 12 个测试。
-- 变更文件：`Run/server.js`、`Run/lib/audit.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/shared.js`、`plugins/project-guardian/cmd/guardian-cmd.js`、`tests/guardian.test.js`、`package.json`、`.gitignore`、`CHANGELOG.md`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`、`memory/DECISIONS.md`
-  - `Run/public/app.js`
-  - `Run/public/styles.css`
-  - `Run/server.js`
-  - `memory/AI_CHANGELOG.md`
-  - `memory/DECISIONS.md`
-  - `memory/STATE.md`
-  - `memory/decisions/2026-06-03-run-command-catalog.md`
-  - `memory/decisions/2026-06-03-run-visual-layer.md`
-  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
-  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
-  - `memory/decisions/2026-06-08-ai-ide.md`
-  - `memory/decisions/2026-06-08-hybrid-search-and-contributing.md`
-  - `package.json`
-  - `plugins/project-guardian/cmd/guardian-cmd.js`
-  - `plugins/project-guardian/scripts/guardian.js`
-  - `plugins/project-guardian/scripts/lib/adapters.js`
-  - `plugins/project-guardian/scripts/lib/config.js`
-  - `plugins/project-guardian/scripts/lib/decisions.js`
-  - `plugins/project-guardian/scripts/lib/doc-validation.js`
-  - `plugins/project-guardian/scripts/lib/git-utils.js`
-  - `plugins/project-guardian/scripts/lib/handover.js`
-  - `plugins/project-guardian/scripts/lib/knowledge.js`
-  - `plugins/project-guardian/scripts/lib/mcp.js`
-  - `plugins/project-guardian/scripts/lib/reviews.js`
-  - `plugins/project-guardian/scripts/lib/security.js`
-  - `tests/guardian.test.js`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-48-498-explore-yj1hs3.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-58-53-692-explore-racit6.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-20-109-explore-dft1se.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-37-830-explore-e352sw.json`
-  - `.codely-cli/auto-saves/chat-auto-save-2026-07-12-07-59-44-107-explore-951za9.json`
-  - `.codely-cli/settings.json`
-  - `CHANGELOG.md`
-  - `memory/decisions/2026-07-12-10.md`
-  - `plugins/project-guardian/scripts/lib/shared.js`
-  - `plugins/project-guardian/scripts/lib/validators.js`
-- 变更行：N/A（新建文件和重构）
-- 业务原因：解决架构分析中识别的工具函数重复、核心记忆文件列表不一致和循环依赖隐患。
-- 技术说明：新建 `shared.js` 和 `validators.js`，更新 9 个模块引用。
-  ```text
-  Staged changes:
-  {explaiw => explain}/PROJECT_FILES_EXPLANATION.md | 0
-   1 file changed, 0 insertions(+), 0 deletions(-)
-  
-  Unstaged changes:
-  .gitignore                                         |   6 +
-   Run/lib/audit.js                                   |  30 +-
-   Run/public/app.js                                  |   4 +-
-   Run/public/styles.css                              |  69 +-
-   Run/server.js                                      |  40 +-
-   explain/PROJECT_FILES_EXPLANATION.md               | 216 +++---
-   memory/AI_CHANGELOG.md                             | 858 ++++++++++++---------
-   memory/DECISIONS.md                                | 473 ++++++------
-   memory/STATE.md                                    | 239 +++---
-   memory/decisions/2026-06-03-run-command-catalog.md |  28 +-
-   memory/decisions/2026-06-03-run-visual-layer.md    |  24 +-
-   .../decisions/2026-06-04-cli-module-and-run-ops.md |  24 +-
-   .../2026-06-04-run-command-catalog-module.md       |  22 +-
-   memory/decisions/2026-06-08-ai-ide.md              |   9 +
-   .../2026-06-08-hybrid-search-and-contributing.md   |   9 +
-   package.json                                       |   3 +-
-   plugins/project-guardian/cmd/guardian-cmd.js       |  27 +
-   plugins/project-guardian/scripts/guardian.js       |  90 +--
-   plugins/project-guardian/scripts/lib/adapters.js   |   8 +-
-   plugins/project-guardian/scripts/lib/config.js     |  20 +-
-   plugins/project-guardian/scripts/lib/decisions.js  |  75 +-
-   .../project-guardian/scripts/lib/doc-validation.js |   9 +-
-   plugins/project-guardian/scripts/lib/git-utils.js  |  13 +-
-   plugins/project-guardian/scripts/lib/handover.js   |  36 +-
-   plugins/project-guardian/scripts/lib/knowledge.js  |  41 +-
-   plugins/project-guardian/scripts/lib/mcp.js        |  16 +-
-   plugins/project-guardian/scripts/lib/reviews.js    |  51 +-
-   plugins/project-guardian/scripts/lib/security.js   |  25 +-
-   tests/guardian.test.js                             | 160 +++-
-   29 files changed, 1405 insertions(+), 1220 deletions(-)
-  ```
-- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（84 个测试全部通过）。
-- 风险：重构可能引入回归；需保持零依赖和 Windows 兼容。
-- 敏感信息检查：本次没有写入生产密码、真实 token、客户隐私或其它敏感数据。
-- 下一步：按计划继续 P2（统一审计和密钥检测）和 P3（拆分 Run/server.js 和 knowledge.js 展示逻辑）。
-
-### 2026-07-12 09:17 - P0-P3架构重构+安全统一+TOCTOU修复+i18n+migrate-memory+guardian-cmd白名单补充
-
-- 用户需求：阅读项目全部记忆文件，整理所有遗留问题和待完善功能，一次性完成。
-- AI 总结：按 P0-P3 优先级完成架构重构：P1 拆分 guardian.js（855→341行）为 init.js/check.js/hooks-ci.js/update.js，消除 validateMcpConfig 重复；P2 在 shared.js 统一密钥检测和脱敏函数（containsLikelySecret/redactLikelySecret），消除 3 套不一致正则和 2 处 redactLikelySecret 复制；P3 创建 guardian-bridge.js 解耦 Run 屄对插件内部模块的直接依赖，拆分 knowledge.js 为 knowledge.js + brief.js；修复 Run 审计日志 TOCTOU 竞态（添加重入保护）；新增 i18n 消息机制（messages.js）；新增 guardian migrate-memory 命令；补充 guardian-cmd 白名单（git-branch、git-stash）；新增 6 个测试覆盖密钥检测、大文件、审计重入等场景；修复 containsLikelySecret 的 lastIndex bug。
-- 变更文件：`guardian.js`、`lib/init.js`、`lib/check.js`、`lib/hooks-ci.js`、`lib/update.js`、`lib/brief.js`、`lib/messages.js`、`lib/migrate.js`、`lib/shared.js`、`lib/validators.js`、`lib/config.js`、`lib/knowledge.js`、`lib/security.js`、`lib/manual-memory.js`、`lib/mcp.js`、`cmd/guardian-cmd.js`、`Run/lib/audit.js`、`Run/lib/commands.js`、`Run/lib/guardian-bridge.js`、`Run/server.js`、`tests/guardian.test.js`、`package.json`
-- 业务原因：项目已过多轮功能迭代，架构耦合度问题（工具函数重复、循环依赖、Run 屄直接依赖插件内部模块）影响可维护性和后续扩展；密钥检测不一致导致安全风险；TOCTOU 竞态可能导致审计日志 hash 链断裂；i18n 和 migrate-memory 是 STATE.md 中记录的下一步功能。
-- 技术说明：P1 拆分保持所有函数行为不变，仅移动代码位置；P2 统一密钥检测时保留 security.js 的高熵检测和 manual-memory.js 的中文关键词；P3 的 guardian-bridge.js 是纯转发层无性能开销；TOCTOU 修复使用同步重入标志而非异步队列，因为 Node.js 单线程模型下同步代码块本身是原子的；i18n 的 t() 函数支持 {0} 占位符参数替换。
-- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（90 个测试全部通过）。
-- 风险：guardian.js 拆分后路由逻辑更清晰但文件结构有变化，团队成员需了解新模块位置；i18n 目前只迁移了 verify 命令的输出，后续可逐步迁移其他命令；migrate-memory 会移动文件，使用前应先备份。
-- 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据。
-- 下一步：提交前运行 `guardian verify` 确认记忆质量检查通过；后续可继续向 i18n 迁移更多命令输出。

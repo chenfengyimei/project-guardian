@@ -25,12 +25,17 @@ function inspectDoc(root, rule) {
   if (placeholders > rule.maxPlaceholders) issues.push(`too many placeholders: ${placeholders}/${rule.maxPlaceholders}`);
   for (const issue of fieldIssues(text)) issues.push(issue);
   if (hasEmptyTableRow(text)) issues.push("contains an empty table row");
+  for (const issue of textIntegrityIssues(text)) issues.push(issue);
   if (rule.type === "state" && !/^(Last updated|最后更新)[:：]\s*\S+/m.test(text)) issues.push("Last updated / 最后更新 must have a value");
-  if (rule.type === "decisions" && !hasRealDecision(text)) issues.push("must contain a real decision or explicitly say 暂无关键决策");
+  if (rule.type === "decisions") {
+    if (!hasRealDecision(text)) issues.push("must contain a real decision or explicitly say 暂无关键决策");
+    if (!headingsAreNewestFirst(text, "date")) issues.push("decision entries must be ordered newest first");
+  }
   if (rule.type === "changelog") {
     const latest = latestChangelogText(text);
     if (hasTodo(latest)) issues.push("latest changelog entry must not contain TODO / 待填写");
     if (hasMidnightTimestamp(latest)) issues.push("latest changelog entry must use the current local HH:mm time, not 00:00");
+    if (!headingsAreNewestFirst(text, "timestamp")) issues.push("changelog entries must be ordered newest first");
   }
 
   return { file: rule.file, placeholders, issues };
@@ -38,12 +43,14 @@ function inspectDoc(root, rule) {
 
 function countPlaceholders(text) {
   let count = 0;
-  for (const rawLine of text.split(/\r?\n/)) {
+  const rawLines = text.split(/\r?\n/);
+  for (let index = 0; index < rawLines.length; index += 1) {
+    const rawLine = rawLines[index];
     const line = rawLine.trim();
     if (!line) continue;
     if (hasTodo(line)) count += 1;
     if (/^-\s*$/.test(line)) count += 1;
-    if (/^-\s*[^:：]+[:：]\s*$/.test(line)) count += 1;
+    if (/^-\s*[^:：]+[:：]\s*$/.test(line) && !hasNestedFieldContent(rawLines, index)) count += 1;
     if (/^(Last (updated|generated)|最后(更新|生成))[:：]\s*$/.test(line)) count += 1;
     if (/^\|\s*(\|\s*)+$/.test(line)) count += 1;
   }
@@ -60,11 +67,21 @@ function meaningfulLength(text) {
 }
 
 function fieldIssues(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line, index) => ({ line: line.trim(), index: index + 1 }))
-    .filter(({ line }) => /^-\s*[^:：]+[:：]\s*$/.test(line))
-    .map(({ line, index }) => `line ${index} has an empty field: ${line}`);
+  const rawLines = text.split(/\r?\n/);
+  return rawLines
+    .map((raw, index) => ({ raw, line: raw.trim(), index }))
+    .filter(({ line, index }) => /^-\s*[^:：]+[:：]\s*$/.test(line) && !hasNestedFieldContent(rawLines, index))
+    .map(({ line, index }) => `line ${index + 1} has an empty field: ${line}`);
+}
+
+function hasNestedFieldContent(lines, fieldIndex) {
+  const fieldIndent = (lines[fieldIndex].match(/^\s*/) || [""])[0].length;
+  for (let index = fieldIndex + 1; index < lines.length; index += 1) {
+    if (!lines[index].trim()) continue;
+    const nextIndent = (lines[index].match(/^\s*/) || [""])[0].length;
+    return nextIndent > fieldIndent;
+  }
+  return false;
 }
 
 function hasEmptyTableRow(text) {
@@ -90,11 +107,49 @@ function latestChangelog(root, config) {
 }
 
 function latestChangelogText(text) {
-  const matches = [...text.matchAll(/^###\s+.+$/gm)];
-  if (matches.length === 0) return "";
-  const first = matches[0];
-  const second = matches[1];
-  return text.slice(first.index, second ? second.index : undefined);
+  const entries = markdownEntries(text);
+  if (entries.length === 0) return "";
+  const dated = entries.filter((entry) => entry.timestamp);
+  if (dated.length === 0) return entries[0].text;
+  return dated.reduce((latest, entry) => entry.timestamp > latest.timestamp ? entry : latest).text;
+}
+
+function markdownEntries(text) {
+  const value = String(text || "");
+  const matches = [...value.matchAll(/^###\s+(.+)$/gm)];
+  return matches.map((match, index) => {
+    const heading = match[1].trim();
+    const timestampMatch = heading.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?\s+-\s+/);
+    const timestamp = timestampMatch
+      ? `${timestampMatch[1]} ${timestampMatch[2] || "00:00"}`
+      : "";
+    const end = matches[index + 1] ? matches[index + 1].index : value.length;
+    return { heading, timestamp, text: value.slice(match.index, end).replace(/\s+$/, "") };
+  });
+}
+
+function headingsAreNewestFirst(text, precision = "timestamp") {
+  const entries = markdownEntries(text);
+  const values = entries
+    .map((entry) => precision === "date" ? entry.timestamp.slice(0, 10) : entry.timestamp)
+    .filter(Boolean);
+  return values.every((value, index) => index === 0 || values[index - 1] >= value);
+}
+
+function textIntegrityIssues(text) {
+  const issues = [];
+  const value = String(text || "");
+  if (value.includes("\uFFFD") || /锟斤拷|ï¿½|Ã[\x80-\xBF]|â(?:€|™|œ|“|”)/.test(value)) {
+    issues.push("contains likely encoding corruption or mojibake");
+  }
+  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(value)) {
+    issues.push("contains invalid control characters");
+  }
+  const suspiciousQuestions = value.match(/(?:[\u3400-\u9fff]\?(?=[\u3400-\u9fffA-Za-z0-9`])|\?(?=[\u3400-\u9fff]))/g) || [];
+  if (suspiciousQuestions.length >= 3) {
+    issues.push(`contains likely damaged CJK text (${suspiciousQuestions.length} suspicious question marks)`);
+  }
+  return issues;
 }
 
 function hasMidnightTimestamp(text) {
@@ -158,11 +213,16 @@ function getDocRules(config) {
 
 module.exports = {
   countPlaceholders,
+  fieldIssues,
   getDocRules,
   hasMidnightTimestamp,
   hasTodo,
   inspectDoc,
   latestChangelog,
   latestChangelogText,
+  markdownEntries,
+  headingsAreNewestFirst,
+  hasNestedFieldContent,
+  textIntegrityIssues,
   runDocValidation,
 };

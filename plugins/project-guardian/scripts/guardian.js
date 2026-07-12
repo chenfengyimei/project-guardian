@@ -20,6 +20,7 @@ const { init, installAdapters, adaptersDoctor, resolveAdaptersOrFail } = require
 const { runDoctor, runCheck, printDoctor, printCheck, printDocValidation, printSecretScan, finish, isMemoryFile, isMemoryRelatedFile, isDecisionDirectoryFile, getKnowledgeFiles, memoryContainsPattern } = require("./lib/check");
 const { installHooks, installCi } = require("./lib/hooks-ci");
 const { migrateMemory } = require("./lib/migrate");
+const { repairMemory } = require("./lib/memory-repair");
 const { update, appendMemory } = require("./lib/update");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
@@ -37,7 +38,7 @@ async function main() {
       init(root, args, __filename);
       break;
     case "update":
-      update(root, args.join(" ").trim());
+      update(root, args);
       break;
     case "append-memory":
       appendMemory(root, args);
@@ -113,6 +114,9 @@ async function main() {
       break;
     case "migrate-memory":
       migrateMemory(root);
+      break;
+    case "repair-memory":
+      repairMemory(root, args);
       break;
     case "help":
     case "--help":
@@ -325,6 +329,7 @@ Usage:
   guardian init --language en
   guardian init --adapter all
   guardian update "task summary"
+  guardian update "task summary" --summary "what changed" --reason "why" --verification "checks" --risks "risks" --sensitive-data "checked" --next-step "follow-up"
   guardian append-memory --file STATE --template state-progress --task "Task" --current-status "Status" --next-step "Next" --verification "Checks"
   guardian append-memory --templates
   guardian decision add --title "Decision title" --context "Why" --decision "What"
@@ -346,6 +351,8 @@ Usage:
   guardian install-hooks
   guardian install-ci
   guardian migrate-memory
+  guardian repair-memory
+  guardian repair-memory --write
 
 Controlled command runner for AI IDEs:
   guardian-cmd list
@@ -373,6 +380,7 @@ Commands:
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
   migrate-memory Move memory files to memory/ directory and update config.
+  repair-memory Check changelog ordering and decision-index drift; use --write to apply deterministic repairs.
 `);
 }
 

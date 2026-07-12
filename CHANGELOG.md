@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] - 2026-07-12
+
+### Added
+
+- Added `guardian repair-memory` with dry-run and explicit `--write` modes to sort changelog history and rebuild the decision index from independent decision files.
+- Added structured `guardian update` fields across CLI, Run, and MCP so complete change records can be written in one operation.
+- Added MCP `guardian_memory_health` and `guardian_memory_repair` tools.
+- Added query source line locations and source-diverse result selection.
+
+### Fixed
+
+- Blocked prototype-polluting configuration keys and normalized malformed configuration sections so doctor/verify report errors instead of crashing.
+- Fixed changelog and decision insertion to keep newest records first.
+- Added encoding, control-character, damaged-CJK, and history-order validation.
+- Fixed MCP task scheduling so queued writes cannot be starved by later reads.
+- Recovered corrupted project decision sources and regenerated the decision index.
+
 All notable changes to Project Guardian are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

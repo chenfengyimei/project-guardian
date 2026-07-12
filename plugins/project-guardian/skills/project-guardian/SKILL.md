@@ -32,6 +32,8 @@ After code changes, update project memory unless the user explicitly asks not to
 - Refresh `memory/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
 - Preserve existing human-written memory. Append, summarize, or amend the relevant section instead of deleting historical context.
 - Run or recommend `guardian verify` when memory quality matters before handover, PR, or release.
+- If validation reports encoding damage, out-of-order history, or decision-index drift, run `guardian repair-memory` first as a dry run; apply only with `guardian repair-memory --write`, review the diff, then rerun validation.
+- Prefer a structured `guardian update` call with `--summary`, `--reason`, `--verification`, `--risks`, `--sensitive-data`, and `--next-step` when those facts are known, so the latest record is complete in one operation.
 - Never write production passwords, real tokens, private keys, customer private data, or other secrets into project memory.
 
 ## Self-Service Knowledge Loop
@@ -61,7 +63,7 @@ When users ask how to adopt or standardize the plugin, reference:
 - `plugins/project-guardian/docs/STANDARD.md`
 - `plugins/project-guardian/docs/CLI_AND_CI.md`
 
-If the user asks about MCP or direct AI IDE tool calls, mention `guardian mcp`, the MCP setup examples in `CLI_AND_CI.md` and `INTEGRATION.md`, `guardian_brief`, the `mcp.readOnly` / `mcp.allowedTools` safety controls, strict MCP argument validation, and `guardian_query.limit` for smaller responses.
+If the user asks about MCP or direct AI IDE tool calls, mention `guardian mcp`, the MCP setup examples in `CLI_AND_CI.md` and `INTEGRATION.md`, `guardian_brief`, the `mcp.readOnly` / `mcp.allowedTools` safety controls, strict MCP argument validation, `guardian_query.limit` for smaller responses, and the split between read-only `guardian_memory_health` and write-capable `guardian_memory_repair`.
 
 If the user asks about decision follow-up or review, mention `guardian reviews`, `guardian reviews due`, and `guardian reviews complete`; due reviews are part of `guardian verify`, and completed reviews should record the reviewer, conclusion, verification, and that no further review is needed.
 

@@ -31,9 +31,10 @@ function searchIndex(index, question, limit) {
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
   const bestKnowledgeScore = Math.max(0, ...scored.filter((item) => item.doc.kind === "knowledge").map((item) => item.score));
-  return scored
-    .filter((item) => includeQueryResult(item, query, bestKnowledgeScore))
-    .slice(0, limit);
+  return selectDiverseResults(
+    scored.filter((item) => includeQueryResult(item, query, bestKnowledgeScore)),
+    limit
+  );
 }
 
 function score(doc, query) {
@@ -99,7 +100,8 @@ function formatResults(results) {
         .slice(0, 8)
         .join("\n");
       const matched = matches && matches.length ? `\nMatched: ${matches.join(", ")}` : "";
-      return [`\n[${index + 1}] Source: ${doc.file} (score ${resultScore})${matched}`, "```text", preview, "```"].join("\n");
+      const location = doc.line && doc.line > 1 ? `${doc.file}:${doc.line}` : doc.file;
+      return [`\n[${index + 1}] Source: ${location} (score ${resultScore})${matched}`, "```text", preview, "```"].join("\n");
     })
     .join("\n");
 }
@@ -109,11 +111,52 @@ function chunks(file, text, size, overlap, kind = "source") {
   const safeOverlap = Math.min(Math.max(0, overlap || 0), safeSize - 1);
   const clean = text.replace(/\0/g, "");
   const result = [];
-  for (let start = 0; start < clean.length; start += safeSize - safeOverlap) {
-    result.push({ file, kind, text: clean.slice(start, start + safeSize) });
+  for (let rawStart = 0; rawStart < clean.length; rawStart += safeSize - safeOverlap) {
+    const start = alignedChunkStart(clean, rawStart);
+    const end = alignedChunkEnd(clean, start, safeSize);
+    const line = 1 + (clean.slice(0, start).match(/\n/g) || []).length;
+    result.push({ file, kind, line, text: clean.slice(start, end) });
     if (result.length > 20) break;
   }
   return result;
+}
+
+function alignedChunkStart(text, start) {
+  if (start === 0 || text[start - 1] === "\n") return start;
+  const newline = text.indexOf("\n", start);
+  return newline !== -1 && newline - start <= 120 ? newline + 1 : start;
+}
+
+function alignedChunkEnd(text, start, size) {
+  const target = Math.min(text.length, start + size);
+  if (target === text.length || text[target] === "\n") return target;
+  const newline = text.lastIndexOf("\n", target);
+  return newline > start + Math.floor(size * 0.6) ? newline : target;
+}
+
+function selectDiverseResults(results, limit) {
+  const selected = [];
+  const deferred = [];
+  const perFile = new Map();
+  const seenText = new Set();
+  for (const item of results) {
+    const signature = normalizeForSimilarity(item.doc.text).slice(0, 120);
+    if (signature && seenText.has(signature)) continue;
+    const count = perFile.get(item.doc.file) || 0;
+    if (count >= 2) {
+      deferred.push(item);
+      continue;
+    }
+    selected.push(item);
+    perFile.set(item.doc.file, count + 1);
+    if (signature) seenText.add(signature);
+    if (selected.length >= limit) return selected;
+  }
+  for (const item of deferred) {
+    selected.push(item);
+    if (selected.length >= limit) break;
+  }
+  return selected;
 }
 
 function tokenize(input) {
@@ -209,10 +252,13 @@ function escapeRegExp(value) {
 
 module.exports = {
   buildBrief,
+  alignedChunkEnd,
+  alignedChunkStart,
   chunks,
   estimateTokens,
   formatBrief,
   formatResults,
   searchIndex,
+  selectDiverseResults,
   tokenize,
 };

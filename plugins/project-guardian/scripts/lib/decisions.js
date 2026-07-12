@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
 const { isChinese, loadConfig } = require("./config");
-const { ensureInitialized, fail, parseFlags, timestamp, writeFile } = require("./shared");
+const { ensureInitialized, fail, parseFlags, readMaybe, timestamp, writeFile } = require("./shared");
 
 async function addDecision(root, args = []) {
   const config = loadConfig(root);
@@ -31,16 +31,26 @@ async function addDecision(root, args = []) {
   }
   const entry = buildDecisionEntry(config, date, fields);
   const decisionFile = writeDecisionFile(root, config, date, fields, entry);
-  fs.appendFileSync(path.join(root, config.memoryFiles.decisions), entry, "utf8");
+  let indexEntry = entry.trim();
   if (decisionFile) {
     const decisionFileLabel = isChinese(config) ? "决策文件" : "Decision file";
     const separator = isChinese(config) ? "：" : ":";
     const padding = isChinese(config) ? "" : " ";
-    fs.appendFileSync(path.join(root, config.memoryFiles.decisions), `- ${decisionFileLabel}${separator}${padding}\`${decisionFile}\`\n`, "utf8");
+    indexEntry += `\n- ${decisionFileLabel}${separator}${padding}\`${decisionFile}\``;
   }
+  prependDecisionEntry(path.join(root, config.memoryFiles.decisions), indexEntry);
   console.log(`Added decision to ${config.memoryFiles.decisions}.`);
   if (decisionFile) console.log(`Created ${decisionFile}.`);
   return { config, entry, decisionFile };
+}
+
+function prependDecisionEntry(file, entry) {
+  const current = readMaybe(file);
+  const firstEntry = current.search(/^###\s+/m);
+  const next = firstEntry === -1
+    ? `${current.replace(/\s*$/, "")}\n\n${entry.trim()}\n`
+    : `${current.slice(0, firstEntry).replace(/\s*$/, "")}\n\n${entry.trim()}\n\n${current.slice(firstEntry).replace(/^\s+/, "")}`;
+  fs.writeFileSync(file, next, "utf8");
 }
 
 function buildDecisionEntry(config, date, fields) {
@@ -83,7 +93,7 @@ function writeDecisionFile(root, config, date, fields, entry) {
   if (!dir) return "";
   const slug = slugify(fields.title) || `decision-${Date.now()}`;
   const safeDate = date.replace(/[^0-9-]/g, "");
-  const safeSlug = slug.replace(/[^a-z0-9-]/g, "");
+  const safeSlug = slug.replace(/[^\p{Letter}\p{Number}-]/gu, "");
   const relative = path.join(dir, `${safeDate}-${safeSlug}.md`).replace(/\\/g, "/");
   const fullPath = path.join(root, relative);
   const rootResolved = path.resolve(root);
@@ -125,8 +135,9 @@ async function optionalValue(value, label) {
 
 function slugify(value) {
   return String(value || "")
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 }
@@ -139,6 +150,7 @@ module.exports = {
   addDecision,
   buildDecisionEntry,
   parseFlags,
+  prependDecisionEntry,
   slugify,
   writeDecisionFile,
 };

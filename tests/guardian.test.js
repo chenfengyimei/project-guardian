@@ -765,6 +765,8 @@ test("document validation module checks latest changelog substance", () => {
   assert.match(latest, /2026-06-04 00:00/);
   assert.equal(docValidation.hasTodo(latest), true);
   assert.equal(docValidation.hasMidnightTimestamp(latest), true);
+  assert.deepEqual(docValidation.fieldIssues("- Files changed:\n  - `src/app.js`\n- Verification: npm test\n"), []);
+  assert.ok(docValidation.fieldIssues("- Files changed:\n- Verification: npm test\n").length > 0);
 });
 
 test("knowledge module ranks query results and builds token-aware briefs", () => {
@@ -1465,6 +1467,8 @@ test("mcp server exposes Project Guardian tools", async () => {
     assert.ok(toolNames.includes("guardian_query"));
     assert.ok(toolNames.includes("guardian_verify"));
     assert.ok(toolNames.includes("guardian_adapters_doctor"));
+    assert.ok(toolNames.includes("guardian_memory_health"));
+    assert.ok(toolNames.includes("guardian_memory_repair"));
   } finally {
     cleanup(root);
   }
@@ -1492,6 +1496,8 @@ test("mcp public status summarizes permissions for the Run console", () => {
     assert.equal(readOnly.envReadOnly, true);
     assert.equal(readOnly.effectiveReadOnly, true);
     assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_update").enabled, false);
+    assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_memory_repair").enabled, false);
+    assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_memory_health").enabled, true);
     assert.equal(readOnly.tools.find((tool) => tool.name === "guardian_query").enabled, true);
 
     const invalid = mcp.publicMcpStatus({ readOnly: "yes", allowedTools: ["unknown_tool"] });
@@ -2085,6 +2091,7 @@ test("decision add uses Chinese fields for Chinese projects", () => {
     assert.match(decisions, /- 背景：团队主要使用中文交接。/);
     assert.match(decisions, /- 决策：默认生成中文项目记忆。/);
     assert.match(decisions, /- 决策文件：`memory\/decisions\//);
+    assert.ok(fs.readdirSync(path.join(root, "memory", "decisions")).some((file) => file.includes("支持中文模板")));
   } finally {
     cleanup(root);
   }
@@ -2630,4 +2637,203 @@ test("audit.js appendAuditEvent reentrancy guard prevents corruption", () => {
   } finally {
     cleanup(root);
   }
+});
+
+test("Git helper preserves readable Unicode paths", () => {
+  const root = tempDir("git-unicode-path");
+  const gitUtils = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "git-utils.js"));
+  try {
+    initGit(root);
+    writeFile(path.join(root, "memory", "决策记录.md"), "# 决策记录\n");
+    const files = gitUtils.changedFilesForUpdate(root);
+    assert.ok(files.includes("memory/决策记录.md"));
+    assert.ok(files.every((file) => !/\\\d{3}/.test(file)));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("knowledge.js aligns chunk previews to line boundaries", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const text = Array.from({ length: 80 }, (_, index) => `line-${index} complete content`).join("\n");
+  const result = knowledge.chunks("lines.md", text, 120, 20, "knowledge");
+  assert.ok(result.length > 2);
+  for (const chunk of result.slice(1)) assert.match(chunk.text, /^line-\d+ /);
+});
+
+test("decisions.js keeps readable CJK decision slugs", () => {
+  const decisions = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "decisions.js"));
+  assert.equal(decisions.slugify("统一记忆修复流程"), "统一记忆修复流程");
+  assert.equal(decisions.slugify("MCP 读写公平性"), "mcp-读写公平性");
+});
+
+test("config rejects prototype pollution and normalizes malformed sections", () => {
+  const configModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "config.js"));
+  const malicious = {};
+  Object.defineProperty(malicious, "__proto__", { value: { polluted: true }, enumerable: true });
+  assert.throws(() => configModule.mergeConfig({}, malicious), /unsafe configuration key/);
+  assert.equal({}.polluted, undefined);
+
+  const root = tempDir("malformed-config");
+  try {
+    writeJson(path.join(root, "project-guardian.config.json"), {
+      quality: null,
+      security: "enabled",
+      ignore: "build",
+    });
+    const config = configModule.loadConfig(root);
+    const issues = configModule.validateConfig(config);
+    assert.ok(issues.some((issue) => /quality must be an object/.test(issue)));
+    assert.ok(issues.some((issue) => /security must be an object/.test(issue)));
+    assert.ok(issues.some((issue) => /ignore must be an array/.test(issue)));
+    assert.equal(config.security.scanSecrets, true);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("document validation detects damaged text and out-of-order history", () => {
+  const docs = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "doc-validation.js"));
+  assert.ok(docs.textIntegrityIssues("中文损坏?query，另一处?文本，第三处?内容").length > 0);
+  assert.ok(docs.textIntegrityIssues("clean English and 正常中文内容").length === 0);
+
+  const text = [
+    "# AI Changelog",
+    "",
+    "### 2026-06-01 10:00 - Older",
+    "",
+    "- Verification: npm test",
+    "",
+    "### 2026-07-01 11:00 - Newer but misplaced",
+    "",
+    "- Verification: npm test",
+    "",
+  ].join("\n");
+  assert.equal(docs.headingsAreNewestFirst(text, "timestamp"), false);
+  assert.match(docs.latestChangelogText(text), /Newer but misplaced/);
+});
+
+test("update supports complete structured records and prepends the latest entry", () => {
+  const root = tempDir("structured-update");
+  try {
+    writeValidMemory(root);
+    const result = run(root, [
+      "update", "Improve memory precision",
+      "--summary", "Added deterministic integrity checks.",
+      "--reason", "Prevent stale or corrupted memory from passing verify.",
+      "--verification", "npm test",
+      "--risks", "Low; validation is additive.",
+      "--sensitive-data", "Checked; no real secrets added.",
+      "--next-step", "Review the generated diff.",
+    ]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const changelog = fs.readFileSync(path.join(root, "memory", "AI_CHANGELOG.md"), "utf8");
+    const firstHeading = changelog.match(/^###\s+.+$/m);
+    assert.match(firstHeading[0], /Improve memory precision/);
+    const latest = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "doc-validation.js")).latestChangelogText(changelog);
+    assert.doesNotMatch(latest, /TODO|待填写/);
+    assert.match(latest, /deterministic integrity checks/);
+    const state = fs.readFileSync(path.join(root, "memory", "STATE.md"), "utf8");
+    assert.match(state, /Added deterministic integrity checks/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("repair-memory sorts changelog and rebuilds decisions from source files", () => {
+  const root = tempDir("repair-memory");
+  try {
+    writeValidMemory(root);
+    writeFile(path.join(root, "memory", "AI_CHANGELOG.md"), [
+      "# AI Changelog",
+      "",
+      "### 2026-05-01 09:00 - Older",
+      "",
+      "- Verification: npm test",
+      "",
+      "### 2026-06-01 10:00 - Newer",
+      "",
+      "- Verification: npm test",
+      "",
+    ].join("\n"));
+    writeFile(path.join(root, "memory", "decisions", "2026-06-01-index-source.md"), [
+      "# Index source",
+      "",
+      "日期: 2026-06-01",
+      "",
+      "## 决策记录",
+      "",
+      "### 2026-06-01 - Index source",
+      "",
+      "- 背景：需要可靠索引。",
+      "- 决策：独立文件作为事实来源。",
+      "- 验证方式：npm test",
+      "- 复审时间：未安排。",
+      "",
+    ].join("\n"));
+    const result = run(root, ["repair-memory", "--write"]);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const changelog = fs.readFileSync(path.join(root, "memory", "AI_CHANGELOG.md"), "utf8");
+    assert.ok(changelog.indexOf("Newer") < changelog.indexOf("Older"));
+    const decisions = fs.readFileSync(path.join(root, "memory", "DECISIONS.md"), "utf8");
+    assert.match(decisions, /source of truth for structured decisions and review status/);
+    assert.match(decisions, /2026-06-01-index-source\.md/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("MCP task queue does not let later reads starve an earlier write", async () => {
+  const { TaskQueue } = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "mcp.js"));
+  const queue = new TaskQueue({ maxConcurrentReads: 1 });
+  const events = [];
+  let releaseFirst;
+  const gate = new Promise((resolve) => { releaseFirst = resolve; });
+  const firstRead = queue.enqueue(async () => {
+    events.push("read-1:start");
+    await gate;
+    events.push("read-1:end");
+  }, false);
+  const write = queue.enqueue(async () => {
+    events.push("write:start");
+    events.push("write:end");
+  }, true);
+  const secondRead = queue.enqueue(async () => {
+    events.push("read-2:start");
+    events.push("read-2:end");
+  }, false);
+  await new Promise((resolve) => setImmediate(resolve));
+  releaseFirst();
+  await Promise.all([firstRead, write, secondRead]);
+  assert.deepEqual(events, ["read-1:start", "read-1:end", "write:start", "write:end", "read-2:start", "read-2:end"]);
+});
+
+test("MCP task queue remains usable after aborting active work", async () => {
+  const { TaskQueue } = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "mcp.js"));
+  const queue = new TaskQueue({ maxConcurrentReads: 1 });
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const active = queue.enqueue(async () => gate, false);
+  await new Promise((resolve) => setImmediate(resolve));
+  const rejected = assert.rejects(active, /shutdown/);
+  queue.abortAll("shutdown");
+  await rejected;
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  const result = await queue.enqueue(async () => "ok", false);
+  assert.equal(result, "ok");
+  assert.equal(queue.runningCount(), 0);
+});
+
+test("knowledge results prioritize source diversity and include line locations", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const docs = [
+    { file: "memory/STATE.md", kind: "knowledge", line: 1, text: "memory integrity validation" },
+    { file: "memory/STATE.md", kind: "knowledge", line: 20, text: "memory integrity checks and validation" },
+    { file: "memory/STATE.md", kind: "knowledge", line: 40, text: "memory integrity verification" },
+    { file: "memory/DECISIONS.md", kind: "knowledge", line: 12, text: "memory integrity decision validation" },
+  ];
+  const results = knowledge.searchIndex(docs, "memory integrity validation", 3);
+  assert.ok(results.some((item) => item.doc.file === "memory/DECISIONS.md"));
+  assert.match(knowledge.formatResults(results), /memory\/DECISIONS\.md:12/);
 });

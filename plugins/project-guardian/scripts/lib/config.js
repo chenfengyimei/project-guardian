@@ -8,6 +8,7 @@ const { validateMcpConfig } = require("./mcp");
 
 const CONFIG_FILE = "project-guardian.config.json";
 const SUPPORTED_LANGUAGES = ["zh-CN", "en"];
+const FORBIDDEN_CONFIG_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
 const DEFAULT_CONFIG = {
   memoryFiles: {
@@ -45,7 +46,7 @@ function loadConfig(root) {
   const configPath = path.join(root, CONFIG_FILE);
   if (!fs.existsSync(configPath)) return clone(DEFAULT_CONFIG);
   try {
-    return mergeConfig(clone(DEFAULT_CONFIG), JSON.parse(fs.readFileSync(configPath, "utf8")));
+    return normalizeConfig(mergeConfig(clone(DEFAULT_CONFIG), JSON.parse(fs.readFileSync(configPath, "utf8"))));
   } catch (error) {
     const fallback = clone(DEFAULT_CONFIG);
     fallback.__configError = error.message;
@@ -56,6 +57,7 @@ function loadConfig(root) {
 function validateConfig(config) {
   const issues = [];
   if (config.__configError) issues.push(`invalid ${CONFIG_FILE}: ${config.__configError}`);
+  for (const issue of config.__configIssues || []) issues.push(issue);
   if (!SUPPORTED_LANGUAGES.includes(config.language)) issues.push(`language must be one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
   for (const [name, value] of Object.entries(config.memoryFiles || {})) {
     if (typeof value !== "string" || value.trim() === "") {
@@ -64,7 +66,7 @@ function validateConfig(config) {
       issues.push(`memoryFiles.${name} must not contain ".." or be an absolute path: ${value}`);
     }
   }
-  if (config.quality.taskIdPattern) {
+  if (config.quality && config.quality.taskIdPattern) {
     try {
       new RegExp(config.quality.taskIdPattern);
     } catch (error) {
@@ -84,13 +86,39 @@ function isUnsafePath(value) {
 
 function mergeConfig(base, override) {
   for (const [key, value] of Object.entries(override || {})) {
-    if (value && typeof value === "object" && !Array.isArray(value) && base[key] && typeof base[key] === "object") {
+    if (FORBIDDEN_CONFIG_KEYS.has(key)) {
+      throw new Error(`unsafe configuration key: ${key}`);
+    }
+    if (isPlainObject(value) && isPlainObject(base[key])) {
       base[key] = mergeConfig(base[key], value);
     } else {
       base[key] = value;
     }
   }
   return base;
+}
+
+function normalizeConfig(config) {
+  const issues = [];
+  const normalized = config;
+  for (const key of ["memoryFiles", "quality", "hooks", "ci", "security", "mcp"]) {
+    if (!isPlainObject(normalized[key])) {
+      issues.push(`${key} must be an object`);
+      normalized[key] = clone(DEFAULT_CONFIG[key]);
+    }
+  }
+  if (!Array.isArray(normalized.ignore)) {
+    issues.push("ignore must be an array");
+    normalized.ignore = clone(DEFAULT_CONFIG.ignore);
+  }
+  if (issues.length > 0) normalized.__configIssues = issues;
+  return normalized;
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function clone(value) {
@@ -116,5 +144,6 @@ module.exports = {
   isChinese,
   loadConfig,
   mergeConfig,
+  normalizeConfig,
   validateConfig,
 };

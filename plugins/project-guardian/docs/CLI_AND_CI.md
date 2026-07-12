@@ -31,6 +31,9 @@ guardian init --language zh-CN
 guardian init --language en
 guardian doctor
 guardian update "任务说明"
+guardian update "任务说明" --summary "改了什么" --reason "为什么改" --verification "npm test" --risks "风险说明" --sensitive-data "已检查" --next-step "下一步"
+guardian repair-memory
+guardian repair-memory --write
 guardian append-memory --file STATE --template state-progress --task "任务说明" --current-status "当前状态" --next-step "下一步" --verification "验证方式"
 guardian append-memory --templates
 guardian handover
@@ -116,7 +119,7 @@ node plugins/project-guardian/cmd/guardian-cmd.js git-status
 
 这不是任意 shell 代理。`guardian-cmd` 只运行内置白名单命令，不支持管道、命令拼接或用户自定义可执行文件。AI IDE 执行命令时应先运行 `guardian-cmd list` 查找替代项；如果确实没有对应替代命令，才临时使用原始终端命令，并评估是否需要把该命令补进 `cmd/guardian-cmd.js`。
 
-当前 Guardian 类替代命令覆盖 `init`、`update`、`append-memory`、`decision add`、`doctor`、`check`、`validate-docs`、`verify`、`scan-secrets`、`reviews`、`reviews due`、`reviews complete`、`handover`、`conflicts`、`install-adapters`、`adapters doctor`、`install-hooks`、`install-ci`、`query` 和 `brief`。`guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置中启动，不放进普通短命令目录。
+当前 Guardian 类替代命令还覆盖 `repair-memory`。使用 `guardian-cmd guardian-repair-memory` 做只读检查，传 `--write` 才会同步决策索引并修复 changelog 顺序。`guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置中启动。
 
 ## 2. 初始化命令
 
@@ -202,7 +205,7 @@ MCP 工具列表：
 
 - `guardian_query`：查询项目记忆、源码片段和最近 Git 历史；可传 `limit` 控制返回片段数量，范围 1 到 10。
 - `guardian_brief`：根据当前任务生成预算友好的记忆读取计划，列出必读文件、按需文件和粗略 token 估算；可传 `mode: "auto" | "quick" | "deep" | "full"` 控制读取深度。
-- `guardian_update`：记录一次 AI 协助变更并刷新状态。
+- `guardian_update`：记录一次 AI 协助变更并刷新状态；除 task 外可一次提供 summary、reason、verification、risks、sensitiveData 和 nextStep。
 - `guardian_decision_add`：新增结构化决策。
 - `guardian_verify`：运行完整质量闸门。
 - `guardian_doctor`：检查接入状态和 Git 变更状态。
@@ -212,6 +215,8 @@ MCP 工具列表：
 - `guardian_adapters_doctor`：查看 AI IDE 适配器状态。
 - `guardian_reviews_due`：查看到期复审，存在到期未完成复审时返回失败。
 - `guardian_review_complete`：标记某个复审文件为正常完成。
+- `guardian_memory_health`：只读检查 changelog 顺序和决策索引漂移。
+- `guardian_memory_repair`：稳定排序 changelog，并从独立决策文件重建决策索引；属于写工具。
 
 全局 CLI 配置示例：
 
@@ -359,6 +364,9 @@ guardian doctor
 
 ```bash
 guardian update "实现登录验证码"
+
+# 推荐：一次传齐字段，避免随后人工补 TODO
+guardian update "实现登录验证码" --summary "完成验证码生成与校验" --reason "支持登录二次校验" --verification "npm test" --risks "需关注时钟偏差" --sensitive-data "已检查，无真实密钥" --next-step "联调登录流程"
 ```
 
 作用：
@@ -453,7 +461,11 @@ node plugins/project-guardian/scripts/guardian.js validate-docs
 - 检查是否还有过多 `TODO`。
 - 检查是否有大量空字段、空列表、空表格行。
 
-新项目刚运行 `init` 后，`validate-docs` 失败是正常的，因为模板还没有填真实内容。接入完成、交接前、PR 前、发布前应该通过。
+新项目刚运行 `init` 后，`validate-docs` 失败是正常的，因为模板还没有填真实内容。校验还会拒绝疑似乱码、非法控制字符、损坏的 CJK 文本，以及未按“最新在前”排列的决策和变更日志。
+
+### 6.1 记忆修复
+
+`guardian repair-memory` 默认只报告 changelog 顺序和决策索引漂移，不写文件。确认后运行 `guardian repair-memory --write`：它会稳定排序 changelog，并从 `memory/decisions/*.md` 这些事实源重建决策总索引。修复后必须审阅 Git diff，再运行 `guardian validate-docs` 和 `guardian verify`。
 
 推荐组合：
 

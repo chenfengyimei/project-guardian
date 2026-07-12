@@ -32,7 +32,7 @@ const SOURCE_EXTENSIONS = new Set([
 
 function git(root, args) {
   try {
-    return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return execFileSync("git", ["-c", "core.quotepath=false", ...args], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch (_) {
     return "";
   }

@@ -7,7 +7,7 @@ const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_OUTPUT_BYTES = 512 * 1024;
 const MAX_STDIN_LINE_LENGTH = 1024 * 1024;
 const MAX_CONCURRENT_READS = 3;
-const WRITE_TOOL_NAMES = new Set(["guardian_update", "guardian_decision_add", "guardian_review_complete", "guardian_handover"]);
+const WRITE_TOOL_NAMES = new Set(["guardian_update", "guardian_decision_add", "guardian_review_complete", "guardian_handover", "guardian_memory_repair"]);
 
 const STRING_MAX_LENGTHS = {
   question: 2000,
@@ -24,6 +24,9 @@ const STRING_MAX_LENGTHS = {
   file: 500,
   summary: 2000,
   reviewer: 200,
+  reason: 2000,
+  sensitiveData: 1000,
+  nextStep: 2000,
 };
 
 const TOOLS = [
@@ -55,15 +58,31 @@ const TOOLS = [
   },
   {
     name: "guardian_update",
-    description: "Append an AI-assisted change record and refresh project state memory.",
+    description: "Record the latest AI-assisted change first and refresh project state memory.",
     inputSchema: {
       type: "object",
       properties: {
         task: { type: "string", description: "Short task summary.", maxLength: STRING_MAX_LENGTHS.task },
+        summary: { type: "string", description: "What changed and why.", maxLength: STRING_MAX_LENGTHS.summary },
+        reason: { type: "string", description: "Business rule, bug, or requirement behind the change.", maxLength: STRING_MAX_LENGTHS.reason },
+        verification: { type: "string", description: "Commands or manual checks performed.", maxLength: STRING_MAX_LENGTHS.verification },
+        risks: { type: "string", description: "Compatibility, data, UI, or deployment risks.", maxLength: STRING_MAX_LENGTHS.risks },
+        sensitiveData: { type: "string", description: "Sensitive-data review result.", maxLength: STRING_MAX_LENGTHS.sensitiveData },
+        nextStep: { type: "string", description: "What the next developer should do.", maxLength: STRING_MAX_LENGTHS.nextStep },
       },
       required: ["task"],
       additionalProperties: false,
     },
+  },
+  {
+    name: "guardian_memory_health",
+    description: "Check changelog ordering and decision-index synchronization without writing files.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "guardian_memory_repair",
+    description: "Deterministically sort changelog entries and rebuild the decision index from individual decision files.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "guardian_decision_add",
@@ -149,6 +168,7 @@ class TaskQueue {
     this.pending = [];
     this.active = new Map();
     this.runningReads = 0;
+    this.runningWrite = false;
     this.nextId = 0;
   }
 
@@ -162,21 +182,16 @@ class TaskQueue {
 
   flush() {
     while (this.pending.length > 0) {
-      let nextIdx = -1;
-      for (let index = 0; index < this.pending.length; index += 1) {
-        const entry = this.pending[index];
-        if (entry.isWrite) {
-          if (this.active.size > 0) continue;
-        } else {
-          if (this.runningReads >= this.maxConcurrentReads) continue;
-        }
-        nextIdx = index;
-        break;
+      const next = this.pending[0];
+      if (next.isWrite) {
+        if (this.active.size > 0) return;
+      } else if (this.runningWrite || this.runningReads >= this.maxConcurrentReads) {
+        return;
       }
-      if (nextIdx === -1) return;
 
-      const task = this.pending.splice(nextIdx, 1)[0];
+      const task = this.pending.shift();
       if (task.isWrite) {
+        this.runningWrite = true;
         this.runTask(task);
         return;
       }
@@ -194,9 +209,12 @@ class TaskQueue {
       task.reject(error);
     } finally {
       const isWrite = task.isWrite;
-      this.active.delete(task.id);
-      if (!isWrite) this.runningReads -= 1;
-      this.flush();
+      const wasActive = this.active.delete(task.id);
+      if (wasActive) {
+        if (isWrite) this.runningWrite = false;
+        else this.runningReads -= 1;
+        this.flush();
+      }
     }
   }
 
@@ -210,6 +228,7 @@ class TaskQueue {
       this.active.delete(task.id);
     }
     this.runningReads = 0;
+    this.runningWrite = false;
     for (const task of this.pending) {
       task.reject(new Error(message));
     }
@@ -603,7 +622,7 @@ function commandForTool(name, args) {
     case "guardian_query":
       return queryArgs(args);
     case "guardian_update":
-      return ["update", requiredString(args.task, "task")];
+      return updateArgs(args);
     case "guardian_decision_add":
       return decisionArgs(args);
     case "guardian_verify":
@@ -622,9 +641,24 @@ function commandForTool(name, args) {
       return ["reviews", "due"];
     case "guardian_review_complete":
       return reviewCompleteArgs(args);
+    case "guardian_memory_health":
+      return ["repair-memory"];
+    case "guardian_memory_repair":
+      return ["repair-memory", "--write"];
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
+}
+
+function updateArgs(args) {
+  const values = ["update", requiredString(args.task, "task")];
+  addOptional(values, "--summary", args.summary);
+  addOptional(values, "--reason", args.reason);
+  addOptional(values, "--verification", args.verification);
+  addOptional(values, "--risks", args.risks);
+  addOptional(values, "--sensitive-data", args.sensitiveData);
+  addOptional(values, "--next-step", args.nextStep);
+  return values;
 }
 
 function briefArgs(args) {

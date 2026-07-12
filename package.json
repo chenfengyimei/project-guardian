@@ -1,6 +1,6 @@
 {
   "name": "project-guardian",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "license": "Apache-2.0",
   "description": "Lightweight project memory guard for AI-assisted coding handover and onboarding.",
@@ -36,9 +36,26 @@
     "cli"
   ],
   "scripts": {
-    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/cmd/guardian-cmd.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check plugins/project-guardian/scripts/lib/brief.js && node --check plugins/project-guardian/scripts/lib/check.js && node --check plugins/project-guardian/scripts/lib/config.js && node --check plugins/project-guardian/scripts/lib/decisions.js && node --check plugins/project-guardian/scripts/lib/doc-validation.js && node --check plugins/project-guardian/scripts/lib/git-utils.js && node --check plugins/project-guardian/scripts/lib/handover.js && node --check plugins/project-guardian/scripts/lib/hooks-ci.js && node --check plugins/project-guardian/scripts/lib/init.js && node --check plugins/project-guardian/scripts/lib/knowledge.js && node --check plugins/project-guardian/scripts/lib/mcp.js && node --check plugins/project-guardian/scripts/lib/manual-memory.js && node --check plugins/project-guardian/scripts/lib/messages.js && node --check plugins/project-guardian/scripts/lib/migrate.js && node --check plugins/project-guardian/scripts/lib/reviews.js && node --check plugins/project-guardian/scripts/lib/security.js && node --check plugins/project-guardian/scripts/lib/shared.js && node --check plugins/project-guardian/scripts/lib/update.js && node --check plugins/project-guardian/scripts/lib/validators.js && node --check Run/lib/audit.js && node --check Run/lib/commands.js && node --check Run/lib/guardian-bridge.js && node --check Run/server.js && node --check Run/public/app.js && node --check tests/guardian.test.js",
+    "lint": "node --check plugins/project-guardian/scripts/guardian.js && node --check plugins/project-guardian/cmd/guardian-cmd.js && node --check plugins/project-guardian/scripts/lib/adapters.js && node --check plugins/project-guardian/scripts/lib/brief.js && node --check plugins/project-guardian/scripts/lib/check.js && node --check plugins/project-guardian/scripts/lib/config.js && node --check plugins/project-guardian/scripts/lib/decisions.js && node --check plugins/project-guardian/scripts/lib/doc-validation.js && node --check plugins/project-guardian/scripts/lib/git-utils.js && node --check plugins/project-guardian/scripts/lib/handover.js && node --check plugins/project-guardian/scripts/lib/hooks-ci.js && node --check plugins/project-guardian/scripts/lib/init.js && node --check plugins/project-guardian/scripts/lib/knowledge.js && node --check plugins/project-guardian/scripts/lib/mcp.js && node --check plugins/project-guardian/scripts/lib/manual-memory.js && node --check plugins/project-guardian/scripts/lib/memory-repair.js && node --check plugins/project-guardian/scripts/lib/messages.js && node --check plugins/project-guardian/scripts/lib/migrate.js && node --check plugins/project-guardian/scripts/lib/reviews.js && node --check plugins/project-guardian/scripts/lib/security.js && node --check plugins/project-guardian/scripts/lib/shared.js && node --check plugins/project-guardian/scripts/lib/update.js && node --check plugins/project-guardian/scripts/lib/validators.js && node --check Run/lib/audit.js && node --check Run/lib/commands.js && node --check Run/lib/guardian-bridge.js && node --check Run/server.js && node --check Run/public/app.js && node --check tests/guardian.test.js",
     "test": "node --test tests/guardian.test.js",
     "ui": "node Run/server.js",
-    "verify": "npm run lint && npm test && node plugins/project-guardian/scripts/guardian.js verify"
+    "verify": "npm run lint && npm test && node plugins/project-guardian/scripts/guardian.js verify",
+    "guardian:init": "node \"plugins/project-guardian/scripts/guardian.js\" init",
+    "guardian:update": "node \"plugins/project-guardian/scripts/guardian.js\" update",
+    "guardian:append-memory": "node \"plugins/project-guardian/scripts/guardian.js\" append-memory",
+    "guardian:handover": "node \"plugins/project-guardian/scripts/guardian.js\" handover",
+    "guardian:check": "node \"plugins/project-guardian/scripts/guardian.js\" check",
+    "guardian:doctor": "node \"plugins/project-guardian/scripts/guardian.js\" doctor",
+    "guardian:validate-docs": "node \"plugins/project-guardian/scripts/guardian.js\" validate-docs",
+    "guardian:scan-secrets": "node \"plugins/project-guardian/scripts/guardian.js\" scan-secrets",
+    "guardian:verify": "node \"plugins/project-guardian/scripts/guardian.js\" verify",
+    "guardian:brief": "node \"plugins/project-guardian/scripts/guardian.js\" brief",
+    "guardian:query": "node \"plugins/project-guardian/scripts/guardian.js\" query",
+    "guardian:conflicts": "node \"plugins/project-guardian/scripts/guardian.js\" conflicts",
+    "guardian:reviews": "node \"plugins/project-guardian/scripts/guardian.js\" reviews",
+    "guardian:adapters-doctor": "node \"plugins/project-guardian/scripts/guardian.js\" adapters doctor",
+    "guardian:install-adapters": "node \"plugins/project-guardian/scripts/guardian.js\" install-adapters",
+    "guardian:mcp": "node \"plugins/project-guardian/scripts/guardian.js\" mcp",
+    "guardian:install-ci": "node \"plugins/project-guardian/scripts/guardian.js\" install-ci"
   }
 }

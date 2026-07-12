@@ -13,20 +13,35 @@ const {
 } = require("./manual-memory");
 const { ensureInitialized, lines, parseFlags, readMaybe, timestamp } = require("./shared");
 
-function update(root, task) {
+function update(root, args = []) {
   const config = loadConfig(root);
   ensureInitialized(root, config);
 
+  const flags = parseFlags(Array.isArray(args) ? args : [String(args || "")]);
+  const task = flags._.join(" ").trim();
+  if (!task) {
+    process.stderr.write("Missing task summary. Use: guardian update \"task summary\" [--summary ... --reason ... --verification ... --risks ... --sensitive-data ... --next-step ...]\n");
+    process.exit(1);
+  }
+  if (task.length > 500) {
+    process.stderr.write("Task summary must be 500 characters or fewer.\n");
+    process.exit(1);
+  }
+  const details = updateDetails(flags);
   const title = task || "AI-assisted change";
   const changedFiles = changedFilesForUpdate(root);
   const diffStat = gitChangeSummary(root) || "No git diff stat available.";
   const changedLines = changedLineRanges(root);
-  const entry = buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat);
+  const entry = buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat, details);
 
-  fs.appendFileSync(path.join(root, config.memoryFiles.changelog), entry, "utf8");
-  refreshStateLatestChange(root, config, title, changedFiles);
+  prependChangelogEntry(path.join(root, config.memoryFiles.changelog), entry);
+  refreshStateLatestChange(root, config, title, changedFiles, details);
   console.log(`Updated ${config.memoryFiles.changelog} and ${config.memoryFiles.state}.`);
-  console.log(isChinese(config) ? "提交前请把待填写字段补充完整。" : "Please replace TODO fields before committing.");
+  if (completeUpdateDetails(details)) {
+    console.log(isChinese(config) ? "结构化变更记录已完整生成；提交前请审阅 diff 并运行 guardian verify。" : "The structured change record is complete; review the diff and run guardian verify before committing.");
+  } else {
+    console.log(isChinese(config) ? "提交前请把待填写字段补充完整。" : "Please replace TODO fields before committing.");
+  }
 }
 
 function appendMemory(root, args = []) {
@@ -84,19 +99,19 @@ function printAppendMemoryTemplates(fileName = "") {
   }
 }
 
-function buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat) {
+function buildChangeEntry(config, title, task, changedFiles, changedLines, diffStat, details = {}) {
   if (isChinese(config)) {
     return [
       "",
       `### ${timestamp()} - ${title}`,
       "",
       `- 用户需求：${task || "待填写：描述本次需求。"}`,
-      "- AI 总结：待填写：说明改了什么以及为什么改。",
+      `- AI 总结：${fieldValue(details.summary, "待填写：说明改了什么以及为什么改。")}`,
       "- 变更文件：",
       indentList(changedFiles.join("\n") || "未检测到变更文件。"),
       "- 变更行：",
       indentList(changedLines.join("\n") || "N/A"),
-      "- 业务原因：待填写：记录本次变更背后的业务规则、缺陷或需求。",
+      `- 业务原因：${fieldValue(details.reason, "待填写：记录本次变更背后的业务规则、缺陷或需求。")}`,
       "- 技术说明：",
       "  ```text",
       diffStat
@@ -104,10 +119,10 @@ function buildChangeEntry(config, title, task, changedFiles, changedLines, diffS
         .map((line) => `  ${line}`)
         .join("\n"),
       "  ```",
-      "- 验证方式：待填写：记录命令或人工检查。",
-      "- 风险：待填写：记录兼容性、数据、UI 或部署风险。",
-      "- 敏感信息检查：待填写：是否检查过密码、token、客户隐私等。",
-      "- 下一步：待填写：记录下一个开发者应该做什么。",
+      `- 验证方式：${fieldValue(details.verification, "待填写：记录命令或人工检查。")}`,
+      `- 风险：${fieldValue(details.risks, "待填写：记录兼容性、数据、UI 或部署风险。")}`,
+      `- 敏感信息检查：${fieldValue(details.sensitiveData, "待填写：是否检查过密码、token、客户隐私等。")}`,
+      `- 下一步：${fieldValue(details.nextStep, "待填写：记录下一个开发者应该做什么。")}`,
       "",
     ].join("\n");
   }
@@ -116,12 +131,12 @@ function buildChangeEntry(config, title, task, changedFiles, changedLines, diffS
     `### ${timestamp()} - ${title}`,
     "",
     `- Human request: ${task || "TODO: describe the request."}`,
-    "- AI summary: TODO: summarize what changed and why.",
+    `- AI summary: ${fieldValue(details.summary, "TODO: summarize what changed and why.")}`,
     "- Files changed:",
     indentList(changedFiles.join("\n") || "No changed files detected."),
     "- Changed lines:",
     indentList(changedLines.join("\n") || "N/A"),
-    "- Business reason: TODO: record the business rule, bug, or requirement behind this change.",
+    `- Business reason: ${fieldValue(details.reason, "TODO: record the business rule, bug, or requirement behind this change.")}`,
     "- Technical notes:",
     "  ```text",
     diffStat
@@ -129,25 +144,25 @@ function buildChangeEntry(config, title, task, changedFiles, changedLines, diffS
       .map((line) => `  ${line}`)
       .join("\n"),
     "  ```",
-    "- Verification: TODO: record commands or manual checks.",
-    "- Risks: TODO: record compatibility, data, UI, or deployment risks.",
-    "- Sensitive data checked: TODO: yes/no and notes.",
-    "- Next step: TODO: record what the next developer should do.",
+    `- Verification: ${fieldValue(details.verification, "TODO: record commands or manual checks.")}`,
+    `- Risks: ${fieldValue(details.risks, "TODO: record compatibility, data, UI, or deployment risks.")}`,
+    `- Sensitive data checked: ${fieldValue(details.sensitiveData, "TODO: yes/no and notes.")}`,
+    `- Next step: ${fieldValue(details.nextStep, "TODO: record what the next developer should do.")}`,
     "",
   ].join("\n");
 }
 
-function buildStateLatestChange(config, marker, title, changedFiles) {
+function buildStateLatestChange(config, marker, title, changedFiles, details = {}) {
   if (isChinese(config)) {
     return [
       marker,
       "",
       `- 任务：${title}`,
-      "- 总结：待填写：概括行为变化。",
+      `- 总结：${fieldValue(details.summary, "待填写：概括行为变化。")}`,
       "- 文件：",
       indentList(changedFiles.join("\n") || "未检测到变更文件。"),
-      "- 验证：待填写：记录检查方式。",
-      "- 后续：待填写：记录下一步。",
+      `- 验证：${fieldValue(details.verification, "待填写：记录检查方式。")}`,
+      `- 后续：${fieldValue(details.nextStep, "待填写：记录下一步。")}`,
       "",
     ].join("\n");
   }
@@ -155,21 +170,21 @@ function buildStateLatestChange(config, marker, title, changedFiles) {
     marker,
     "",
     `- Task: ${title}`,
-    "- Summary: TODO: summarize the behavior change.",
+    `- Summary: ${fieldValue(details.summary, "TODO: summarize the behavior change.")}`,
     "- Files:",
     indentList(changedFiles.join("\n") || "No changed files detected."),
-    "- Verification: TODO: record checks.",
-    "- Follow-up: TODO: record next step.",
+    `- Verification: ${fieldValue(details.verification, "TODO: record checks.")}`,
+    `- Follow-up: ${fieldValue(details.nextStep, "TODO: record next step.")}`,
     "",
   ].join("\n");
 }
 
-function refreshStateLatestChange(root, config, title, changedFiles) {
+function refreshStateLatestChange(root, config, title, changedFiles, details = {}) {
   const statePath = path.join(root, config.memoryFiles.state);
   const current = readMaybe(statePath);
   const marker = isChinese(config) ? "## 最新 AI 协助变更" : "## Latest AI-Assisted Change";
   const markerPattern = /(## Latest AI-Assisted Change|## 最新 AI 协助变更)[\s\S]*$/;
-  const replacement = buildStateLatestChange(config, marker, title, changedFiles);
+  const replacement = buildStateLatestChange(config, marker, title, changedFiles, details);
   const withDate = current
     .replace(/^Last updated:.*$/m, `Last updated: ${timestamp()}`)
     .replace(/^最后更新[:：].*$/m, `最后更新：${timestamp()}`);
@@ -178,6 +193,37 @@ function refreshStateLatestChange(root, config, title, changedFiles) {
   } else {
     fs.writeFileSync(statePath, `${withDate}\n${replacement}`, "utf8");
   }
+}
+
+function prependChangelogEntry(file, entry) {
+  const current = readMaybe(file);
+  const firstEntry = current.search(/^###\s+/m);
+  const cleanEntry = entry.trim();
+  const next = firstEntry === -1
+    ? `${current.replace(/\s*$/, "")}\n\n${cleanEntry}\n`
+    : `${current.slice(0, firstEntry).replace(/\s*$/, "")}\n\n${cleanEntry}\n\n${current.slice(firstEntry).replace(/^\s+/, "")}`;
+  fs.writeFileSync(file, next, "utf8");
+}
+
+function updateDetails(flags) {
+  return {
+    summary: flags.summary,
+    reason: flags.reason || flags["business-reason"],
+    verification: flags.verification,
+    risks: flags.risks || flags.risk,
+    sensitiveData: flags.sensitiveData || flags["sensitive-data"] || flags.sensitive,
+    nextStep: flags.nextStep || flags["next-step"] || flags.followUp || flags["follow-up"],
+  };
+}
+
+function fieldValue(value, fallback) {
+  const text = String(value || "").trim();
+  return text ? text.replace(/\r?\n/g, "\n  ") : fallback;
+}
+
+function completeUpdateDetails(details) {
+  return ["summary", "reason", "verification", "risks", "sensitiveData", "nextStep"]
+    .every((key) => String(details[key] || "").trim());
 }
 
 function indentList(value) {
@@ -193,5 +239,9 @@ module.exports = {
   buildChangeEntry,
   buildStateLatestChange,
   refreshStateLatestChange,
+  prependChangelogEntry,
+  updateDetails,
+  fieldValue,
+  completeUpdateDetails,
   indentList,
 };

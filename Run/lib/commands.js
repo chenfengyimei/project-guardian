@@ -37,7 +37,14 @@ const COMMAND_DEFINITIONS = [
   linkedCommand("query", "Query 知识查询", "query", "使用知识查询页面查询项目记忆、源码和最近 Git 历史。", "guardian query \"问题\" --limit 3"),
   writeCommand("update", "Update 更新记忆", "追加 AI 协助变更记录，并刷新状态记忆。", "guardian update \"任务摘要\"", [
     textField("summary", "任务摘要", "例如：修复登录验证码校验"),
-  ], (body) => ["update", validateTextField(body.summary, "Task summary", 200)]),
+    textAreaField("changeSummary", "变更总结，可选", "改了什么以及为什么改"),
+    textAreaField("reason", "业务原因，可选", "对应的需求、缺陷或规则"),
+    textAreaField("verification", "验证方式，可选", "运行了哪些测试或人工检查"),
+    textAreaField("risks", "风险，可选", "兼容性、数据、UI 或部署风险"),
+    textAreaField("sensitiveData", "敏感信息检查，可选", "例如：已检查，未写入真实密钥"),
+    textAreaField("nextStep", "下一步，可选", "下一个开发者需要做什么"),
+  ], buildUpdateArgs),
+  writeCommand("repair-memory", "Repair Memory", "同步决策索引并修复变更日志顺序。", "guardian repair-memory --write", [], () => ["repair-memory", "--write"]),
   writeCommand("handover", "Handover 生成交接", "根据当前记忆和项目文件重新生成交接指南。", "guardian handover", [], () => ["handover"]),
   writeCommand("decision-add", "Decision Add", "新增结构化决策记录。", "guardian decision add --title ... --context ... --decision ...", [
     textField("title", "标题", "例如：采用本地命令目录"),
@@ -133,6 +140,22 @@ function textField(name, label, placeholder) {
 
 function textAreaField(name, label, placeholder) {
   return { name, label, type: "textarea", placeholder };
+}
+
+function buildUpdateArgs(body) {
+  const args = ["update", validateTextField(body.summary, "Task summary", 500)];
+  addOptionalArg(args, "--summary", body.changeSummary, 4000);
+  addOptionalArg(args, "--reason", body.reason, 4000);
+  addOptionalArg(args, "--verification", body.verification, 4000);
+  addOptionalArg(args, "--risks", body.risks, 4000);
+  addOptionalArg(args, "--sensitive-data", body.sensitiveData, 2000);
+  addOptionalArg(args, "--next-step", body.nextStep, 4000);
+  return args;
+}
+
+function addOptionalArg(args, flag, value, maxLength) {
+  const text = String(value || "").trim();
+  if (text) args.push(flag, validateTextField(text, flag, maxLength));
 }
 
 function publicCommandDefinition(command) {

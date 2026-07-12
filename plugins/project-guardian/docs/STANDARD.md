@@ -311,7 +311,7 @@ node plugins/project-guardian/scripts/guardian.js query "登录流程" --limit 3
 - `guardian.js` 通过 `node --check`。
 - `init` 不覆盖已有记忆文件。
 - `check` 能检查 staged 代码变更。
-- `validate-docs` 能发现过多 TODO、空字段和缺失章节。
+- `validate-docs` 能发现过多 TODO、空字段、缺失章节、疑似编码损坏、非法控制字符，以及不符合“最新在前”约定的决策和变更日志。
 - `install-hooks` 不覆盖已有 hook。
 - `install-ci` 能生成 Gitee Go 流水线模板。
 - `decision add` 能创建结构化决策并生成 `memory/decisions/*.md`。
@@ -375,6 +375,8 @@ node plugins/project-guardian/scripts/guardian.js install-ci
 - `guardian_adapters_doctor`
 - `guardian_reviews_due`
 - `guardian_review_complete`
+- `guardian_memory_health`
+- `guardian_memory_repair`
 
 MCP 工具调用仍然要遵守项目记忆标准：修改代码后必须更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`；重要决策必须记录到 `memory/DECISIONS.md` 或 `memory/decisions/`；敏感信息不能写入记忆。
 
@@ -391,7 +393,9 @@ MCP 参数必须遵守工具 schema。`guardian_brief` 用于生成预算友好�
 }
 ```
 
-只读模式会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete` 和 `guardian_handover`。MCP 客户端临时接入时，也可以使用环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 强制只读。MCP server 启动时会校验 `mcp.readOnly` 和 `mcp.allowedTools`，配置写错会直接拒绝启动，防止配置错误时意外开放全部工具。
+只读模式会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete`、`guardian_handover` 和 `guardian_memory_repair`，但保留只读的 `guardian_memory_health`。MCP 写任务必须按到达顺序等待已有读取结束，后到读取不得越过排队中的写任务。
+
+结构化更新推荐一次提供 summary、reason、verification、risks、sensitiveData 和 nextStep，避免生成后再人工补占位字段。`guardian repair-memory` 默认只读；只有显式 `--write` 才能按独立决策文件重建索引并排序 changelog。
 
 ## 13. 受控命令标准
 

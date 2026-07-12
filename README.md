@@ -314,7 +314,7 @@ guardian mcp
 }
 ```
 
-当前 MCP 暴露工具：`guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due`、`guardian_review_complete`。`guardian_brief` 用于生成预算友好的读取计划；`guardian_query` 支持可选 `limit` 参数，范围 1 到 10，用来控制返回片段数量。
+当前 MCP 暴露工具：`guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due`、`guardian_review_complete`、`guardian_memory_health`、`guardian_memory_repair`。`guardian_update` 可一次传入总结、原因、验证、风险、敏感信息检查和下一步，直接生成完整记录；`guardian_memory_health` 只读检查记忆顺序与索引漂移，`guardian_memory_repair` 执行确定性修复。
 
 如果团队担心 MCP 客户端误调用写入类工具，可以在 `project-guardian.config.json` 收紧权限：
 
@@ -327,7 +327,7 @@ guardian mcp
 }
 ```
 
-`readOnly: true` 会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete` 和 `guardian_handover`。`allowedTools` 为空数组时表示允许全部标准工具；写入高风险场景建议只开放查询、体检、复审查看和验证工具。也可以临时设置环境变量 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 强制只读。MCP 启动时会校验配置，工具调用时会拒绝多余参数、错误类型和越界 `limit`。
+`readOnly: true` 会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete`、`guardian_handover` 和 `guardian_memory_repair`。`guardian_memory_health` 仍可只读使用。`allowedTools` 为空数组时表示允许全部标准工具；写入高风险场景建议只开放查询、体检、复审查看和验证工具。
 
 ## 常用命令
 
@@ -340,6 +340,13 @@ guardian brief "修复登录验证码校验失败"
 
 # 记录一次 AI 辅助开发
 guardian update "修复登录验证码校验失败"
+
+# 一次生成完整、可直接校验的变更记录
+guardian update "修复登录验证码校验失败" --summary "统一验证码过期判断" --reason "修复边界时间误判" --verification "npm test" --risks "仅影响过期分支" --sensitive-data "已检查，无真实密钥" --next-step "观察线上错误率"
+
+# 只读检查或确定性修复记忆顺序与决策索引
+guardian repair-memory
+guardian repair-memory --write
 
 # 按模板手动追加一条记忆，字段模板和 Run 控制台一致
 guardian append-memory --file STATE --template state-progress --task "修复登录验证码校验失败" --current-status "已定位问题" --next-step "补充测试" --verification "本地冒烟检查"
@@ -429,7 +436,7 @@ guardian> 哪些地方风险最高？
 guardian> exit
 ```
 
-查询会优先检索标准记忆文件，再把源码和 Git 历史作为补充证据。普通项目知识问题如果已经命中记忆，query 会压低偶然命中的界面源码片段；确实要查源码时，问题里带上文件名、路径、函数名、报错文本或模块名。它是本地轻量混合检索，会结合关键词、常见中英文同义词和 n-gram 相似度，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
+查询会优先检索标准记忆文件，再把源码和 Git 历史作为补充证据。结果会给出来源文件与起始行，并优先提供不同来源，减少同一文件的重叠片段占满结果。确实要查源码时，问题里带上文件名、路径、函数名、报错文本或模块名。它是本地轻量混合检索，会结合关键词、常见中英文同义词和 n-gram 相似度，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
 
 ## 参与贡献
 

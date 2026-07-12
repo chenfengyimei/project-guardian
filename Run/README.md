@@ -27,7 +27,7 @@ Run 控制台的写入能力必须手动确认：
 | --- | --- | --- |
 | 插件初始化 | `RUN_INIT` | 调用固定的 `guardian init --language ...` 参数，不覆盖已有记忆文件。 |
 | 手动追加记忆 | `APPEND_MEMORY` | 只能追加到核心记忆文件白名单，不能指定任意路径；模板字段和 `guardian append-memory` 使用同一套规则。 |
-| 命令操作里的写入类 CLI | `RUN_COMMAND` | 只允许固定命令目录里的写入命令，例如 `update`、`handover`、`decision add`、`install-hooks` 和 `install-ci`，不开放任意 shell。 |
+| 命令操作里的写入类 CLI | `RUN_COMMAND` | 只允许固定命令目录里的写入命令，例如结构化 `update`、`repair-memory --write`、`handover`、`decision add`、`install-hooks` 和 `install-ci`，不开放任意 shell。 |
 | MCP 工具调用里的写入工具 | `RUN_MCP` | 只允许调用当前 MCP 配置启用的工具；写入类工具仍受 `mcp.readOnly`、`mcp.allowedTools` 和确认词限制。 |
 
 手动追加记忆会做基础敏感词拦截。如果内容像是密码、密钥、token、API key、Authorization 或私钥，后端会拒绝写入。这个检查不能替代正式安全审查，提交前仍然要运行 `guardian verify`。
@@ -151,7 +151,7 @@ Run/
 
 - `server.js`：本地 HTTP server、静态文件服务、状态 API、记忆读取 API、只读 diff 预览 API、受控写入 API、brief/query API 和 CLI 子进程调用；命令目录来自 `lib/commands.js`，审计与可选 API token 来自 `lib/audit.js`，追加记忆模板来自 `plugins/project-guardian/scripts/lib/manual-memory.js`。
 - `lib/audit.js`：服务端本地审计日志模块，负责 `.project-guardian/run-audit.jsonl` 写入、hash 链生成、完整性校验、敏感摘要脱敏和 `GUARDIAN_RUN_TOKEN` 校验。
-- `lib/commands.js`：Run 控制台的固定 CLI 命令目录、公开给前端的命令描述、写入类参数构造和字段校验；新增或调整命令操作入口时优先改这里。
+- `lib/commands.js`：Run 控制台的固定 CLI 命令目录、公开给前端的命令描述、结构化 update、记忆修复、写入类参数构造和字段校验；新增或调整命令操作入口时优先改这里。
 - `public/index.html`：页面结构，包含可收起侧边栏、各功能页面、知识查询独立输出区和命令操作页面。
 - `public/styles.css`：页面样式，包含侧边栏布局与收起动画、Markdown 文档预览、命令卡片和表格样式。
 - `public/app.js`：浏览器端交互逻辑，包含功能页切换、侧边栏状态、记忆预览、轻量 Markdown 渲染、命令目录搜索/渲染、写入前 diff 预览、浏览器本地短操作日志、服务端审计日志完整性展示、API token 请求头和分区输出。
