@@ -19,6 +19,7 @@ const { SUPPORTED_ADAPTERS } = require("./lib/adapters");
 const { init, installAdapters, adaptersDoctor, resolveAdaptersOrFail } = require("./lib/init");
 const { runDoctor, runCheck, printDoctor, printCheck, printDocValidation, printSecretScan, finish, isMemoryFile, isMemoryRelatedFile, isDecisionDirectoryFile, getKnowledgeFiles, memoryContainsPattern } = require("./lib/check");
 const { installHooks, installCi } = require("./lib/hooks-ci");
+const { migrateMemory } = require("./lib/migrate");
 const { update, appendMemory } = require("./lib/update");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
@@ -109,6 +110,9 @@ async function main() {
       break;
     case "install-ci":
       installCi(root);
+      break;
+    case "migrate-memory":
+      migrateMemory(root);
       break;
     case "help":
     case "--help":
@@ -341,6 +345,7 @@ Usage:
   guardian mcp
   guardian install-hooks
   guardian install-ci
+  guardian migrate-memory
 
 Controlled command runner for AI IDEs:
   guardian-cmd list
@@ -367,6 +372,7 @@ Commands:
   mcp           Start a stdio MCP server exposing Project Guardian tools.
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
+  migrate-memory Move memory files to memory/ directory and update config.
 `);
 }
 
