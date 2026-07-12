@@ -5,6 +5,7 @@ const readline = require("readline");
 const PROTOCOL_VERSION = "2025-06-18";
 const COMMAND_TIMEOUT_MS = 90_000;
 const MAX_OUTPUT_BYTES = 512 * 1024;
+const MAX_STDIN_LINE_LENGTH = 1024 * 1024;
 const MAX_CONCURRENT_READS = 3;
 const WRITE_TOOL_NAMES = new Set(["guardian_update", "guardian_decision_add", "guardian_review_complete", "guardian_handover"]);
 
@@ -234,7 +235,15 @@ class McpServer {
 
   start() {
     const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-    rl.on("line", (line) => this.handleLine(line));
+    rl.on("line", (line) => {
+      if (line.length > MAX_STDIN_LINE_LENGTH) {
+        this.respondError(null, -32700, `Request line exceeds maximum length of ${MAX_STDIN_LINE_LENGTH} bytes.`);
+        return;
+      }
+      if (this.shuttingDown) return;
+      this.handleLine(line);
+    });
+    rl.on("close", () => this.shutdown());
 
     this.shuttingDown = false;
     process.on("SIGTERM", () => this.shutdown());
@@ -363,7 +372,10 @@ function appendLimited(current, addition) {
   if (Buffer.byteLength(current, "utf8") >= MAX_OUTPUT_BYTES) return current;
   const next = current + addition;
   if (Buffer.byteLength(next, "utf8") <= MAX_OUTPUT_BYTES) return next;
-  return `${next.slice(0, MAX_OUTPUT_BYTES)}\n[output truncated]`;
+  const buf = Buffer.from(next, "utf8").subarray(0, MAX_OUTPUT_BYTES);
+  let safeEnd = buf.length;
+  while (safeEnd > 0 && (buf[safeEnd - 1] & 0xC0) === 0x80) safeEnd -= 1;
+  return `${buf.subarray(0, safeEnd).toString("utf8")}\n[output truncated]`;
 }
 
 function normalizeMcpConfig(config = {}) {

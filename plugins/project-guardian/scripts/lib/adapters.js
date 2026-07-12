@@ -1,4 +1,5 @@
 const path = require("path");
+const { unique } = require("./shared");
 
 const DEFAULT_ADAPTERS = ["generic", "cursor"];
 const ADAPTER_ALIASES = {
@@ -86,6 +87,8 @@ function validateAdapters(raw) {
   }
 }
 
+
+
 function expandAdapters(raw, fallback) {
   const values = Array.isArray(raw) ? raw : String(raw).split(",");
   const requested = values.map((value) => canonicalAdapter(String(value).trim())).filter(Boolean);
@@ -126,11 +129,8 @@ function canonicalAdapter(value) {
   return ADAPTER_ALIASES[value] || value;
 }
 
-function unique(values) {
-  return [...new Set(values)];
-}
-
 module.exports = {
+  ADAPTER_ALIASES,
   DEFAULT_ADAPTERS,
   SUPPORTED_ADAPTERS,
   adapterMatrix,

@@ -21,8 +21,15 @@ function appendAuditEvent(context, event) {
     next.hashAlgorithm = HASH_ALGORITHM;
     next.hash = hashAuditEvent(next);
     fs.appendFileSync(auditLogPath(context), `${JSON.stringify(next)}\n`, "utf8");
-  } catch (_) {
-    // Audit logging must never break the user-facing command.
+    context._lastAuditFailed = false;
+    return true;
+  } catch (error) {
+    context._lastAuditFailed = true;
+    context._lastAuditError = error.message;
+    if (event.kind === "write" || event.kind === "security") {
+      console.error(`Audit log write failed for write/security operation: ${error.message}`);
+    }
+    return false;
   }
 }
 
@@ -42,7 +49,14 @@ function readAuditLogPayload(context, rawLimit) {
     },
     entries: [],
   };
-  if (!payload.exists) return payload;
+  if (!payload.exists) {
+    if (context._lastAuditFailed || context._auditHadEvents) {
+      payload.integrity.ok = false;
+      payload.integrity.issues.push("Audit log file is missing but audit events were previously recorded.");
+    }
+    return payload;
+  }
+  context._auditHadEvents = true;
 
   const lines = readAuditLines(file);
   const parsed = lines.map(parseAuditLine).filter(Boolean);
@@ -91,14 +105,17 @@ function isRunAuthRequired() {
   return Boolean(runAuthToken());
 }
 
-function isAuthorizedApiRequest(req) {
+function isAuthorizedApiRequest(req, requestUrl) {
   const token = runAuthToken();
   if (!token) return true;
   const headerToken = String(req.headers["x-guardian-run-token"] || "").trim();
   if (constantTimeEquals(headerToken, token)) return true;
   const authorization = String(req.headers.authorization || "").trim();
   const bearer = authorization.match(/^Bearer\s+(.+)$/i);
-  return Boolean(bearer && constantTimeEquals(bearer[1].trim(), token));
+  if (bearer && constantTimeEquals(bearer[1].trim(), token)) return true;
+  const queryToken = requestUrl && requestUrl.searchParams ? requestUrl.searchParams.get("token") : null;
+  if (queryToken && constantTimeEquals(queryToken, token)) return true;
+  return false;
 }
 
 function sanitizeAuditEvent(event) {
@@ -218,4 +235,7 @@ module.exports = {
   sanitizeAuditEvent,
   summarizeAuditArgs,
   verifyAuditEntries,
+  constantTimeEquals,
+  redactLikelySecret,
+  sanitizeAuditText,
 };

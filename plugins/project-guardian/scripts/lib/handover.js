@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { isChinese, loadConfig } = require("./config");
 const { collectFiles } = require("./git-utils");
+const { ensureInitialized, fail, readMaybe, timestamp, writeFile } = require("./shared");
 
 function generateHandover(root) {
   const config = loadConfig(root);
@@ -164,39 +165,9 @@ function readDecisions(root, config) {
   return `${main}\n\n${extra}`;
 }
 
-function ensureInitialized(root, config) {
-  const missing = [
-    config.memoryFiles.context,
-    config.memoryFiles.state,
-    config.memoryFiles.decisions,
-    config.memoryFiles.changelog,
-    config.memoryFiles.handover,
-  ].filter((file) => !fs.existsSync(path.join(root, file)));
-  if (missing.length > 0) fail(`Project Guardian memory is missing: ${missing.join(", ")}\nRun: guardian init`);
-}
-
 function areaFor(file) {
   const first = file.split(/[\\/]/)[0];
   return first === file ? "root" : first;
-}
-
-function readMaybe(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch (_) {
-    return "";
-  }
-}
-
-function writeFile(file, content) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content, "utf8");
-}
-
-function timestamp() {
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
 function fenced(text) {
@@ -206,11 +177,6 @@ function fenced(text) {
 function trimForDoc(text, max) {
   if (!text) return "No content recorded.";
   return text.length <= max ? text : `${text.slice(0, max)}\n...`;
-}
-
-function fail(message) {
-  console.error(message);
-  process.exit(1);
 }
 
 module.exports = {

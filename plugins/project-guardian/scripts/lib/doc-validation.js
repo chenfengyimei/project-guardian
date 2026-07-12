@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readMaybe } = require("./shared");
 
 function runDocValidation(root, config) {
   const reports = getDocRules(config).map((rule) => inspectDoc(root, rule));
@@ -153,14 +154,6 @@ function getDocRules(config) {
       minLength: 300,
     },
   ];
-}
-
-function readMaybe(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch (_) {
-    return "";
-  }
 }
 
 module.exports = {

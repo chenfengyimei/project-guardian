@@ -9,3 +9,10 @@ tests/.tmp-*/
 .env.*
 docs/ip/
 .project-guardian/
+*.log
+*.tmp
+*.swp
+*.bak
+.idea/
+.vscode/settings.json
+.codely-cli/

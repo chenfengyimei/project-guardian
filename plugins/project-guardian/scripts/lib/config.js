@@ -2,8 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { DEFAULT_ADAPTERS, validateAdapters } = require("./adapters");
-const { validateMcpConfig } = require("./mcp");
+const { DEFAULT_ADAPTERS } = require("./adapters");
+const { validateAdapters, validateMcpConfig } = require("./validators");
 
 const CONFIG_FILE = "project-guardian.config.json";
 const SUPPORTED_LANGUAGES = ["zh-CN", "en"];
@@ -46,7 +46,9 @@ function loadConfig(root) {
   try {
     return mergeConfig(clone(DEFAULT_CONFIG), JSON.parse(fs.readFileSync(configPath, "utf8")));
   } catch (error) {
-    return { ...clone(DEFAULT_CONFIG), __configError: error.message };
+    const fallback = clone(DEFAULT_CONFIG);
+    fallback.__configError = error.message;
+    return fallback;
   }
 }
 
@@ -55,7 +57,11 @@ function validateConfig(config) {
   if (config.__configError) issues.push(`invalid ${CONFIG_FILE}: ${config.__configError}`);
   if (!SUPPORTED_LANGUAGES.includes(config.language)) issues.push(`language must be one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
   for (const [name, value] of Object.entries(config.memoryFiles || {})) {
-    if (typeof value !== "string" || value.trim() === "") issues.push(`memoryFiles.${name} must be a non-empty string`);
+    if (typeof value !== "string" || value.trim() === "") {
+      issues.push(`memoryFiles.${name} must be a non-empty string`);
+    } else if (isUnsafePath(value)) {
+      issues.push(`memoryFiles.${name} must not contain ".." or be an absolute path: ${value}`);
+    }
   }
   if (config.quality.taskIdPattern) {
     try {
@@ -67,6 +73,12 @@ function validateConfig(config) {
   issues.push(...validateMcpConfig(config.mcp));
   issues.push(...validateAdapters(config.adapters));
   return issues;
+}
+
+function isUnsafePath(value) {
+  const normalized = path.normalize(value).replace(/\\/g, "/");
+  if (path.isAbsolute(value)) return true;
+  return normalized.split("/").includes("..");
 }
 
 function mergeConfig(base, override) {

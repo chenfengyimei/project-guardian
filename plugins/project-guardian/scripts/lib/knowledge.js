@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readMaybe } = require("./shared");
 
 const STOP_TERMS = new Set([
   "the", "and", "for", "with", "this", "that", "what", "where", "when", "how", "why",
@@ -103,12 +104,13 @@ function formatResults(results) {
 }
 
 function buildBrief(root, config, question, limit, mode = "auto") {
+  const mf = config.memoryFiles || config.memory || {};
   const files = [
-    briefFile(root, config.memoryFiles.context, "Stable project purpose, architecture, environment, and core workflows."),
-    briefFile(root, config.memoryFiles.state, "Current status, known issues, next steps, and latest AI-assisted change."),
-    briefFile(root, config.memoryFiles.decisions, "Architecture, workflow, security, compatibility, dependency, and review decisions."),
-    briefFile(root, config.memoryFiles.changelog, "Recent implementation history, verification notes, regressions, and risks."),
-    briefFile(root, config.memoryFiles.handover, "Onboarding, handover, release preparation, and first-day guidance."),
+    briefFile(root, mf.context, "Stable project purpose, architecture, environment, and core workflows."),
+    briefFile(root, mf.state, "Current status, known issues, next steps, and latest AI-assisted change."),
+    briefFile(root, mf.decisions, "Architecture, workflow, security, compatibility, dependency, and review decisions."),
+    briefFile(root, mf.changelog, "Recent implementation history, verification notes, regressions, and risks."),
+    briefFile(root, mf.handover, "Onboarding, handover, release preparation, and first-day guidance."),
   ];
   const required = files.slice(0, 2).filter((file) => file.exists);
   const optional = files.slice(2).filter((file) => file.exists);
@@ -127,8 +129,9 @@ function recommendedBriefFiles(mode, required, optional, relevantOptional, quest
 }
 
 function briefFile(root, file, reason) {
-  const text = readMaybe(path.join(root, file));
-  return { file, reason, exists: Boolean(text), tokens: estimateTokens(text) };
+  const filePath = file ? path.join(root, file) : "";
+  const text = filePath ? readMaybe(filePath) : "";
+  return { file: file || "(not configured)", reason, exists: Boolean(text), tokens: estimateTokens(text) };
 }
 
 function briefFileRelevant(file, question) {
@@ -150,7 +153,10 @@ function uniqueBriefFiles(files) {
 }
 
 function estimateTokens(text) {
-  return Math.ceil(String(text || "").length / 2.2);
+  const str = String(text || "");
+  const cjkCount = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+  const nonCjkCount = str.length - cjkCount;
+  return Math.ceil(cjkCount / 1.5 + nonCjkCount / 4);
 }
 
 function formatBrief(briefData) {
@@ -180,9 +186,9 @@ function formatBrief(briefData) {
     ...briefData.recommended.map((file) => `- ${file.file}`),
     "",
     "Suggested commands:",
-    `- guardian query "${queryText}" --limit ${briefData.limit}`,
-    `- guardian brief "${queryText}" --mode deep --limit ${briefData.limit}`,
-    `- guardian brief "${queryText}" --mode full --limit ${briefData.limit}`,
+    `- guardian query ${queryText} --limit ${briefData.limit}`,
+    `- guardian brief ${queryText} --mode deep --limit ${briefData.limit}`,
+    `- guardian brief ${queryText} --mode full --limit ${briefData.limit}`,
     "- guardian reviews due",
     "",
     "Estimated memory token budget:",
@@ -203,10 +209,12 @@ function formatBrief(briefData) {
 }
 
 function chunks(file, text, size, overlap, kind = "source") {
+  const safeSize = Math.max(1, size || 800);
+  const safeOverlap = Math.min(Math.max(0, overlap || 0), safeSize - 1);
   const clean = text.replace(/\0/g, "");
   const result = [];
-  for (let start = 0; start < clean.length; start += size - overlap) {
-    result.push({ file, kind, text: clean.slice(start, start + size) });
+  for (let start = 0; start < clean.length; start += safeSize - safeOverlap) {
+    result.push({ file, kind, text: clean.slice(start, start + safeSize) });
     if (result.length > 20) break;
   }
   return result;
@@ -300,15 +308,8 @@ function normalizeForSimilarity(input) {
 }
 
 function shellQuoteText(text) {
-  return String(text).replace(/"/g, '\\"');
-}
-
-function readMaybe(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch (_) {
-    return "";
-  }
+  const cleaned = String(text).replace(/'/g, "'\\''");
+  return `'${cleaned}'`;
 }
 
 function escapeRegExp(value) {

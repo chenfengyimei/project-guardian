@@ -122,6 +122,15 @@ function badRequest(message) {
   return new HttpError(400, message);
 }
 
+function isAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  let parsed;
+  try { parsed = new URL(origin); } catch { return false; }
+  const host = req.headers.host || "";
+  return parsed.host === host && (parsed.protocol === "http:" || parsed.protocol === "https:");
+}
+
 function printHelp() {
   console.log(`Project Guardian Run UI
 
@@ -166,6 +175,10 @@ function createServer(inputOptions = {}) {
     try {
       const requestUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
       if (requestUrl.pathname.startsWith("/api/")) {
+        if (req.method === "POST" && !isAllowedOrigin(req)) {
+          sendJson(res, 403, { ok: false, error: "Cross-origin POST requests are not allowed." });
+          return;
+        }
         await handleApi(req, res, requestUrl, { projectRoot, guardianScript, mcpQueue });
         return;
       }
@@ -177,7 +190,7 @@ function createServer(inputOptions = {}) {
 }
 
 async function handleApi(req, res, requestUrl, context) {
-  if (!isAuthorizedApiRequest(req)) {
+  if (!isAuthorizedApiRequest(req, requestUrl)) {
     appendAuditEvent(context, {
       action: "unauthorized",
       route: requestUrl.pathname,
@@ -378,7 +391,7 @@ function readReviewFilePayload(context, relativePath) {
   const root = context.projectRoot;
   const config = loadConfig(root);
   const files = getDecisionFiles(root, config);
-  const normalized = relativePath.replace(/\\\\/g, "/");
+  const normalized = relativePath.replace(/\\/g, "/");
   const file = files.find((f) => f === normalized || f.endsWith("/" + normalized) || path.basename(f) === normalized);
   if (!file) return { ok: false, error: "Review file not found: " + relativePath };
   const fullPath = path.join(root, file);
@@ -716,7 +729,10 @@ function appendLimitedTo(current, addition, byteLimit) {
   if (Buffer.byteLength(current, "utf8") >= byteLimit) return current;
   const next = current + addition;
   if (Buffer.byteLength(next, "utf8") <= byteLimit) return next;
-  return `${next.slice(0, byteLimit)}\n[output truncated]`;
+  const buf = Buffer.from(next, "utf8").subarray(0, byteLimit);
+  let safeEnd = buf.length;
+  while (safeEnd > 0 && (buf[safeEnd - 1] & 0xC0) === 0x80) safeEnd -= 1;
+  return `${buf.subarray(0, safeEnd).toString("utf8")}\n[output truncated]`;
 }
 
 function uniqueLines(value) {
@@ -751,6 +767,10 @@ function readJsonBody(req) {
 function serveStatic(urlPath, res) {
   const decodedPath = decodeURIComponent(urlPath.split("?")[0]);
   const relativePath = decodedPath === "/" ? "index.html" : decodedPath.replace(/^\/+/, "");
+  if (relativePath.includes("..") || relativePath.includes("\\")) {
+    sendText(res, 403, "Forbidden");
+    return;
+  }
   const targetPath = path.normalize(path.join(PUBLIC_ROOT, relativePath));
   const relativeToPublic = path.relative(PUBLIC_ROOT, targetPath);
 
@@ -767,15 +787,23 @@ function serveStatic(urlPath, res) {
   const contentType = CONTENT_TYPES[path.extname(targetPath).toLowerCase()] || "application/octet-stream";
   res.writeHead(200, {
     "Content-Type": contentType,
-    "Cache-Control": "no-store",
+    ...securityHeaders(),
   });
   fs.createReadStream(targetPath).pipe(res);
+}
+
+function securityHeaders() {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Cache-Control": "no-store",
+  };
 }
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
+    ...securityHeaders(),
   });
   res.end(JSON.stringify(payload));
 }
@@ -783,7 +811,7 @@ function sendJson(res, statusCode, payload) {
 function sendText(res, statusCode, text) {
   res.writeHead(statusCode, {
     "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "no-store",
+    ...securityHeaders(),
   });
   res.end(text);
 }

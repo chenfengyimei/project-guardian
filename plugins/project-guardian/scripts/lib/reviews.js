@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { isChinese, loadConfig } = require("./config");
+const { ensureInitialized, fail, parseFlags, readMaybe, timestamp } = require("./shared");
 
 function reviews(root, args = []) {
   const config = loadConfig(root);
@@ -152,62 +153,12 @@ function buildReviewCompletion(config, flags) {
   ].join("\n");
 }
 
-function parseFlags(args) {
-  const result = { _: [] };
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (!arg.startsWith("--")) {
-      result._.push(arg);
-      continue;
-    }
-    const key = arg.slice(2);
-    const next = args[index + 1];
-    if (!next || next.startsWith("--")) {
-      result[key] = true;
-    } else {
-      result[key] = next;
-      index += 1;
-    }
-  }
-  return result;
-}
-
-function ensureInitialized(root, config) {
-  const missing = [
-    config.memoryFiles.context,
-    config.memoryFiles.state,
-    config.memoryFiles.decisions,
-    config.memoryFiles.changelog,
-    config.memoryFiles.handover,
-  ].filter((file) => !fs.existsSync(path.join(root, file)));
-  if (missing.length > 0) fail(`Project Guardian memory is missing: ${missing.join(", ")}\nRun: guardian init`);
-}
-
 function normalizePath(file) {
   return String(file || "").replace(/\\/g, "/").replace(/^\/+/, "");
 }
 
-function readMaybe(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch (_) {
-    return "";
-  }
-}
-
 function today() {
   return timestamp().slice(0, 10);
-}
-
-function timestamp() {
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function fail(message) {
-  console.error(message);
-  process.exit(1);
 }
 
 module.exports = {

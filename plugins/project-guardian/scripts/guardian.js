@@ -38,6 +38,19 @@ const {
 } = require("./lib/manual-memory");
 const { printReviewValidation, reviews, runReviewValidation } = require("./lib/reviews");
 const { runSecretScan } = require("./lib/security");
+const {
+  ensureInitialized,
+  fail,
+  getCoreMemoryFiles,
+  lines,
+  normalizeForHook,
+  parseFlags,
+  readMaybe,
+  relative,
+  timestamp,
+  unique,
+  writeFile,
+} = require("./lib/shared");
 
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const TEMPLATE_DIR = path.join(PLUGIN_ROOT, "assets", "templates");
@@ -587,13 +600,6 @@ function finish(ok, exitOnFailure = true) {
   return ok;
 }
 
-function ensureInitialized(root, config) {
-  const missing = getCoreMemoryFiles(config).filter((file) => !fs.existsSync(path.join(root, file)));
-  if (missing.length > 0) {
-    fail(`Project Guardian memory is missing: ${missing.join(", ")}\nRun: guardian init`);
-  }
-}
-
 function copyTemplate(root, templateName, target, config = DEFAULT_CONFIG) {
   const targetPath = path.join(root, target);
   if (fs.existsSync(targetPath)) {
@@ -803,16 +809,6 @@ function memoryContainsPattern(root, config, pattern) {
   return getCoreMemoryFiles(config).some((file) => regex.test(readMaybe(path.join(root, file))));
 }
 
-function getCoreMemoryFiles(config) {
-  return [
-    config.memoryFiles.context,
-    config.memoryFiles.state,
-    config.memoryFiles.decisions,
-    config.memoryFiles.changelog,
-    config.memoryFiles.handover,
-  ];
-}
-
 function getKnowledgeFiles(config) {
   return [...getCoreMemoryFiles(config), ...AGENT_RULE_FILES];
 }
@@ -829,26 +825,6 @@ function isMemoryRelatedFile(file, config = DEFAULT_CONFIG) {
 function isDecisionDirectoryFile(file, config = DEFAULT_CONFIG) {
   const dir = (config.memoryFiles.decisionsDirectory || "").replace(/\\/g, "/").replace(/\/?$/, "/");
   return dir !== "/" && file.replace(/\\/g, "/").startsWith(dir);
-}
-
-function parseFlags(args) {
-  const result = { _: [] };
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (!arg.startsWith("--")) {
-      result._.push(arg);
-      continue;
-    }
-    const key = arg.slice(2);
-    const next = args[index + 1];
-    if (!next || next.startsWith("--")) {
-      result[key] = true;
-    } else {
-      result[key] = next;
-      index += 1;
-    }
-  }
-  return result;
 }
 
 function parseQueryLimit(value) {
@@ -878,45 +854,10 @@ function validateLanguageOrFail(language) {
   if (!SUPPORTED_LANGUAGES.includes(language)) fail(`Unknown language: ${language}. Use one of: ${SUPPORTED_LANGUAGES.join(", ")}`);
 }
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean).map((value) => value.replace(/\\/g, "/")))];
-}
-
 function indentList(value) {
   const items = lines(value);
   if (items.length === 0) return "  - N/A";
   return items.map((item) => `  - \`${item}\``).join("\n");
-}
-
-function lines(value) {
-  return String(value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-}
-
-function readMaybe(file) {
-  try {
-    return fs.readFileSync(file, "utf8");
-  } catch (_) {
-    return "";
-  }
-}
-
-function writeFile(file, content) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content, "utf8");
-}
-
-function relative(root, file) {
-  return path.relative(root, file).replace(/\\/g, "/");
-}
-
-function normalizeForHook(file) {
-  return file.replace(/\\/g, "/");
-}
-
-function timestamp() {
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
 function readPluginVersion() {
@@ -984,11 +925,6 @@ Commands:
   install-hooks Install a pre-commit hook that runs configured checks.
   install-ci    Install a Gitee Go workflow template.
 `);
-}
-
-function fail(message) {
-  console.error(message);
-  process.exit(1);
 }
 
 main().catch((error) => fail(error.stack || error.message));

@@ -107,7 +107,7 @@ function runMcpSession(cwd, messages, expectedResponses, extraEnv = {}) {
     let stderr = "";
     const timer = setTimeout(() => {
       finish(new Error(`MCP session timed out. stderr=${stderr}`));
-    }, 5000);
+    }, process.env.CI ? 15000 : 5000);
     let done = false;
 
     function finish(error) {
@@ -2252,7 +2252,7 @@ test("brief recommends relevant memory files and token budget", () => {
     assert.match(result.stdout, /memory\/DECISIONS\.md/);
     assert.match(result.stdout, /memory\/AI_CHANGELOG\.md/);
     assert.match(result.stdout, /Estimated savings/);
-    assert.match(result.stdout, /guardian query "MCP security history" --limit 2/);
+    assert.match(result.stdout, /guardian query 'MCP security history' --limit 2/);
   } finally {
     cleanup(root);
   }
@@ -2383,4 +2383,160 @@ test("install-hooks reports a clear error outside Git repositories", () => {
   } finally {
     cleanup(root);
   }
+});
+
+test("guardian-cmd passthrough rejects shell metacharacters in arguments", () => {
+  const root = tempDir("guardian-cmd-shell-injection");
+  try {
+    const result = runCmd(root, ["guardian-query", "test; rm -rf /"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /shell metacharacters/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd passthrough rejects arguments exceeding length limit", () => {
+  const root = tempDir("guardian-cmd-arg-length");
+  try {
+    const longArg = "x".repeat(2001);
+    const result = runCmd(root, ["guardian-query", longArg]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /exceeding 2000 characters/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("decisions.js rejects invalid --date format to prevent path traversal", () => {
+  const root = tempDir("decision-date-traversal");
+  try {
+    writeValidMemory(root);
+    const result = run(root, [
+      "decision", "add",
+      "--date", "../../../etc/passwd",
+      "--title", "Test",
+      "--context", "Test",
+      "--decision", "Test",
+      "--verification", "Test",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /YYYY-MM-DD format/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("decisions.js validates --review-after date format", () => {
+  const root = tempDir("decision-review-date-invalid");
+  try {
+    writeValidMemory(root);
+    const result = run(root, [
+      "decision", "add",
+      "--title", "Test",
+      "--context", "Test",
+      "--decision", "Test",
+      "--verification", "Test",
+      "--review-after", "06/30/2026",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /YYYY-MM-DD format/);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("config validates unsafe memory file paths", () => {
+  const configModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "config.js"));
+  const issues = configModule.validateConfig(configModule.mergeConfig(configModule.clone(configModule.DEFAULT_CONFIG), {
+    memoryFiles: { state: "../../etc/hosts" },
+  }));
+  assert.ok(issues.some((issue) => /must not contain/.test(issue)));
+});
+
+test("Run Web UI rejects cross-origin POST requests", async () => {
+  const root = tempDir("run-csrf");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  try {
+    writeValidMemory(root);
+    await listen(server);
+
+    const crossOrigin = await new Promise((resolve) => {
+      const address = server.address();
+      const body = JSON.stringify({ action: "help" });
+      const req = http.request({
+        host: "127.0.0.1",
+        port: address.port,
+        path: "/api/command",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          Origin: "http://evil.example.com",
+        },
+      }, (res) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { text += chunk; });
+        res.on("end", () => resolve({ status: res.statusCode, body: JSON.parse(text) }));
+      });
+      req.write(body);
+      req.end();
+    });
+    assert.equal(crossOrigin.status, 403);
+    assert.match(crossOrigin.body.error, /Cross-origin/);
+  } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
+});
+
+test("Run Web UI static file serving blocks path traversal with backslash", async () => {
+  const root = tempDir("run-path-traversal");
+  const runUi = require(path.join(repoRoot, "Run", "server.js"));
+  const server = runUi.createServer({ projectRoot: root, guardianScript: guardian });
+  try {
+    await listen(server);
+    const result = await requestText(server, "/..%5C..%5Cpackage.json");
+    assert.equal(result.status, 403);
+  } finally {
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+    cleanup(root);
+  }
+});
+
+test("knowledge.js buildBrief handles missing memoryFiles gracefully", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const brief = knowledge.buildBrief(repoRoot, {}, "test", 2, "auto");
+  assert.ok(brief.fullTokens >= 0);
+});
+
+test("knowledge.js chunks validates size and overlap to prevent infinite loop", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const result = knowledge.chunks("test.md", "hello world", 0, 100, "source");
+  assert.ok(result.length > 0);
+  assert.ok(result.length <= 21);
+});
+
+test("knowledge.js estimateTokens accounts for CJK characters", () => {
+  const knowledge = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "knowledge.js"));
+  const cjkTokens = knowledge.estimateTokens("你好世界测试");
+  const enTokens = knowledge.estimateTokens("hello world test");
+  assert.ok(cjkTokens > 0);
+  assert.ok(enTokens > 0);
+  assert.ok(cjkTokens > enTokens * 0.5);
+});
+
+test("shared.js unique filters non-string values", () => {
+  const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
+  const result = shared.unique(["a", 42, "b", null, "c", "a", "b\\d"]);
+  assert.deepEqual(result, ["a", "b", "c", "b/d"]);
+});
+
+test("shared.js parseFlags supports -- terminator", () => {
+  const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
+  const result = shared.parseFlags(["--mode", "deep", "--", "--not-a-flag", "value"]);
+  assert.equal(result.mode, "deep");
+  assert.deepEqual(result._, ["--not-a-flag", "value"]);
 });

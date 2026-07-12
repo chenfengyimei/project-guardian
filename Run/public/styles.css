@@ -990,76 +990,9 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
-  display: grid;
-  gap: 10px;
-}
-
-.review-item {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px 14px;
-  align-items: center;
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-  text-align: left;
-  cursor: pointer;
-  transition: background 120ms;
-}
-
-.review-item:hover {
-  background: #eef5f6;
-  border-color: #c8dbdf;
-}
-
-.review-item strong {
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.review-meta {
-  color: var(--muted);
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.review-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.review-badge-completed {
-  background: #e6f2ea;
-  color: var(--ok);
-}
-
-.review-badge-due {
-  background: #f9eaea;
-  color: var(--bad);
-}
-
-.review-badge-scheduled {
-  background: #eef5f6;
-  color: var(--accent-strong);
-}
-
-#view-reviews.active {
-  align-content: start;
-}
 
 
-/* --- ???? --- */
+/* --- Reviews --- */
 #view-reviews.active {
   align-content: start;
 }

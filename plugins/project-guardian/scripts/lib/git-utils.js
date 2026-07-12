@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const { lines, relative, unique } = require("./shared");
 
 const SOURCE_EXTENSIONS = new Set([
   ".js",
@@ -125,18 +126,6 @@ function walk(root, current = root, collected = []) {
     }
   }
   return collected;
-}
-
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function lines(value) {
-  return value ? value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
-}
-
-function relative(root, file) {
-  return path.relative(root, file).replace(/\\/g, "/");
 }
 
 module.exports = {

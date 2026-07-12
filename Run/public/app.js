@@ -1168,7 +1168,7 @@ function isTableRow(line) {
 }
 
 function isTableSeparator(line) {
-  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line || "");
+  return /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)+\|?\s*$/.test(line || "");
 }
 
 function collectTable(lines, startIndex) {
@@ -1255,7 +1255,7 @@ async function loadReviews() {
 function renderReviewList(data) {
   if (!nodes.reviewList) return;
   if (!data || !data.ok || !data.items || data.items.length === 0) {
-    nodes.reviewList.innerHTML = '<p class="muted">?????????</p>';
+    nodes.reviewList.innerHTML = '<p class="muted">暂无复审记录</p>';
     return;
   }
 

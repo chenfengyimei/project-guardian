@@ -160,8 +160,19 @@ function registerGuardian(id, description, guardianArgs) {
 function registerGuardianPassthrough(id, description, guardianArgs, options = {}) {
   registerExec(id, description, process.execPath, (args) => {
     if (!options.allowEmpty && args.length === 0) throw new CmdError(`${id} requires arguments.`);
+    for (const arg of args) validatePassthroughArg(id, arg);
     return [GUARDIAN_SCRIPT, ...guardianArgs, ...args];
   }, { kind: "guardian" });
+}
+
+function validatePassthroughArg(commandId, arg) {
+  const value = String(arg || "");
+  if (/[\r\n\t]|`|\$\(|\||;|&|>|</.test(value)) {
+    throw new CmdError(`${commandId} rejected an argument with shell metacharacters: ${sanitizeText(value, 40)}`);
+  }
+  if (value.length > 2000) {
+    throw new CmdError(`${commandId} rejected an argument exceeding 2000 characters.`);
+  }
 }
 
 function resolveNpmSpec() {
@@ -169,7 +180,23 @@ function resolveNpmSpec() {
   if (candidate && fs.existsSync(candidate)) {
     return { executable: process.execPath, prefixArgs: [candidate] };
   }
+  if (process.platform === "win32") {
+    const npmRoot = path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+    if (fs.existsSync(npmRoot)) return { executable: process.execPath, prefixArgs: [npmRoot] };
+    const npmCmdPath = findInPath("npm.cmd");
+    if (npmCmdPath) return { executable: npmCmdPath, prefixArgs: [] };
+  }
   return { executable: process.platform === "win32" ? "npm.cmd" : "npm", prefixArgs: [] };
+}
+
+function findInPath(executable) {
+  const pathDirs = (process.env.PATH || "").split(path.delimiter);
+  for (const dir of pathDirs) {
+    if (!dir) continue;
+    const candidate = path.join(dir, executable);
+    try { if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate; } catch (_) {}
+  }
+  return null;
 }
 
 function cachedFlag(args) {
