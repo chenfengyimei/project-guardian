@@ -9,43 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- CSRF protection for Run Web UI POST API requests (Origin header validation).
-- Security response headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`) for all Run server responses.
-- MCP stdin line length limit (1MB) to prevent memory exhaustion DoS.
-- Audit log physical deletion detection in Run audit hash chain.
-- Shell metacharacter validation for `guardian-cmd` passthrough commands.
-- Path traversal protection for `decisions.js` `--date` parameter and decision file generation.
-- Path traversal protection for `security.js` decision file scanning.
-- Config path safety validation in `config.js` (`memoryFiles.*` paths reject `..` and absolute paths).
-- `--review-after` date format validation in `decisions.js`.
-- `--` terminator support in `parseFlags`.
-- Windows npm executable path resolution improvement in `guardian-cmd.js`.
+- i18n message registry (`lib/messages.js`) with `t(key)` function and `setLanguage()` support.
+- `guardian migrate-memory` command to move legacy memory files to `memory/` directory.
+- `guardian-cmd git-branch` and `guardian-cmd git-stash` controlled command replacements.
+- `Run/lib/guardian-bridge.js` intermediary layer decoupling Run layer from plugin internals.
+- `lib/brief.js` extracted from `knowledge.js` for brief reading plans and token estimation.
+- Unified secret detection in `shared.js`: `containsLikelySecret()`, `redactLikelySecret()`, `looksHighEntropy()`, `estimateTokens()`.
+- Reentrancy guard in Run audit log `appendAuditEvent` to prevent hash chain corruption.
+- 6 new tests: secret detection/redaction, large file chunks, brief large files, audit reentrancy, `containsLikelySecret` lastIndex fix.
 
 ### Changed
 
-- Audit log write failures are no longer silently swallowed; write/security operation audit failures now log to stderr.
-- `readMaybe` in shared module logs non-ENOENT errors to stderr instead of silently returning empty string.
-- `unique()` in shared module now type-checks values to prevent crashes on non-string inputs.
-- UTF-8 safe truncation in MCP output and Run server output limiting (no longer splits multi-byte characters).
-- Token estimation in `knowledge.js` now accounts for CJK characters separately for more accurate budget estimates.
-- `shellQuoteText` in `knowledge.js` strips shell metacharacters instead of naive escaping.
-- `chunks()` in `knowledge.js` validates `size`/`overlap` parameters to prevent infinite loops.
-- `buildBrief()` in `knowledge.js` now handles legacy `config.memory` shape without crashing.
-- `scanSecretLine()` in `security.js` limits line scan length to 10000 chars and caps match results.
-- Renamed `explaiw/` directory to `explain/` (spelling fix).
-- `.gitignore` updated with additional patterns (`*.log`, `*.tmp`, `*.swp`, `*.bak`, `.idea/`, `.vscode/settings.json`).
+- Split `guardian.js` (855→341 lines) into `lib/init.js`, `lib/check.js`, `lib/hooks-ci.js`, `lib/update.js`.
+- `Run/server.js` and `Run/lib/commands.js` now import from `guardian-bridge.js` instead of directly requiring plugin internals.
+- `security.js` `scanSecretLine` now detects Chinese secret keywords (密码/密钥/令牌/私钥).
+- `security.js` `looksHighEntropy` unified with `shared.js` implementation.
+- `manual-memory.js` `SENSITIVE_TEXT_PATTERN` replaced with `shared.containsLikelySecret`.
+- `audit.js` and `guardian-cmd.js` `redactLikelySecret` replaced with `shared.redactLikelySecret`.
+- `knowledge.js` no longer contains brief functions; `buildBrief`/`formatBrief` moved to `brief.js`.
+- `estimateTokens` moved from `knowledge.js` to `shared.js`.
+- `validateMcpConfig` duplicate removed from `validators.js`; `config.js` now imports from `mcp.js`.
 
 ### Fixed
 
-- Run Web UI CSRF vulnerability: cross-origin POST requests are now rejected.
-- Run Web UI static file path traversal: `..` and backslash in decoded paths are now blocked before filesystem access.
-- MCP UTF-8 truncation corruption: output truncation no longer splits multi-byte codepoints.
-- `decisions.js` path traversal via `--date` parameter.
-- `security.js` path traversal via `decisionsDirectory` config path.
-- `knowledge.js` crash when `config.memoryFiles` is undefined.
-- `knowledge.js` infinite loop in `chunks()` when `overlap >= size`.
-- `shared.js` `unique()` crash on non-string values.
-- Run server `?token=` query parameter auth now works as documented.
+- `containsLikelySecret` lastIndex bug: regex with `g` flag requires `lastIndex` reset before each `test()`.
 
 ## [0.3.0] - 2026-06-08
 

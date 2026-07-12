@@ -635,3 +635,15 @@
 - 风险：重构可能引入回归；需保持零依赖和 Windows 兼容。
 - 敏感信息检查：本次没有写入生产密码、真实 token、客户隐私或其它敏感数据。
 - 下一步：按计划继续 P2（统一审计和密钥检测）和 P3（拆分 Run/server.js 和 knowledge.js 展示逻辑）。
+
+### 2026-07-12 09:17 - P0-P3架构重构+安全统一+TOCTOU修复+i18n+migrate-memory+guardian-cmd白名单补充
+
+- 用户需求：阅读项目全部记忆文件，整理所有遗留问题和待完善功能，一次性完成。
+- AI 总结：按 P0-P3 优先级完成架构重构：P1 拆分 guardian.js（855→341行）为 init.js/check.js/hooks-ci.js/update.js，消除 validateMcpConfig 重复；P2 在 shared.js 统一密钥检测和脱敏函数（containsLikelySecret/redactLikelySecret），消除 3 套不一致正则和 2 处 redactLikelySecret 复制；P3 创建 guardian-bridge.js 解耦 Run 屄对插件内部模块的直接依赖，拆分 knowledge.js 为 knowledge.js + brief.js；修复 Run 审计日志 TOCTOU 竞态（添加重入保护）；新增 i18n 消息机制（messages.js）；新增 guardian migrate-memory 命令；补充 guardian-cmd 白名单（git-branch、git-stash）；新增 6 个测试覆盖密钥检测、大文件、审计重入等场景；修复 containsLikelySecret 的 lastIndex bug。
+- 变更文件：`guardian.js`、`lib/init.js`、`lib/check.js`、`lib/hooks-ci.js`、`lib/update.js`、`lib/brief.js`、`lib/messages.js`、`lib/migrate.js`、`lib/shared.js`、`lib/validators.js`、`lib/config.js`、`lib/knowledge.js`、`lib/security.js`、`lib/manual-memory.js`、`lib/mcp.js`、`cmd/guardian-cmd.js`、`Run/lib/audit.js`、`Run/lib/commands.js`、`Run/lib/guardian-bridge.js`、`Run/server.js`、`tests/guardian.test.js`、`package.json`
+- 业务原因：项目已过多轮功能迭代，架构耦合度问题（工具函数重复、循环依赖、Run 屄直接依赖插件内部模块）影响可维护性和后续扩展；密钥检测不一致导致安全风险；TOCTOU 竞态可能导致审计日志 hash 链断裂；i18n 和 migrate-memory 是 STATE.md 中记录的下一步功能。
+- 技术说明：P1 拆分保持所有函数行为不变，仅移动代码位置；P2 统一密钥检测时保留 security.js 的高熵检测和 manual-memory.js 的中文关键词；P3 的 guardian-bridge.js 是纯转发层无性能开销；TOCTOU 修复使用同步重入标志而非异步队列，因为 Node.js 单线程模型下同步代码块本身是原子的；i18n 的 t() 函数支持 {0} 占位符参数替换。
+- 验证方式：已运行 `npm run lint`（全部通过）、`npm test`（90 个测试全部通过）。
+- 风险：guardian.js 拆分后路由逻辑更清晰但文件结构有变化，团队成员需了解新模块位置；i18n 目前只迁移了 verify 命令的输出，后续可逐步迁移其他命令；migrate-memory 会移动文件，使用前应先备份。
+- 敏感信息检查：本次没有写入生产密码、真实 token、私钥、客户隐私或其它敏感数据。
+- 下一步：提交前运行 `guardian verify` 确认记忆质量检查通过；后续可继续向 i18n 迁移更多命令输出。

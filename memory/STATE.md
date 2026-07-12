@@ -1,6 +1,6 @@
 # 项目状态
 
-最后更新：2026-07-12 08:17
+最后更新：2026-07-12 09:17
 
 ## 当前状态
 
@@ -69,19 +69,29 @@
 - Run server 的 `isAuthorizedApiRequest` 支持 `?token=` 查询参数（修复文档与实现不一致）。
 - `guardian-cmd.js` 的 `resolveNpmSpec` 增加 Windows `npm.cmd` PATH 搜索。
 - 新增 12 个测试覆盖安全修复和质量改进。
+- P1 拆分 `guardian.js`（855→341行）为 `lib/init.js`、`lib/check.js`、`lib/hooks-ci.js`、`lib/update.js`。
+- P2 在 `shared.js` 统一密钥检测和脱敏函数（`containsLikelySecret`/`redactLikelySecret`/`looksHighEntropy`/`estimateTokens`），消除 `audit.js`、`guardian-cmd.js` 的重复 `redactLikelySecret` 和 `manual-memory.js` 的 `SENSITIVE_TEXT_PATTERN`。
+- P2 `security.js` 的 `scanSecretLine` 新增中文关键词检测，`looksHighEntropy` 统一到 `shared.js`。
+- P3 新建 `Run/lib/guardian-bridge.js` 作为 Run 层与插件内部模块的中间层，`Run/server.js` 和 `Run/lib/commands.js` 不再直接 import 插件内部模块。
+- P3 拆分 `knowledge.js` 为 `knowledge.js`（query 检索）+ `lib/brief.js`（brief 读取计划和 token 估算）。
+- 修复 Run 审计日志 TOCTOU 竞态：添加重入保护防止 hash 链断裂。
+- 新增 `lib/messages.js` i18n 消息机制，提供 `t(key)` 函数和 `setLanguage()` 设置。
+- 新增 `guardian migrate-memory` 命令，支持旧项目记忆文件迁移到 `memory/` 目录。
+- 补充 `guardian-cmd` 白名单：新增 `git-branch`、`git-stash` 命令。
+- 新增 6 个测试：密钥检测脱敏、大文件 chunks、brief 大文件、审计重入保护。
+- 修复 `containsLikelySecret` 的 `lastIndex` bug（带 `g` 标志的正则 `test()` 需要重置 `lastIndex`）。
 
 ## 进行中
 
-- 暂无正在进行的未验证功能；安全审计和全面质量修复已完成本轮代码、文档、测试和记忆收尾。
+- 暂无正在进行的未验证功能；P0-P3 架构重构和功能补充已完成本轮代码、文档、测试和记忆收尾。
 
 ## 下一步
 
-1. 提交到 Gitee 前复查 `git status`，确认所有安全修复、测试、文档和记忆一起提交，且 `.project-guardian/` 与 `docs/ip/` 不被 Git 跟踪。
+1. 提交到 Gitee 前复查 `git status`，确认所有重构、测试、文档和记忆一起提交。
 2. 后续根据真实 AI IDE 高频命令继续补充 `guardian-cmd` 白名单。
 3. 如果团队需要企业级命令审计，应把 `.project-guardian/cmd-audit.jsonl` 和 Run 审计日志采集到集中日志或不可变存储，并补充登录鉴权、访问控制、HTTPS 和保留策略。
-4. 考虑继续拆分 `guardian.js` 的 init/update/check/doctor/hooks/CI 命令编排到独立模块。
-5. 考虑增加国际化消息机制，集中管理 CLI 输出语言。
-6. 考虑增加并发写入测试和大文件性能测试。
+5. 继续向 i18n 迁移更多命令输出（目前只迁移了 verify 命令）。
+6. 可选向量索引和 RAG 检索仍规划在后续迭代。
 
 ## 已知问题
 
@@ -90,14 +100,13 @@
 | 查询仍不是完整语义向量检索 | 表达差异特别大或长文本规模很大时仍可能搜不到最佳答案 | 维护者 | 已升级为零依赖混合检索；可选向量索引和 RAG 仍规划在后续迭代 |
 | 决策记录会同时写入索引和单独决策文件 | 文档输出略多 | 维护者 | 这是为了兼容现有 `memory/DECISIONS.md`，同时降低未来协作冲突 |
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
-| 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 本次保持尊重显式配置；旧项目迁移时应同步更新 `project-guardian.config.json` |
+| 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 已新增 `guardian migrate-memory` 命令支持迁移 |
 | AI IDE 规则格式会变化 | 某些适配器模板未来可能失效 | 维护者 | 已新增 `adapters doctor` 帮助发现缺失文件；仍需定期复核官方规则格式 |
 | MCP 不做身份认证或逐次审批 | 支持 MCP 的 IDE 仍能调用已开放的本地 Guardian 命令 | 维护者 | 已新增 `mcp.readOnly` 和 `mcp.allowedTools` 降低误调用风险；仍需依赖仓库权限、Git 权限和代码评审 |
 | 记忆读取仍会消耗模型上下文 | 其它项目接入后，AI 读取规则、核心记忆和查询片段会增加少量 token | 维护者 | 使用 `guardian brief` / `guardian_brief` 先做读取计划，再用 `guardian_query.limit` 或 `guardian query --limit` 控制返回片段数 |
 | 复审检测依赖标准字段 | 手工改坏 `复审时间` 或完成标记会导致漏检或误报 | 维护者 | 使用 `guardian decision add --review-after` 和 `guardian reviews complete` 生成标准内容 |
 | `guardian-cmd` 只能覆盖白名单命令 | 没有替代项时 AI IDE 仍可能需要临时直跑 shell | 维护者 | 优先运行 `guardian-cmd list`；高频直跑命令应补进 `guardian-cmd.js` 并补测试 |
-| `guardian.js` 仍未完全模块化 | init/update/check/doctor/query/hooks/CI 等命令编排仍在主文件中 | 维护者 | 后续可继续低风险拆分 |
-| Run 审计日志 hash 链有 TOCTOU 竞态 | 并发请求可能同时读取相同 previousHash 导致链断裂 | 维护者 | 当前单用户本地使用风险低；企业场景需加文件锁或原子操作 |
+| i18n 只迁移了 verify 命令 | 其他命令输出仍硬编码 | 维护者 | 后续逐步迁移其他命令到 `t()` 函数 |
 
 ## 风险区域
 
@@ -110,8 +119,8 @@
 
 ## 最新 AI 协助变更
 
-- 任务：完整 Bug 排查与修复（第二批）。
-- 总结：在之前 8 个 Bug 修复基础上，继续深度排查发现 `knowledge.js` 的 `chunks` 函数计算了 `safeSize` 和 `safeOverlap` 但在循环中仍使用原始 `size` 和 `overlap` 参数，当 `size=0` 或 `overlap>=size` 时会导致无限循环或空分片。已修复为在循环中使用 `safeSize` 和 `safeOverlap`。
-- 文件：`plugins/project-guardian/scripts/lib/knowledge.js`、`memory/STATE.md`、`memory/AI_CHANGELOG.md`。
-- 验证：已运行 `npm run lint`（全部通过）、`npm test`（84 个测试全部通过）。
-- 后续：提交前运行 `guardian verify` 确认记忆质量检查通过。
+- 任务：P0-P3架构重构+安全统一+TOCTOU修复+i18n+migrate-memory+guardian-cmd白名单补充
+- 总结：完成 P1（guardian.js 855→341行拆分为4个模块）、P2（统一密钥检测到 shared.js）、P3（guardian-bridge.js 解耦+knowledge.js 拆分为 brief.js）、TOCTOU 修复、i18n 消息机制、migrate-memory 命令、guardian-cmd 白名单补充（git-branch/git-stash）、6 个新测试。
+- 文件：`guardian.js`、`lib/init.js`、`lib/check.js`、`lib/hooks-ci.js`、`lib/update.js`、`lib/brief.js`、`lib/messages.js`、`lib/migrate.js`、`lib/shared.js`、`Run/lib/guardian-bridge.js`、`Run/lib/audit.js`、`Run/lib/commands.js`、`Run/server.js`、`cmd/guardian-cmd.js`、`tests/guardian.test.js`、`package.json`
+- 验证：已运行 `npm run lint`（全部通过）、`npm test`（90 个测试全部通过）。
+- 后续：继续向 i18n 迁移更多命令输出；后续根据真实使用反馈考虑向量检索。
