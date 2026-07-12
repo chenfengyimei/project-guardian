@@ -3,7 +3,8 @@
 const fs = require("fs");
 const path = require("path");
 const { DEFAULT_ADAPTERS } = require("./adapters");
-const { validateAdapters, validateMcpConfig } = require("./validators");
+const { validateAdapters } = require("./validators");
+const { validateMcpConfig } = require("./mcp");
 
 const CONFIG_FILE = "project-guardian.config.json";
 const SUPPORTED_LANGUAGES = ["zh-CN", "en"];

@@ -1,7 +1,6 @@
 "use strict";
 
 const { SUPPORTED_ADAPTERS, ADAPTER_ALIASES } = require("./adapters");
-const { SUPPORTED_MCP_TOOLS } = require("./mcp");
 
 function validateAdapters(raw) {
   if (raw == null) return [];
@@ -30,27 +29,6 @@ function canonicalAdapter(value) {
   return ADAPTER_ALIASES[value] || value;
 }
 
-function validateMcpConfig(config = {}) {
-  const issues = [];
-  if (!plainObject(config)) {
-    issues.push("mcp must be an object");
-    return issues;
-  }
-  if (typeof config.readOnly !== "boolean") issues.push("mcp.readOnly must be a boolean");
-  if (!Array.isArray(config.allowedTools)) {
-    issues.push("mcp.allowedTools must be an array");
-    return issues;
-  }
-  for (const tool of config.allowedTools) {
-    if (typeof tool !== "string") {
-      issues.push("mcp.allowedTools entries must be strings");
-    } else if (!SUPPORTED_MCP_TOOLS.includes(tool)) {
-      issues.push(`mcp.allowedTools contains unsupported tool: ${tool}`);
-    }
-  }
-  return issues;
-}
-
 function plainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -59,5 +37,4 @@ module.exports = {
   canonicalAdapter,
   expandAdapterNames,
   validateAdapters,
-  validateMcpConfig,
 };
