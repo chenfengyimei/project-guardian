@@ -33,6 +33,8 @@ registerExec("git-diff-stat", "Run git diff --stat, optionally with --cached.", 
 registerExec("git-diff-name-only", "Run git diff --name-only, optionally with --cached.", "git", (args) => ["diff", ...cachedFlag(args), "--name-only"]);
 registerExec("git-diff-check", "Run git diff --check.", "git", () => ["diff", "--check"], { noArgs: true });
 registerExec("git-log", "Run git log --oneline with --limit N.", "git", (args) => ["log", "--oneline", "-n", String(limitFlag(args, 10, 1, 100))]);
+registerExec("git-branch", "Run git branch -a.", "git", () => ["branch", "-a"], { noArgs: true });
+registerExec("git-stash", "Run git stash list.", "git", () => ["stash", "list"], { noArgs: true });
 
 registerExec("npm-lint", "Run npm run lint.", NPM_SPEC.executable, () => [...NPM_SPEC.prefixArgs, "run", "lint"], { noArgs: true });
 registerExec("npm-test", "Run npm test.", NPM_SPEC.executable, () => [...NPM_SPEC.prefixArgs, "test"], { noArgs: true });

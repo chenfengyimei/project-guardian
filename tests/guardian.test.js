@@ -533,6 +533,27 @@ test("guardian-cmd runs controlled commands and writes an audit log", () => {
   }
 });
 
+test("guardian-cmd supports git-branch and git-stash commands", () => {
+  const root = tempDir("guardian-cmd-git");
+  try {
+    git(root, ["init"]);
+    git(root, ["config", "user.email", "tests@example.com"]);
+    git(root, ["config", "user.name", "Tests"]);
+    writeFile(path.join(root, "file.js"), "const x = 1;\n");
+    git(root, ["add", "file.js"]);
+    git(root, ["commit", "-m", "initial"]);
+
+    const branch = runCmd(root, ["git-branch"]);
+    assert.equal(branch.status, 0);
+    assert.match(branch.stdout, /\*/);
+
+    const stash = runCmd(root, ["git-stash"]);
+    assert.equal(stash.status, 0);
+  } finally {
+    cleanup(root);
+  }
+});
+
 test("guardian-cmd rejects unsupported arguments and records the failed attempt", () => {
   const root = tempDir("guardian-cmd-reject");
   try {
