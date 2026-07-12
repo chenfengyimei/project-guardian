@@ -1,7 +1,7 @@
 "use strict";
 
 const path = require("node:path");
-const { containsLikelySecret } = require("../../plugins/project-guardian/scripts/lib/shared");
+const { containsLikelySecret } = require("./guardian-bridge");
 
 const COMMAND_CONFIRMATION = "RUN_COMMAND";
 const INSTALL_ADAPTERS = new Set([

@@ -136,10 +136,18 @@ function redactLikelySecret(text) {
   return redacted;
 }
 
+function estimateTokens(text) {
+  const str = String(text || "");
+  const cjkCount = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
+  const nonCjkCount = str.length - cjkCount;
+  return Math.ceil(cjkCount / 1.5 + nonCjkCount / 4);
+}
+
 module.exports = {
   CORE_MEMORY_KEYS,
   containsLikelySecret,
   ensureInitialized,
+  estimateTokens,
   fail,
   getCoreMemoryFiles,
   looksHighEntropy,

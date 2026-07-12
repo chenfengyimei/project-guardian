@@ -2,7 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const { readMaybe } = require("./shared");
+const { readMaybe, estimateTokens } = require("./shared");
+const { buildBrief, formatBrief, shellQuoteText } = require("./brief");
 
 const STOP_TERMS = new Set([
   "the", "and", "for", "with", "this", "that", "what", "where", "when", "how", "why",
@@ -103,111 +104,6 @@ function formatResults(results) {
     .join("\n");
 }
 
-function buildBrief(root, config, question, limit, mode = "auto") {
-  const mf = config.memoryFiles || config.memory || {};
-  const files = [
-    briefFile(root, mf.context, "Stable project purpose, architecture, environment, and core workflows."),
-    briefFile(root, mf.state, "Current status, known issues, next steps, and latest AI-assisted change."),
-    briefFile(root, mf.decisions, "Architecture, workflow, security, compatibility, dependency, and review decisions."),
-    briefFile(root, mf.changelog, "Recent implementation history, verification notes, regressions, and risks."),
-    briefFile(root, mf.handover, "Onboarding, handover, release preparation, and first-day guidance."),
-  ];
-  const required = files.slice(0, 2).filter((file) => file.exists);
-  const optional = files.slice(2).filter((file) => file.exists);
-  const relevantOptional = optional.filter((file) => briefFileRelevant(file.file, question));
-  const recommended = recommendedBriefFiles(mode, required, optional, relevantOptional, question);
-  const fullTokens = files.reduce((total, file) => total + file.tokens, 0);
-  const recommendedTokens = recommended.reduce((total, file) => total + file.tokens, 0);
-  return { question, limit, mode, files, required, optional, relevantOptional, recommended, fullTokens, recommendedTokens };
-}
-
-function recommendedBriefFiles(mode, required, optional, relevantOptional, question) {
-  if (mode === "quick") return required;
-  if (mode === "deep") return uniqueBriefFiles([...required, ...optional.filter((file) => /DECISIONS|AI_CHANGELOG/i.test(file.file))]);
-  if (mode === "full") return uniqueBriefFiles([...required, ...optional]);
-  return question ? uniqueBriefFiles([...required, ...relevantOptional]) : required;
-}
-
-function briefFile(root, file, reason) {
-  const filePath = file ? path.join(root, file) : "";
-  const text = filePath ? readMaybe(filePath) : "";
-  return { file: file || "(not configured)", reason, exists: Boolean(text), tokens: estimateTokens(text) };
-}
-
-function briefFileRelevant(file, question) {
-  if (!question) return false;
-  const text = question.toLowerCase();
-  if (/DECISIONS/i.test(file)) return /decisions|decision|architecture|dependency|security|compatibility|workflow|review|token|budget|cost|mcp|ci|auth|payment|data model|决策|架构|依赖|安全|权限|兼容|工作流|复审|成本|预算|消耗|登录|支付|数据模型|质量/.test(text);
-  if (/AI_CHANGELOG/i.test(file)) return /history|recent|change|changed|changelog|bug|regression|error|why|risk|最近|历史|变更|修改|修复|报错|错误|回归|风险|为什么/.test(text);
-  if (/HANDOVER/i.test(file)) return /handover|onboard|onboarding|release|start|first day|交接|接手|新人|上线|发布|入门|第一天/.test(text);
-  return false;
-}
-
-function uniqueBriefFiles(files) {
-  const seen = new Set();
-  return files.filter((file) => {
-    if (seen.has(file.file)) return false;
-    seen.add(file.file);
-    return true;
-  });
-}
-
-function estimateTokens(text) {
-  const str = String(text || "");
-  const cjkCount = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/g) || []).length;
-  const nonCjkCount = str.length - cjkCount;
-  return Math.ceil(cjkCount / 1.5 + nonCjkCount / 4);
-}
-
-function formatBrief(briefData) {
-  const savings = briefData.fullTokens > 0
-    ? Math.max(0, Math.round((1 - briefData.recommendedTokens / briefData.fullTokens) * 100))
-    : 0;
-  const queryText = shellQuoteText(briefData.question || "your question");
-  const linesOut = [
-    "Project Guardian brief",
-    "",
-    `Question: ${briefData.question || "(not provided)"}`,
-    `Mode: ${briefData.mode} budget-aware staged reading`,
-    "",
-    "Mode guide:",
-    "- auto: route by task keywords, then escalate when evidence is weak.",
-    "- quick: read only stable context and current state for low-risk routine work.",
-    "- deep: read context, state, decisions, and changelog for bugs, regressions, high-risk modules, or unclear history.",
-    "- full: read every core memory file for onboarding, handoff, release, audits, large refactors, or explicit full-context requests.",
-    "",
-    "Read first:",
-    ...briefData.required.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
-    "",
-    "Read only when relevant:",
-    ...briefData.optional.map((file) => `- ${file.file} (~${file.tokens} tokens): ${file.reason}`),
-    "",
-    "Recommended for this task:",
-    ...briefData.recommended.map((file) => `- ${file.file}`),
-    "",
-    "Suggested commands:",
-    `- guardian query ${queryText} --limit ${briefData.limit}`,
-    `- guardian brief ${queryText} --mode deep --limit ${briefData.limit}`,
-    `- guardian brief ${queryText} --mode full --limit ${briefData.limit}`,
-    "- guardian reviews due",
-    "",
-    "Estimated memory token budget:",
-    `- Recommended first pass: ~${briefData.recommendedTokens} tokens`,
-    `- Full core memory: ~${briefData.fullTokens} tokens`,
-    `- Estimated savings: ~${savings}%`,
-    "",
-    "Escalate to deep/full when:",
-    "- the task touches auth, payment, permissions, data models, CI, MCP, security, compatibility, or shared workflows;",
-    "- tests fail, behavior regresses, an error message appears, or the existing implementation is unclear;",
-    "- the user asks why something changed, what happened before, or who should take over;",
-    "- query results are weak, conflicting, or missing important source paths;",
-    "- you plan to delete, rewrite, migrate, or refactor important code.",
-    "",
-    "Rule: budget-aware reading is a starting point, not a hard restriction. Escalate before making risky changes.",
-  ];
-  return linesOut.join("\n");
-}
-
 function chunks(file, text, size, overlap, kind = "source") {
   const safeSize = Math.max(1, size || 800);
   const safeOverlap = Math.min(Math.max(0, overlap || 0), safeSize - 1);
@@ -305,11 +201,6 @@ function normalizeForSimilarity(input) {
     .toLowerCase()
     .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "")
     .slice(0, 160);
-}
-
-function shellQuoteText(text) {
-  const cleaned = String(text).replace(/'/g, "'\\''");
-  return `'${cleaned}'`;
 }
 
 function escapeRegExp(value) {

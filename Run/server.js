@@ -12,8 +12,16 @@ const {
   buildManualMemoryEntry,
   memoryFilesForConfig,
   publicMemoryAppendTemplates,
-  resolveMemoryTarget: resolveConfiguredMemoryTarget,
-} = require("../plugins/project-guardian/scripts/lib/manual-memory");
+  resolveConfiguredMemoryTarget,
+  loadConfig,
+  executeMcpTool,
+  publicMcpStatus,
+  TaskQueue,
+  getDecisionFiles,
+  getReviewItems,
+  reviewItem,
+  runReviewValidation,
+} = require("./lib/guardian-bridge");
 const {
   COMMAND_CONFIRMATION,
   COMMAND_DEFINITIONS,
@@ -27,14 +35,6 @@ const {
   readAuditLogPayload,
   summarizeAuditArgs,
 } = require("./lib/audit");
-const { loadConfig } = require("../plugins/project-guardian/scripts/lib/config");
-const { executeMcpTool, publicMcpStatus, TaskQueue } = require("../plugins/project-guardian/scripts/lib/mcp");
-const {
-  getDecisionFiles,
-  getReviewItems,
-  reviewItem,
-  runReviewValidation,
-} = require("../plugins/project-guardian/scripts/lib/reviews");
 
 const RUN_ROOT = __dirname;
 const PUBLIC_ROOT = path.join(RUN_ROOT, "public");
