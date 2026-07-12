@@ -13,7 +13,20 @@ const GENESIS_HASH = "GENESIS";
 const MAX_AUDIT_EVENTS = 200;
 const MAX_AUDIT_DETAIL = 240;
 
+// Reentrancy guard: prevents hash chain corruption if appendAuditEvent
+// is somehow called reentrantly (e.g. by a future error handler that
+// also tries to log). In Node.js single-threaded synchronous code this
+// is already atomic, but the guard adds explicit protection.
+let _writeInProgress = false;
+
 function appendAuditEvent(context, event) {
+  if (_writeInProgress) {
+    // Reentrant call — skip to avoid corrupting the hash chain
+    context._lastAuditFailed = true;
+    context._lastAuditError = "audit write already in progress (reentrant call skipped)";
+    return false;
+  }
+  _writeInProgress = true;
   try {
     fs.mkdirSync(path.join(context.projectRoot, AUDIT_DIR), { recursive: true });
     const previous = lastAuditHash(context);
@@ -32,6 +45,8 @@ function appendAuditEvent(context, event) {
       console.error(`Audit log write failed for write/security operation: ${error.message}`);
     }
     return false;
+  } finally {
+    _writeInProgress = false;
   }
 }
 
