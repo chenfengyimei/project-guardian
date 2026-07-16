@@ -25,9 +25,9 @@ function timestamp() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
-function fail(message) {
+function fail(message, exitCode = 1) {
   console.error(message);
-  process.exit(1);
+  process.exit(exitCode);
 }
 
 function parseFlags(args) {
@@ -42,9 +42,14 @@ function parseFlags(args) {
       result._.push(arg);
       continue;
     }
-    const key = arg.slice(2);
+    const equals = arg.indexOf("=");
+    const key = arg.slice(2, equals === -1 ? undefined : equals);
     if (!key) {
       result._.push(arg);
+      continue;
+    }
+    if (equals !== -1) {
+      result[key] = arg.slice(equals + 1);
       continue;
     }
     const next = args[index + 1];
@@ -125,6 +130,21 @@ function containsLikelySecret(text) {
   return false;
 }
 
+function validateMemoryWriteText(value, label, maxLength, options = {}) {
+  const text = String(value == null ? "" : value).replace(/\r\n/g, "\n").trim();
+  if (!text) {
+    if (options.required) throw new Error(`${label} is required.`);
+    return "";
+  }
+  if (maxLength && text.length > maxLength) {
+    throw new Error(`${label} must be ${maxLength} characters or fewer.`);
+  }
+  if (containsLikelySecret(text)) {
+    throw new Error(`${label} looks like it may contain a password, token, API key, private key, or other secret.`);
+  }
+  return text;
+}
+
 function redactLikelySecret(text) {
   let redacted = text.replace(SECRET_KEYWORD_RE, "$1=[redacted]");
   SECRET_KEYWORD_RE.lastIndex = 0;
@@ -159,5 +179,6 @@ module.exports = {
   relative,
   timestamp,
   unique,
+  validateMemoryWriteText,
   writeFile,
 };

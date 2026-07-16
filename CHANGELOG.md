@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0] - 2026-07-14
+
+### Added
+
+- Added a centralized CLI contract with strict option validation, command-level help, typo suggestions, `--key=value` support, and machine-readable `guardian commands --json` output.
+- Added `guardian migrate-memory --dry-run` and controlled runner entries for version, command discovery, and memory migration.
+- Added write-time secret checks for structured updates, decisions, and review completion records.
+- Added template-aware validation so `append-memory` rejects fields that would otherwise be silently ignored by the selected template.
+
+### Fixed
+
+- Unknown options, missing option values, and unexpected positional arguments now fail with usage exit code `2` instead of being silently ignored.
+- Repeated decisions with the same date and title now receive collision-safe filenames instead of overwriting earlier decision sources.
+- Memory migration now preflights destination and missing-path conflicts (including dry runs), supports decision directories and legacy config-key upgrades, adopts already-moved targets, rolls completed moves back on failure, and never overwrites an existing destination.
+- Controlled-command audit logs now redact values passed separately after sensitive option names.
+- Generated change-log code blocks and truncated handover snapshots no longer introduce trailing whitespace; snapshots use an explicit truncation marker instead of placeholder ellipses.
+
 ## [0.4.0] - 2026-07-12
 
 ### Added

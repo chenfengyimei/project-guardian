@@ -32,7 +32,9 @@ After code changes, update project memory unless the user explicitly asks not to
 - Refresh `memory/HANDOVER.md` when the user asks for handover, onboarding, project explanation, or release preparation.
 - Preserve existing human-written memory. Append, summarize, or amend the relevant section instead of deleting historical context.
 - Run or recommend `guardian verify` when memory quality matters before handover, PR, or release.
+- Use `guardian help <command>` or `guardian commands --json` before guessing CLI flags. The CLI rejects unknown commands, misspelled options, missing option values, and extra positional arguments with usage exit code `2`.
 - If validation reports encoding damage, out-of-order history, or decision-index drift, run `guardian repair-memory` first as a dry run; apply only with `guardian repair-memory --write`, review the diff, then rerun validation.
+- Before migrating legacy memory paths, run `guardian migrate-memory --dry-run`; apply only after reviewing the complete plan, then review the diff and rerun `guardian verify`. Migration must never overwrite an existing destination.
 - Prefer a structured `guardian update` call with `--summary`, `--reason`, `--verification`, `--risks`, `--sensitive-data`, and `--next-step` when those facts are known, so the latest record is complete in one operation.
 - Never write production passwords, real tokens, private keys, customer private data, or other secrets into project memory.
 

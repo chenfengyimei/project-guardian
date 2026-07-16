@@ -143,7 +143,8 @@ project_ai/
 | `memory/decisions/2026-05-15-memory.md` | 单条决策文件 | 记录本次把项目记忆集中迁移到 `memory/` 的原因 | 背景、决策、影响文件、验证方式、风险和后续动作 | 本次结构迁移决策需要回溯时查看；后续复审或调整迁移策略时修改 |
 | `memory/decisions/2026-06-08-hybrid-search-and-contributing.md` | 单条决策文件 | 记录本次先做零依赖混合检索而不直接引入向量库的原因 | 背景、决策、备选方案、影响文件、验证方式、风险和后续动作 | 查询策略、可选向量索引或贡献标准变化时复审 |
 | `memory/decisions/2026-06-04-run-command-catalog-module.md` | 单条决策文件 | 记录本次把 Run 命令目录从 HTTP server 拆成独立模块的原因 | 背景、决策、备选方案、影响文件、验证方式、风险、复审时间和后续动作 | Run 命令目录继续扩展、API 路由继续拆分或复审该架构选择时 |
-| `explaiw/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
+| `memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md` | 单条决策文件 | 记录 CLI 严格契约、写入防护和迁移安全边界 | 背景、集中式命令契约、用法退出码、安全迁移规则、兼容风险、验证、复审时间和后续动作 | 新增 CLI 命令、改变参数兼容策略、调整写入校验或迁移语义时复审 |
+| `explain/PROJECT_FILES_EXPLANATION.md` | 文件说明总览 | 把当前所有文档和非文档文件集中解释给新人看 | 目录结构、文档清单、代码配置清单、重复文件说明、维护判断标准 | 仓库新增、删除文件，或文件职责发生变化时 |
 | `Run/README.md` | 可视化运行层说明 | 让第一次使用 Run 的人知道怎么启动、能做什么、有什么安全限制 | 本地 Web UI 的启动方式、可收起侧边栏、Markdown 记忆预览、初始化、手动追加记忆、知识查询独立输出、命令搜索、写入前 diff 预览、浏览器本地操作日志、服务端本地审计日志、全量 CLI 命令目录、安全边界、目录结构和后续扩展方向 | 可视化界面启动方式、安全边界、目录结构或功能范围变化时 |
 | `plugins/project-guardian/docs/INTEGRATION.md` | 接入文档 | 目标项目需要知道怎么把插件接进去 | 新项目、已有项目、Gitee 项目、全局安装和源码内置接入步骤 | 接入流程、安装源、初始化命令、目录结构变化时 |
 | `plugins/project-guardian/docs/STANDARD.md` | 使用规范文档 | 统一团队怎么写、怎么审、怎么维护项目记忆 | 标准目录、记忆文件职责、记录质量、AI 使用规则、提交规范、配置标准 | 团队规范、目录标准、记录字段、配置项变化时 |
@@ -199,6 +200,7 @@ project_ai/
 | `plugins/project-guardian/scripts/lib/adapters.js` | AI 工具适配器模块 | 把适配器解析从主 CLI 中拆出来，降低耦合 | adapter 名称解析、校验、模板到目标路径的映射 | 新增 Cursor/Copilot 之外的 AI 工具适配器时 |
 | `plugins/project-guardian/scripts/lib/brief.js` | 读取计划模块 | 独立维护预算感知的记忆读取计划 | quick/deep/full/auto 路由、文件推荐、token 粗估和命令提示 | 调整读取预算、升级条件或 brief 输出时 |
 | `plugins/project-guardian/scripts/lib/check.js` | 质量门编排模块 | 集中 doctor、check、validate 与输出逻辑 | 配置体检、变更与记忆关联、打印报告和知识文件范围 | 调整质量门或体检输出时 |
+| `plugins/project-guardian/scripts/lib/cli-catalog.js` | CLI 命令契约模块 | 让帮助、命令发现和参数校验共用单一事实源 | 中英文命令说明、单命令帮助、JSON 命令目录、嵌套命令解析、严格选项与位置参数校验、拼写建议和用法退出码 | 新增命令、选项、别名、帮助文本或 CLI 兼容规则变化时 |
 | `plugins/project-guardian/scripts/lib/config.js` | CLI 配置模块 | 把配置加载、默认值合并和配置校验从主 CLI 中拆出来 | `project-guardian.config.json` 默认值、语言列表、加载、深度合并、init 语言参数应用、配置合法性校验 | 新增配置项、调整默认值、改变配置校验规则时 |
 | `plugins/project-guardian/scripts/lib/decisions.js` | 决策记录模块 | 生成独立决策事实源并维护总索引 | 字段收集、中英文条目、独立文件创建、slug 和最新在前插入 | 决策格式、复审字段或索引策略变化时 |
 | `plugins/project-guardian/scripts/lib/doc-validation.js` | 文档质量校验模块 | 阻止低质量或损坏记忆通过质量门 | 章节、占位符、空字段、乱码、控制字符、CJK 损坏、决策与 changelog 顺序、最新记录检查 | 文档质量、编码完整性或时间顺序规则变化时 |
@@ -210,7 +212,7 @@ project_ai/
 | `plugins/project-guardian/scripts/lib/manual-memory.js` | 手动记忆模板模块 | 让 CLI 和 Run 控制台共用同一套追加记忆模板、白名单和基础敏感词拦截 | 核心记忆文件配置、追加模板字段、模板渲染、追加记录格式、路径解析和敏感内容拦截 | 追加记忆字段、模板、写入格式或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/memory-repair.js` | 记忆修复模块 | 从事实源确定性修复可恢复的记忆结构 | changelog 稳定排序、独立决策文件解析、决策索引重建、只读预览与显式写入 | 记忆修复策略或索引格式变化时 |
 | `plugins/project-guardian/scripts/lib/messages.js` | 消息模块 | 集中管理逐步迁移的中英文 CLI 文案 | 语言选择、消息键与占位符 | CLI 文案或国际化范围变化时 |
-| `plugins/project-guardian/scripts/lib/migrate.js` | 记忆迁移模块 | 把旧路径记忆迁移到标准 memory 目录 | 文件迁移、冲突保护和配置更新 | 兼容旧版本路径时 |
+| `plugins/project-guardian/scripts/lib/migrate.js` | 记忆迁移模块 | 把旧路径记忆安全迁移到标准 memory 目录 | 完整迁移计划、`--dry-run`、核心文件与决策目录移动、目标冲突拒绝、失败回滚和成功后配置更新 | 兼容旧版本路径或调整迁移安全策略时 |
 | `plugins/project-guardian/scripts/lib/mcp.js` | MCP server 模块 | 让支持 MCP 的 AI IDE 直接调用 Guardian 能力 | stdio JSON-RPC、严格 schema、结构化 update、记忆健康/修复、工具权限和公平读写队列 | MCP 工具、并发策略或安全边界变化时 |
 | `plugins/project-guardian/scripts/lib/reviews.js` | 决策复审模块 | 把 `guardian reviews`、`reviews due` 和 `reviews complete` 从主 CLI 中拆出来 | 扫描 `memory/decisions/*.md`、解析复审时间、检测到期未完成复审、追加复审完成记录和限制复审文件路径 | 复审字段、到期判断、完成记录格式或复审命令行为变化时 |
 | `plugins/project-guardian/scripts/lib/security.js` | 安全扫描模块 | 把 `scan-secrets` 的敏感内容识别和脱敏从主 CLI 中拆出来，降低安全逻辑耦合 | 核心记忆与单独决策文件扫描、password/token/api_key/private key 关键词识别、高熵字符串识别、结果脱敏和 `.guardianignore` 支持 | 密钥识别规则、扫描范围、误报处理或脱敏格式变化时 |
@@ -224,7 +226,7 @@ project_ai/
 | `Run/public/index.html` | 可视化页面结构 | 给本地网页控制台提供实际界面 | 可收起侧边栏、状态概览、核心记忆、记忆内容预览、插件初始化、模板化手动追加记忆、brief、知识查询独立输出区、命令搜索、浏览器本地操作日志、服务端审计日志、命令操作页面、参数弹窗和写入前 diff 预览区 | 页面结构、控件或用户操作入口变化时 |
 | `Run/public/styles.css` | 可视化页面样式 | 让 Run 网页在桌面和移动端可读、可操作 | 侧边栏布局和收起动画、面板、按钮、状态、表单、Markdown 记忆预览、命令卡片、操作日志、diff 预览、参数弹窗、表格、文本框和输出区样式 | 视觉风格、响应式布局或组件样式变化时 |
 | `Run/public/app.js` | 可视化页面交互 | 把浏览器按钮和表单连接到 Run server API | 功能页切换、侧边栏收起状态、状态加载、记忆文件点击预览、轻量 Markdown 渲染、初始化提交、模板化手动追加记忆、命令目录搜索/渲染、命令参数弹窗、写入前 diff 预览、浏览器本地短操作日志、服务端审计日志完整性展示、API token 请求头、brief/query 提交、分区输出显示和错误提示 | 前端 API、交互流程或输出展示变化时 |
-| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、校验、check、hooks、CI、append-memory、decision、reviews、handover、brief、query、query limit、mcp、MCP 参数校验、scan-secrets、conflicts、CLI 拆分模块、Run diff preview、Run 服务端 hash 链审计日志、Run API token、Run 命令搜索、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
+| `tests/guardian.test.js` | 自动化测试 | 防止 CLI 行为回归 | 初始化、严格 CLI 契约与帮助、校验、check、hooks、CI、append-memory、写入前密钥阻断、decision 防覆盖、reviews、handover、brief、query、mcp、记忆安全迁移、scan-secrets、conflicts、Run 命令目录、审计脱敏、AI IDE 适配器和 package scripts 等测试 | CLI 行为变化、修 bug、新增命令或模板规则变化时 |
 | `.gitignore` | Git 忽略规则 | 避免提交临时文件、依赖、构建产物或本地运行日志 | Git 忽略路径，包括 `node_modules/`、构建目录、测试临时目录、环境变量文件、软著材料目录和 `.project-guardian/` 本地审计日志目录 | 新增构建产物、缓存目录、临时文件类型或本地日志目录时 |
 | `.guardianignore` | Project Guardian 忽略规则 | 让安全扫描或索引跳过特定路径 | Guardian 自己使用的忽略路径 | 示例密钥、测试数据或无需扫描目录需要排除时 |
 | `plugins/project-guardian/assets/icon.svg` | 插件图标资源 | 插件市场或 UI 展示需要图标 | SVG 图标 | 品牌、视觉或插件展示资源变化时 |

@@ -15,6 +15,9 @@ npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
 
 guardian --version
 guardian help
+guardian help query
+guardian commands
+guardian commands --json
 ```
 
 如果团队把插件源码直接放在项目的 `plugins/project-guardian/` 目录，也可以继续用脚本路径：
@@ -34,6 +37,8 @@ guardian update "任务说明"
 guardian update "任务说明" --summary "改了什么" --reason "为什么改" --verification "npm test" --risks "风险说明" --sensitive-data "已检查" --next-step "下一步"
 guardian repair-memory
 guardian repair-memory --write
+guardian migrate-memory --dry-run
+guardian migrate-memory
 guardian append-memory --file STATE --template state-progress --task "任务说明" --current-status "当前状态" --next-step "下一步" --verification "验证方式"
 guardian append-memory --templates
 guardian handover
@@ -55,6 +60,8 @@ guardian install-hooks
 guardian install-ci
 ```
 
+帮助文本和参数校验来自同一份 CLI 契约。命令支持 `--key value` 与 `--key=value`；未知命令、未知选项、缺少选项值和多余位置参数都会被拒绝，并以退出码 `2` 表示用法错误。可先运行 `guardian help <command>` 查单命令用法，或用 `guardian commands --json` 给脚本、Run 和 AI IDE 读取机器可发现的命令目录，不要靠猜测参数名。
+
 如果项目通过 `init` 写入了 npm scripts，也可以使用：
 
 ```bash
@@ -66,10 +73,13 @@ npm run guardian:check
 npm run guardian:validate-docs
 npm run guardian:brief -- "任务或问题"
 npm run guardian:query
+npm run guardian:commands -- --json
 npm run guardian:reviews
 npm run guardian:mcp
 npm run guardian:adapters-doctor
 npm run guardian:install-ci
+npm run guardian:migrate-memory -- --dry-run
+npm run guardian:repair-memory
 npm run ui
 ```
 
@@ -97,6 +107,9 @@ guardian-cmd git-status
 guardian-cmd git-diff-stat
 guardian-cmd npm-test
 guardian-cmd guardian-verify
+guardian-cmd guardian-version
+guardian-cmd guardian-commands --json
+guardian-cmd guardian-migrate-memory --dry-run
 guardian-cmd guardian-query "登录流程" --limit 3
 guardian-cmd guardian-update "完成登录修复"
 guardian-cmd guardian-handover
@@ -115,11 +128,11 @@ node plugins/project-guardian/cmd/guardian-cmd.js git-status
 .project-guardian/cmd-audit.jsonl
 ```
 
-日志字段包括调用时间、命令 ID、参数摘要、工作目录、命令类型、成功状态、退出码和耗时。参数会做基础脱敏，疑似密钥不会完整写入。日志写入失败时，`guardian-cmd` 会在 STDERR 输出 `Failed to write command audit log`；原本成功的命令会返回失败状态，避免出现“执行了但没有记录”的假成功。
+日志字段包括调用时间、命令 ID、参数摘要、工作目录、命令类型、成功状态、退出码和耗时。参数会做上下文感知脱敏，`--token=value` 和 `--token value` 两种写法都会隐藏敏感值，疑似密钥不会完整写入。日志写入失败时，`guardian-cmd` 会在 STDERR 输出 `Failed to write command audit log`；原本成功的命令会返回失败状态，避免出现“执行了但没有记录”的假成功。
 
 这不是任意 shell 代理。`guardian-cmd` 只运行内置白名单命令，不支持管道、命令拼接或用户自定义可执行文件。AI IDE 执行命令时应先运行 `guardian-cmd list` 查找替代项；如果确实没有对应替代命令，才临时使用原始终端命令，并评估是否需要把该命令补进 `cmd/guardian-cmd.js`。
 
-当前 Guardian 类替代命令还覆盖 `repair-memory`。使用 `guardian-cmd guardian-repair-memory` 做只读检查，传 `--write` 才会同步决策索引并修复 changelog 顺序。`guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置中启动。
+当前 Guardian 类替代命令还覆盖版本查询、机器可读命令目录、`repair-memory` 和安全路径迁移。使用 `guardian-cmd guardian-repair-memory` 做只读检查，传 `--write` 才会同步决策索引并修复 changelog 顺序；使用 `guardian-cmd guardian-migrate-memory --dry-run` 先预览旧路径迁移。`guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置中启动。
 
 ## 2. 初始化命令
 
@@ -400,7 +413,7 @@ guardian append-memory --file STATE --template state-progress --task "整理 Run
 - `--content`：不使用模板时的自由文本内容。
 - `--templates`：查看可用模板和字段名。
 
-这个命令和 Run 控制台的“追加记忆”模块使用同一套模板和敏感词拦截。重大架构或流程决策仍推荐使用 `guardian decision add`，因为它会同步创建单独决策文件并接入复审机制。
+这个命令和 Run 控制台的“追加记忆”模块使用同一套模板和敏感词拦截。CLI 还会按当前模板拒绝无效字段，避免把属于其它模板的参数静默丢弃；`--templates` 只用于查看目录，不能和写入字段混用。重大架构或流程决策仍推荐使用 `guardian decision add`，因为它会同步创建单独决策文件并接入复审机制。
 
 ## 5. 交接命令
 
@@ -472,6 +485,16 @@ node plugins/project-guardian/scripts/guardian.js validate-docs
 ```bash
 node plugins/project-guardian/scripts/guardian.js verify
 ```
+
+### 6.2 记忆路径迁移
+
+旧版本配置仍引用旧记忆文件位置时，先做只读预览：
+
+```bash
+guardian migrate-memory --dry-run
+```
+
+确认计划后再执行 `guardian migrate-memory`。迁移会同时规划核心记忆文件和独立决策目录，在写入前检查全部目标冲突；旧源和新目标同时存在时会整体拒绝，不覆盖现有内容；旧源与新目标都不存在时也会拒绝，避免把配置改到空路径；若文件已被人工移动到新目标，则只采纳新路径。移动中途失败时会回滚本轮已经移动的项目，所有文件成功后才更新配置。完成后必须审阅 Git diff，并运行 `guardian doctor` 与 `guardian verify`。
 
 ## 7.1 安全扫描命令
 

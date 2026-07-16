@@ -42,7 +42,7 @@ guardian-cmd run git-status
 {"timestamp":"2026-06-08T10:00:00.000Z","method":"git-status","args":[],"cwd":"D:\\ai\\project_ai","kind":"exec","ok":true,"exitCode":0,"durationMs":42}
 ```
 
-日志会记录调用时间、受控命令 ID、参数摘要、工作目录、命令类型、是否成功、退出码和耗时。参数会做基础脱敏，疑似 password、secret、token、api_key、private_key 和长 token 字符串不会完整写入日志。
+日志会记录调用时间、受控命令 ID、参数摘要、工作目录、命令类型、是否成功、退出码和耗时。参数会做上下文感知脱敏：无论使用 `--token=value` 还是 `--token value`，敏感选项的值都会被替换；疑似 password、secret、token、api_key、private_key 和长 token 字符串不会完整写入日志。
 
 如果审计日志无法写入，`guardian-cmd` 会在 STDERR 中提示 `Failed to write command audit log`。原本成功的命令会返回失败状态，避免 AI IDE 误以为“已执行且已记录”；原本失败的命令仍保留原始失败退出码，并额外提示日志写入失败。
 
@@ -68,9 +68,11 @@ guardian-cmd list
 - Git：`git-status`、`git-diff-stat`、`git-diff-name-only`、`git-diff-check`、`git-log`、`git-branch`、`git-stash`
 - npm：`npm-lint`、`npm-test`、`npm-verify`、`npm-audit`
 - Node：`node-check`
-- Project Guardian：`guardian-init`、`guardian-update`、`guardian-append-memory`、`guardian-decision-add`、`guardian-doctor`、`guardian-check`、`guardian-validate-docs`、`guardian-verify`、`guardian-scan-secrets`、`guardian-reviews`、`guardian-reviews-due`、`guardian-reviews-complete`、`guardian-handover`、`guardian-conflicts`、`guardian-install-adapters`、`guardian-adapters-doctor`、`guardian-install-hooks`、`guardian-install-ci`、`guardian-query`、`guardian-brief`、`guardian-repair-memory`
+- Project Guardian：`guardian-help`、`guardian-version`、`guardian-commands`、`guardian-init`、`guardian-update`、`guardian-append-memory`、`guardian-decision-add`、`guardian-doctor`、`guardian-check`、`guardian-validate-docs`、`guardian-verify`、`guardian-scan-secrets`、`guardian-reviews`、`guardian-reviews-due`、`guardian-reviews-complete`、`guardian-handover`、`guardian-conflicts`、`guardian-install-adapters`、`guardian-adapters-doctor`、`guardian-install-hooks`、`guardian-install-ci`、`guardian-query`、`guardian-brief`、`guardian-migrate-memory`、`guardian-repair-memory`
 
 `guardian-repair-memory` 默认只读报告；只有显式传入 `--write` 才会修改记忆文件。
+
+`guardian-migrate-memory` 会安全迁移旧版记忆路径；应先传 `--dry-run` 查看计划，确认后再执行写入。迁移拒绝覆盖现有目标，也不会把配置改向源和目标都不存在的空路径；移动失败时会回滚本轮已经完成的移动。
 
 `guardian mcp` 是长时间运行的 stdio 服务，建议在 AI IDE 的 MCP 配置里启动，不放进 `guardian-cmd` 的普通短命令目录。
 

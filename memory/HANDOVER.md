@@ -1,136 +1,261 @@
 # 交接指南
 
-最后生成：2026-07-12
+最后生成：2026-07-14 22:06
 
 ## 优先阅读
 
-修改代码前先运行读取计划：
-
-```bash
-guardian brief "新人接手 Project Guardian"
-guardian brief "新人接手 Project Guardian" --mode full
-```
-
-默认先阅读：
+修改代码前先阅读这些文件：
 
 1. `memory/PROJECT_CONTEXT.md`
 2. `memory/STATE.md`
-
-如果读取计划推荐，再继续阅读：
-
 3. `memory/DECISIONS.md`
 4. `memory/AI_CHANGELOG.md`
-5. `memory/HANDOVER.md`
-6. `README.md`
-7. `plugins/project-guardian/docs/CLI_AND_CI.md`
-8. `plugins/project-guardian/docs/STANDARD.md`
 
 ## 如何运行
 
-全局安装后的推荐 CLI 是 `guardian`，AI IDE 执行常见系统命令时优先使用 `guardian-cmd`。如果没有全局安装 package，则使用随项目提交路径 `node plugins/project-guardian/scripts/guardian.js <command>`；受控命令层使用 `node plugins/project-guardian/cmd/guardian-cmd.js <command-id>`。`guardian init` 在业务项目中补充 `package.json` scripts 时，会根据 CLI 是否位于项目内选择 `guardian ...` 或本地脚本路径。
-
 ```bash
-# 检查 CLI 语法
-node --check plugins/project-guardian/scripts/guardian.js
+# 安装依赖
+npm install
 
-# 查看可用命令
-guardian help
-
-# 查看 AI IDE 受控命令替代项，并自动写入 .project-guardian/cmd-audit.jsonl
+# 先发现准确命令，不要猜测选项
+guardian help query
+guardian commands --json
 guardian-cmd list
-guardian-cmd git-status
-guardian-cmd guardian-verify
 
-# 安装 AI 工具适配器并查看状态
-guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
-guardian adapters doctor
+# 生成完整读取计划
+guardian brief "接手 Project Guardian 0.5.0" --mode full
 
-# 给支持 MCP 的 AI IDE 调用
-guardian mcp
-
-# 查询项目知识并限制返回片段数量
-guardian brief "登录流程"
-guardian brief "修复登录回归" --mode deep
-guardian query "登录流程" --limit 3
-
-# 查看和完成到期决策复审
-guardian reviews
-guardian reviews due
-guardian reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
-
-# 检查或修复记忆完整性
+# 记忆修复和旧路径迁移都先预览
 guardian repair-memory
-guardian repair-memory --write
+guardian migrate-memory --dry-run
 
-# 运行完整本地质量闸门
-guardian verify
-
-# 运行测试
-npm.cmd test
+# 回归和统一质量门
+npm run test
+npm run verify
 ```
+
+## 本次发布接手重点
+
+- 当前 package 版本是 `0.5.0`；Codex 本地开发 manifest 使用 `0.5.0+codex.20260714134113` 缓存标识。
+- CLI 帮助、命令发现和参数校验统一由 `plugins/project-guardian/scripts/lib/cli-catalog.js` 驱动；新增命令时不要只改 `guardian.js`。
+- 用法错误应返回退出码 `2`，未知或冲突参数不得被静默忽略；结构化记忆写入必须先做长度和疑似敏感值检查。
+- 迁移必须先运行 `guardian migrate-memory --dry-run`；冲突或源、目标都缺失时不得写入，正式移动失败要回滚。
+- 本轮已刷新插件缓存标识并通过 manifest 校验，但当前 Codex Desktop 的 WindowsApps CLI 在此执行环境返回 `Access is denied`，所以未完成自动重装。应在可正常运行 `codex` 的终端执行 `codex plugin add project-guardian@internal-ai-plugins`，然后新建 Codex 任务复核新 skill 和命令。
 
 ## 项目地图
 
 | 区域 | 文件 | 用途 |
 | --- | --- | --- |
-| 插件元数据 | `plugins/project-guardian/.codex-plugin/plugin.json`、`.agents/plugins/marketplace.json` | 让 Codex 发现和安装本地插件 |
-| Skill | `plugins/project-guardian/skills/project-guardian/SKILL.md` | 告诉 Codex 在回答或编辑前如何使用项目记忆 |
-| 受控命令层 | `plugins/project-guardian/cmd/guardian-cmd.js`、`plugins/project-guardian/cmd/README.md` | 给 AI IDE 常见 Git、npm、Node 和 Guardian 命令提供固定替代入口，并自动写入 `.project-guardian/cmd-audit.jsonl` |
-| CLI | `plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/scripts/lib/doc-validation.js`、`plugins/project-guardian/scripts/lib/git-utils.js`、`plugins/project-guardian/scripts/lib/knowledge.js`、`plugins/project-guardian/scripts/lib/adapters.js`、`plugins/project-guardian/scripts/lib/manual-memory.js`、`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/lib/security.js`、`plugins/project-guardian/scripts/lib/decisions.js`、`plugins/project-guardian/scripts/lib/reviews.js`、`plugins/project-guardian/scripts/lib/handover.js` | 实现 init、update、handover、check、validation、brief、query、mcp、hooks、CI、decisions、reviews、conflicts、verify、安全扫描、配置加载、Git/diff/文件扫描、文档校验、query/brief 检索、手动记忆模板、AI 工具适配器解析、决策记录、复审检测和交接生成 |
-| 模板 | `plugins/project-guardian/assets/templates/*`、`plugins/project-guardian/assets/templates/zh-CN/*` | 在目标项目运行 `guardian init` 或 `guardian install-adapters` 时复制英文/中文记忆文件、AI 工具规则和 VS Code tasks |
-| 文档 | `README.md`、`plugins/project-guardian/docs/*`、`零基础超简单入门.md` | 说明接入、工作流、规范、CLI、CI 和零基础使用方式 |
-| 测试 | `package.json`、`tests/guardian.test.js` | 使用临时仓库运行语法检查和命令行为测试 |
-| 记忆 | `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md`、`memory/HANDOVER.md` | 本仓库的可持续上下文 |
+| .agents | `.agents/plugins/marketplace.json` | 修改 .agents 时需要查看。 |
+| root | `AGENTS.md` | 修改 root 时需要查看。 |
+| root | `CHANGELOG.md` | 修改 root 时需要查看。 |
+| root | `CONTRIBUTING.md` | 修改 root 时需要查看。 |
+| root | `README.md` | 修改 root 时需要查看。 |
+| Run | `Run/README.md` | 修改 Run 时需要查看。 |
+| Run | `Run/lib/audit.js` | 修改 Run 时需要查看。 |
+| Run | `Run/lib/commands.js` | 修改 Run 时需要查看。 |
+| Run | `Run/lib/guardian-bridge.js` | 修改 Run 时需要查看。 |
+| Run | `Run/public/app.js` | 修改 Run 时需要查看。 |
+| Run | `Run/public/index.html` | 修改 Run 时需要查看。 |
+| Run | `Run/public/styles.css` | 修改 Run 时需要查看。 |
+| Run | `Run/server.js` | 修改 Run 时需要查看。 |
+| explain | `explain/PROJECT_FILES_EXPLANATION.md` | 修改 explain 时需要查看。 |
+| memory | `memory/AI_CHANGELOG.md` | 修改 memory 时需要查看。 |
+| memory | `memory/DECISIONS.md` | 修改 memory 时需要查看。 |
+| memory | `memory/HANDOVER.md` | 修改 memory 时需要查看。 |
+| memory | `memory/PROJECT_CONTEXT.md` | 修改 memory 时需要查看。 |
+| memory | `memory/STATE.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-14-portable-cli-and-adapters.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-14-repository-memory-source-of-truth.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-14-use-per-decision-files.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-14-zero-service-cli.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-15-ai-ide.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-15-default-chinese-memory.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-15-memory.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-05-28-mcp.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-02-decision-review-workflow.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-02-mcp-schema-and-query-limit.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-02-mcp-tool-gating.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-02-precise-changelog-time.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-03-run-command-catalog.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-03-run-visual-layer.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-03-token-budget-briefing.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-04-cli-module-and-run-ops.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-04-manual-memory-template-sync.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-04-run-command-catalog-module.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-05-cli-run-audit.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-05-git-run.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-05-run-mcp-console.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-05-run-mcp-web-sync.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-08-ai-ide.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-06-08-hybrid-search-and-contributing.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-07-12-10.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-07-12-decision-1783815120812.md` | 修改 memory 时需要查看。 |
+| memory | `memory/decisions/2026-07-12-以独立决策文件为事实源并增加确定性记忆修复.md` | 修改 memory 时需要查看。 |
+| root | `package-lock.json` | 修改 root 时需要查看。 |
+| root | `package.json` | 修改 root 时需要查看。 |
+| root | `project-guardian.config.json` | 修改 root 时需要查看。 |
+| tests | `tests/guardian.test.js` | 修改 tests 时需要查看。 |
+| root | `零基础超简单入门.md` | 修改 root 时需要查看。 |
+| memory | `memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md` | 修改 memory 时需要查看。 |
 
-## 核心流程
+## 当前状态快照
 
-- 新项目接入：全局安装 CLI 或复制插件源码，运行 `guardian init`，按实际 IDE 运行 `guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`，补齐记忆，运行 `guardian verify`，然后提交。
-- 语言选择：中文是默认语言。英文项目应在第一次初始化时运行 `guardian init --language en`，之后保持配置稳定。
-- 日常开发：先运行 `guardian brief "任务"`，按需阅读记忆，做最小安全变更，运行项目测试，运行 `guardian update`，补齐 changelog 字段，运行 `guardian verify`。bug、回归、测试失败、高风险模块或准备重构时用 `--mode deep`；新人接手、交接、上线、审计或大范围重构时用 `--mode full`。
-- 完整记录：已知总结、原因、验证、风险、敏感信息检查和下一步时，优先用结构化 `guardian update` 一次写全，避免生成后遗留占位字段。
-- 记忆修复：`guardian repair-memory` 默认只读；只有确认报告后才使用 `--write`。独立决策文件是事实源，修复后必须审阅 diff 并重新运行 verify。
-- AI IDE 执行命令：先运行 `guardian-cmd list` 查找受控替代项，能替代的 Git、npm、Node 和 Guardian 命令优先通过 `guardian-cmd <command-id>` 执行，自动写入 `.project-guardian/cmd-audit.jsonl`。
-- 冲突处理：运行 `guardian conflicts`，解决代码和记忆冲突，保留双方有价值的历史，再重新运行 `guardian verify`。
-- 交接：运行 `guardian update`，运行 `guardian handover`，审阅生成的交接指南，运行 `guardian verify`，然后推送。
-- 决策复审：对临时方案、安全权限、质量闸门、MCP、CI 或兼容策略设置 `--review-after`；到期后运行 `guardian reviews due`，由 AI 或人工完成检查，再运行 `guardian reviews complete ...` 标记正常和无需继续复审。
-- CI 接入：运行 `guardian install-ci`，审阅生成的 `.workflow/project-guardian.yml`，并按需通过配置调整分支或 Node 版本。
-- MCP 接入：支持 MCP 的 AI IDE 使用 `guardian mcp`；没有全局 CLI 时使用 `node plugins/project-guardian/scripts/guardian.js mcp`。高风险环境先用只读和允许列表；先用 `guardian_brief` 做读取计划，查询时用 `guardian_query.limit` 控制返回片段数量。
-- Run 可视化：运行 `npm run ui` 后在命令操作页用搜索框查找 CLI 命令；写入类命令弹窗会显示固定 Git diff 预览。后端会把受控操作写入 `.project-guardian/run-audit.jsonl`，新记录带 hash 链并可在页面查看完整性；如设置 `GUARDIAN_RUN_TOKEN`，`/api/*` 还会要求本地访问口令。它仍是项目本地防篡改提示日志，不是企业集中审计系统，正式提交仍以 Git diff、`AI_CHANGELOG.md` 和 `guardian verify` 为准。
+```text
+# 项目状态
+
+最后更新：2026-07-14 22:06
+
+## 当前状态
+
+- Project Guardian 是一个本地 Codex 插件加 Node.js CLI，用于为 AI 辅助编程项目创建和维护可持续的项目记忆。
+- 当前版本升级为 `0.5.0`（Codex 本地开发 manifest 使用 `0.5.0+codex.20260714134113` 缓存标识），重点强化 CLI 精确调用、安全迁移、写入保护和可发现性。
+- 新增集中式 `cli-catalog.js`：总帮助、单命令帮助、`guardian commands --json` 和严格参数校验共享同一事实源，支持 `--key=value`，用法错误稳定返回退出码 `2`。
+- 未知命令、拼错选项、缺少值、多余位置参数、重复别名、决策标题双重来源和模板未使用字段不再被静默忽略。
+- `guardian migrate-memory --dry-run` 现在执行完整预检；正式迁移支持核心文件和决策目录、旧配置键升级、已人工移动目标采纳、冲突与空目标拒绝以及失败回滚。
+- 结构化 update、decision 和 review complete 在写文件前统一做长度与疑似敏感值检查；同日同标题决策使用排他创建和递增后缀保留全部事实源。
+- `validate-docs` 现在会发现编码损坏、非法控制字符、疑似损坏的 CJK 文本，以及未按最新在前排列的决策和 changelog。
+- 新增 `guardian repair-memory`、MCP `guardian_memory_health` 与 `guardian_memory_repair`；独立决策文件成为结构化决策和复审状态的事实源。
+- `guardian update` 已支持一次提供总结、原因、验证、风险、敏感信息检查和下一步，并把最新记录插到文件顶部。
+- query 结果现在给出起始行并优先提供不同来源；MCP 队列已保证写任务不会被后到读取饿死，abort 后队列仍可复用。
+- 配置合并会拒绝 prototype pollution 关键字；畸形配置段会回退到安全默认值并由 doctor 报告，而不是让 verify 崩溃。
+- 当前开发阶段已经把工具从模板助手强化为可复用的工作流守卫，具备配置、校验、安全扫描、统一验证、冲突提示、决策文件和测试。
+- CLI 已经提供 package `bin` 入口，团队可以安装为 `guardian`；仍然保留旧的随项目提交脚本路径，方便把插件源码放在项目内的团队使用。
+- 官方 Git 安装源已经确认为 `git+https://gitee.com/chenfengloveyuri/project-guardian.git`。
+- 工具已经包含 AI 适配层，支持通用/Codex 规则、Cursor 规则和 GitHub Copilot 指令文件。
+- 适配器解析已经拆分到 `plugins/project-guardian/scripts/lib/adapters.js`，并扩展到 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI 和 VS Code。
+- CLI 现在默认生成中文项目记忆模板，也可以通过 `guardian init --language en` 生成英文模板。
+- CLI 默认项目记忆路径已经集中到根目录 `memory/`，新项目运行 `guardian init` 会创建 `memory/PROJECT_CONTEXT.md`、`memory/STATE.md`、`memory/DECISIONS.md`、`memory/AI_CHANGELOG.md` 和 `memory/HANDOVER.md`。
+- MCP 已支持 `readOnly`、`allowedTools` 和 `PROJECT_GUARDIAN_MCP_READ_ONLY=1`，团队可以把 MCP 客户端限制为只读或指定工具集合。
+- MCP 启动和工具调用已增加强校验：配置写错会拒绝启动，工具入参多传、类型错误或 query limit 越界会被拒绝。
+- 决策复审机制已接入 CLI、verify 和 MCP：到期未完成复审会被拦截，完成复审后会在对应决策文件中标记正常和无需继续复审。
+- 新增 `guardian brief` 和 MCP `guardian_brief`，可以在 AI 打开大型记忆文件前生成预算友好的读取计划、推荐文件和粗略 token 估算。
+- AI 规则模板、Skill、VS Code tasks、README、CLI/CI、接入、规范、工作流和零基础教程已切换为"先 brief、再核心记忆、历史文件按需读取"的默认方式。
+- `guardian brief` 已新增 `--mode auto|quick|deep|full`，输出升级触发条件，解决按需读取可能误判或被误解为硬限制的问题。
+- 安全审计已修复 Run Web UI CSRF 防护、静态文件路径遍历、审计日志静默失败、MCP stdin 消息大小限制、UTF-8 截断安全、安全扫描 ReDoS 防护、guardian-cmd passthrough 参数校验、decisions.js 日期路径遍历和 config 路径安全校验。
+- `explain/` 目录已从 `explaiw/` 重命名（拼写修正）。
+- 新增 `CHANGELOG.md` 记录版本级变更。
+- `.gitignore` 已补充 `*.log`、`*.tmp`、`*.swp`、`*.bak`、`.idea/`、`.vscode/settings.json` 等模式。
+- `shared.js` 模块的 `readMaybe` 不再静默吞没非 ENOENT 错误；`unique()` 增加类型检查；`parseFlags` 支持 `--` 终止符。
+- `knowledge.js` 的 `buildBrief` 兼容旧 `config.memory` 格式；`chunks` 验证参数防止无限循环；`estimateTokens` 区分 CJK 和非 CJK 字符；`shellQuoteText` 移除 shell 元字符。
+
+## 已完成
+
+- 创建了插件结构，包括 `.codex-plugin/plugin.json`、skill 元数据、模板、CLI 脚本、根目录 README、工作流文档、规范文档、接入文档和零基础教程。
+- 实现了初始命令：`init`、`update`、`handover`、`check`、`doctor`、`validate-docs`、`query`、`install-hooks` 和 `install-ci`。
+- 已经对本仓库运行自举初始化，并填入真实记忆内容，而不是保留空模板。
+- 新增 `package.json` 和 `tests/` 下的 Node 测试套件，覆盖初始化、校验、check 失败、hooks、CI
+[snapshot truncated]
+```
+
+## 项目上下文快照
+
+```text
+# 项目上下文
+
+## 项目概览
+
+- 项目名称：Project Guardian。
+- 项目目的：为使用 AI 辅助编程的团队提供轻量级项目记忆插件，把可持续的交接上下文保存在代码仓库中。
+- 目标用户：小项目团队、实习生、项目负责人，以及需要稳定了解项目目标、当前状态、决策、变更和交接信息的 AI 编程助手。
+- 业务负责人：内部 AI 工程团队，或维护本仓库的项目团队。
+
+## 技术栈
+
+- 运行环境：Node.js 18 或更新版本。
+- 框架：无应用框架。CLI 只使用 Node.js 标准库模块。
+- 数据库：无。
+- 包管理器：目标项目不强制使用 npm，但本仓库已经通过 `guardian`、`project-guardian` 和 `guardian-cmd` 暴露 package CLI。
+- 部署位置：全局 CLI 安装、本地仓库插件目录、AI 工具适配规则、Codex 插件市场元数据、Git hooks、Gitee Go 工作流模板和可选 `Run/` 本地可视化层。
+- 默认语言：`zh-CN`。英文团队可以使用 `guardian init --language en` 初始化。
+- 环境要求：Node.js 18+；正式项目建议使用 Git；npm 只在安装 CLI、运行测试或发布包时需要；不需要数据库、后端服务、OpenAI API Key 或向量库。
+
+## 核心业务流程
+
+1. 初始化项目记忆。
+   - 入口：全局安装后使用 `guardian init`；如果插件源码随项目提交，则使用 `node plugins/project-guardian/scripts/guardian.js init`。
+   - 重要文件：`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/config.js`、`plugins/project-guardian/assets/templates/*`。
+   - 规则：创建标准记忆文件，不覆盖项目已经写好的同名记忆文件。
+   - 已知边界情况：已有项目可能已经存在部分记忆文件，因此 CLI 必须保留现有内容并提示哪些文件被跳过。`guardian init --language en` 还必须把语言配置传给 AI 适配器模板，避免英文项目收到中文规则文件。全局 CLI 初始化带 `package.json` 的业务项目时，npm scripts 必须使用可移植的 `guardian ...` 命令，不能写入本机安装路径。
+
+2. 安装 AI 工具适配规则。
+   - 入口：`guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode`、`guardian init --adapter all` 和 `guardian adapters doctor`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/adapters.js`、`AGENTS.md`、`.cursorrules`、`.cursor/rules/project-guardian.mdc`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md`、`.windsurf/rules/project-guardian.md`、`.clinerules/project-guardian.md`、`.continue/rules/project-guardian.md`、`CLAUDE.md`、`GEMINI.md`、`.vscode/tasks.json`。
+   - 规则：适配器文件告诉 Codex、Cursor、Copilot、Windsurf、Cline、Continue、Claude Code、Gemini CLI、VS Code 和通用 AI Agent 先读取并维护 Project Guardian 记忆；已有适配器文件必须保留。
+   - 已知边界情况：团队可以在 `project-guardian.config.json` 中配置默认适配器，也可以在单次命令中用 `--adapter` 覆盖。VS Code 当前通过 tasks 和 Copilot instructions 适配，不是原生 VS Code 扩展，tasks 默认要求 `guardian-cmd` 命令可用；源码内置模式可把 task 命令改成本地 `node plugins/project-guardian/cmd/guardian-cmd.js ...`。
+
+3. 通过 MCP 让 AI IDE 直接调用 Project Guardian。
+   - 入口：`guardian mcp`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/mcp.js`、`plugins/project-guardian/scripts/guardian.js`。
+   - 规则：MCP server 通过 stdio JSON-RPC 暴露 `guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due` 和 `guardian_review_complete`。
+   - 已知边界情况：MCP 支持 `mcp.readOnly`、`mcp.allowedTools` 和 `PROJECT_GUARDIAN_MCP_READ_ONLY=1` 收紧工具权限，并会在启动时校验 MCP 配置、在工具调用时校验参数 schema；但不做身份认证或逐次审批。支持 MCP 的 IDE 需要配置 `guardian mcp` 或本地脚本路径。
+
+4. 使用可选 `Run/` 本地可视化层。
+   - 入口：`npm run ui` 或 `node Run/server.js`。
+   - 重要文件：`Run/server.js`、`Run/lib/commands.js`、`Run/public/index.html`、`Run/public/styles.css`、`Run/public/app.js`、`Run/README.md`。
+   - 规则：可视化层和核心 CLI/MCP
+[snapshot truncated]
+```
+
+## 决策快照
+
+```text
+# 决策记录
+
+本文件由 `memory/decisions/` 中的独立决策文件同步生成。独立决策文件是结构化决策与复审状态的事实来源。
+
+## 有效决策
+
+### 2026-07-14 - 以集中式 CLI 契约和安全预检作为命令边界
+
+- 背景：旧 CLI 的帮助文本、解析规则和实际命令分散，未知选项与多余参数可能被静默忽略，旧记忆迁移也缺少完整预检和回滚。
+- 决策：以 cli-catalog.js 作为帮助、命令发现和用法校验的单一事实源；用法错误统一返回退出码 2；所有记忆写入先做长度与敏感值检查；迁移必须先生成完整计划、拒绝冲突和空目标、失败时回滚，并提供 dry-run。
+- 备选方案：继续在各命令内部零散校验，或引入第三方 CLI 框架；前者会继续漂移，后者增加依赖和迁移成本。
+- 影响文件/模块：plugins/project-guardian/scripts/lib/cli-catalog.js, guardian.js, shared.js, migrate.js, decisions.js, update.js, reviews.js, guardian-cmd.js, Run/lib/commands.js
+- 关联变更：Project Guardian 0.5.0 CLI 全面审计与优化
+- 验证方式：109 项自动化测试、npm audit 0 漏洞、npm pack dry-run、插件 manifest 校验和 CLI 冒烟。
+- 风险：严格校验可能暴露依赖旧版静默忽略行为的调用方；通过旧别名、旧错误文案回归测试和命令级帮助降低兼容风险。
+- 复审时间：2026-08-14
+- 后续动作：在真实 Windows 和 Linux、Run 浏览器以及至少一个 MCP AI IDE 中复核命令发现、退出码和迁移流程。
+- 决策文件：`memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md`
+
+### 2026-07-12 - 架构与耦合度分析：识别 10 个问题并制定改进优先级
+
+- 背景：项目已经过多轮模块拆分，但工具函数在 3-6 个文件中各自复制、核心记忆文件列表有 5 套不一致定义、config.js 对 adapters.js 和 mcp.js 存在循环依赖隐患、guardian.js 仍有 600 行承担路由编排和工具函数三重职责、Run 层直接 import 4 个插件内部模块且重复 spawn 和 appendLimited 实现、两套审计日志重复实现 redactLikelySecret、密钥检测有 3 套不一致正则
+- 决策：将问题按 P0-P3 优先级排序：P0 提取 lib/shared.js 统一工具函数和核心记忆文件列表；P1 继续 guardian.js 拆分和 config.js 解耦；P2 统一审计和密钥检测；P3 拆分 Run/server.js 和 knowledge.js 展示逻辑
+- 备选方案：一次性全部重构风险太高；只记录不改动无法改善现状；只修 P0 可以缓解最严重重复但不解决架构问题
+- 影响文件/模块：plugins/project-guardian/scripts/guardian.js, plugins/project-guardian/scripts/lib/config.js, plugins/project-guardian/scripts/lib/adapters.js, plugins/project-guardian/scripts/lib/security.js, plugins/project-guardian/scripts/lib/manual-memory.js, plugins/project-guardian/scripts/lib/knowledge.js, plugins/project-guardian/scripts/lib/mcp.js, Run/server.js, Run/lib/commands.js, Run/lib/audit.js, plugins/project-guardian/cmd/guardian-cmd.js
+- 关联变更：未指定。
+- 验证方式：本次为只读分析，未修改源码；后续实施时需运行 npm run lint && npm test && guardian verify && git diff --check
+- 风险：重构可能引入回归；需保持零依赖和 Windows 兼容；Run 层与插件内部耦合的改动需同步测试；security.js 的 config.memory fallback 与其他实现不一致，统一时需确保不破坏旧行为
+- 复审时间：2026-08-12
+- 后续动作：按优先级逐步实施重构，P0 先建 lib/shared.js，每步完成后运行 guardian verify 和全量测试
+- 决策文件：`memory/decisions/2026-07-12-10.md`
+
+### 2026-07-12 - 以独立决策文件为事实源并增加确定性记忆修复
+
+- 背景：决策总索引曾因错误转码和追加顺序漂移而损坏，但独立决策文件仍可恢复大部分历史。
+- 决策：将 memory/decisions/*.md 作为结构化决策与复审状态的事实源；guardian repair-memory 默认只读，只有 --write 才稳定排序 changelog 并重建决策索引；validate-docs 强制检查编码完整性和最新在前顺序。
+- 备选方案：继续只维护单一 DECISIONS.md，或自动覆盖所有记忆而不要求显式确认，或引入数据库。
+- 影响文件/模块：plugins/project-guardian/scripts/lib/memory-repair.js, plugins/project-guardi
+[snapshot truncated]
+```
+
+## 风险区域
+
+- 修改核心行为前先查看状态文件中的 `风险区域`。
+- 提交交接变更前运行 `guardian verify`。
 
 ## 常见问题
 
 | 问题 | 可能原因 | 处理方式 |
 | --- | --- | --- |
-| `validate-docs` 在 `init` 后失败 | 生成的记忆仍是模板 | 补齐真实项目上下文、状态、决策、变更日志和交接细节 |
-| 提交前 `check` 失败 | 代码有变更，但没有对应记忆更新 | 运行 `guardian update "任务摘要"`，补齐新记录，并暂存记忆文件 |
-| CI 中 hook 不执行 | Git hooks 只在本地运行 | 使用 `guardian install-ci` 生成 Gitee Go 流水线，或手动加入等价 CI 命令 |
-| Query 回答不完整 | 当前 query 是本地混合检索，但仍不是完整语义向量检索 | 先运行 `guardian brief "问题"` 判断该读哪些记忆，再使用文件名、业务关键词或同义表达提问，并查看列出的来源路径 |
-| 英文 init 生成中文 AI 规则 | 旧版语言处理没有把 init 参数传给适配器生成 | 使用当前 CLI，并运行覆盖 `guardian init --language en` 的回归测试 |
-| VS Code tasks 无法运行 | `.vscode/tasks.json` 默认调用 `guardian-cmd`，但命令没在 PATH 中 | 先运行 `guardian-cmd list` 确认可用；源码内置模式可把 task 命令改用本地 `node plugins/project-guardian/cmd/guardian-cmd.js ...` |
-| MCP 工具调用没有结果 | IDE 没有正确配置 stdio 命令或工作目录 | 先在项目根目录手动运行 `guardian mcp`，再检查 IDE 的 MCP 配置 |
-| 担心 MCP 误调用写入命令 | MCP 客户端会看到已开放的工具 | 在 `project-guardian.config.json` 设置 `mcp.readOnly: true` 或配置 `mcp.allowedTools` |
-| MCP 启动失败并提示配置错误 | `mcp.readOnly` 或 `mcp.allowedTools` 写错 | 按 `project-guardian.config.json` 默认格式修正，或先运行 `guardian doctor` |
-| MCP 查询返回太长 | 默认查询返回 6 个片段 | 先调用 `guardian_brief`，再调用 `guardian_query` 时传 `limit: 2` 或 `limit: 3` |
-| `verify` 因复审到期失败 | 决策文件到了 `复审时间`，但还没有完成标记 | 人工或 AI 检查相关代码、文档和测试后，运行 `guardian reviews complete ... --summary ... --verification ...` |
-
-## 风险区域
-
-- 修改 `guardian.js` 或 `plugins/project-guardian/scripts/lib/*.js` 会影响 CLI 命令，发布前要在临时仓库中测试命令行为。
-- 校验规则应该阻止空模板，但不能强迫团队写过量文档。
-- 安全扫描必须隐藏敏感值，并允许通过 `.guardianignore` 对无害示例做排除。
-- Gitee 工作流生成必须保持可配置，因为组织之间的分支名和流水线语法可能不同。
-- MCP 支持只读模式和工具允许列表，但不做身份认证或逐次审批；接入后仍需依赖本地仓库权限、Git 权限、代码评审和 `guardian verify`。
-- MCP 工具调用会严格校验参数；如果 AI IDE 传多余字段或错误类型，应修正工具参数，而不是绕过校验。
-- MCP 读取可并发，但排队中的写任务具有公平性，后到读取不能越过它；`guardian_memory_health` 只读，`guardian_memory_repair` 受写工具权限限制。
-- Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但本质仍是项目本地 JSONL；如果要满足企业审计，需要集中采集、登录鉴权、访问控制、HTTPS、保留策略和不可变存储。
-- 复审检测依赖标准字段名和 `YYYY-MM-DD` 日期；不要手写破坏 `Review after` / `复审时间` 和完成标记。
+| 记忆校验失败 | 必填字段仍是模板或待填写 | 补齐最新变更、当前状态和决策细节 |
 
 ## 新人第一天
 
-1. 运行 `guardian brief "新人第一天"`。
-2. 按读取计划阅读必要项目记忆和根目录 README。
-3. 运行 `guardian doctor`。
-4. 运行 `node --check plugins/project-guardian/scripts/guardian.js`。
-5. 运行 `npm.cmd test`。
-6. 从 `memory/STATE.md` 里挑一个小问题开始。
-7. 完成变更后更新项目记忆，并运行 `guardian verify`。
+1. 阅读全部项目记忆文件。
+2. 在本地跑起来项目。
+3. 运行可用测试或冒烟检查。
+4. 从 `memory/STATE.md` 里选一个小的下一步任务。
+5. 完成后更新 `memory/STATE.md` 和 `memory/AI_CHANGELOG.md`。

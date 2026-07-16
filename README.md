@@ -146,7 +146,7 @@ http://127.0.0.1:4357
 
 这个界面是可选层，不替代 CLI/MCP。它使用可收起的左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、在知识查询模块独立查看 query 输出、在命令操作模块查看 CLI 全量指令目录，也可以通过固定表单运行 `guardian init`。命令操作会按专用模块、只读检查、写入维护和终端服务分组，方便快速找到入口。命令操作里需要参数的命令会先打开弹窗，用户在弹窗里填写参数后再确认运行或取消。手动追加记忆提供预设模板，用户只填写任务、状态、验证、风险、下一步等关键字段，不需要自己组织整段 Markdown；如果模板列表暂时没有加载到专用模板，界面仍保留“自定义完整记录”入口。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`，命令操作里的写入类 CLI 输入 `RUN_COMMAND`。
 
-Run 不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，`update`、`handover`、`decision add`、`reviews complete`、`install-adapters`、`install-hooks`、`install-ci` 等写入类命令必须输入 `RUN_COMMAND`；`init`、`brief`、`query` 使用各自专用模块，`mcp` 需要在终端或 AI IDE 配置中启动。
+Run 不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，包括 `migrate-memory --dry-run` 迁移预览；`update`、`handover`、`decision add`、`reviews complete`、`migrate-memory`、`install-adapters`、`install-hooks`、`install-ci` 等写入类命令必须输入 `RUN_COMMAND`；`init`、`brief`、`query` 使用各自专用模块，`mcp` 需要在终端或 AI IDE 配置中启动。
 
 如果目标项目在 `project-guardian.config.json` 里改过记忆文件路径，Run 会按配置读取和追加；没有配置时使用默认 `memory/` 目录。
 
@@ -167,6 +167,8 @@ guardian-cmd list
 guardian-cmd git-status
 guardian-cmd npm-test
 guardian-cmd guardian-verify
+guardian-cmd guardian-commands --json
+guardian-cmd guardian-migrate-memory --dry-run
 guardian-cmd guardian-update "完成登录修复"
 guardian-cmd guardian-handover
 ```
@@ -178,7 +180,7 @@ node plugins/project-guardian/cmd/guardian-cmd.js list
 node plugins/project-guardian/cmd/guardian-cmd.js git-status
 ```
 
-日志默认写入 `.project-guardian/cmd-audit.jsonl`。这是一层固定白名单命令目录，不开放任意 shell；如果日志无法写入，`guardian-cmd` 会提示失败，原本成功的命令也会返回失败状态，避免出现“执行了但没有记录”的假成功。如果常用命令还没有替代项，应先评估是否新增受控命令，再临时使用原始终端命令。
+日志默认写入 `.project-guardian/cmd-audit.jsonl`。这是一层固定白名单命令目录，不开放任意 shell；审计摘要会同时识别 `--token=value` 和 `--token value` 这类敏感参数并隐藏后续值。如果日志无法写入，`guardian-cmd` 会提示失败，原本成功的命令也会返回失败状态，避免出现“执行了但没有记录”的假成功。如果常用命令还没有替代项，应先评估是否新增受控命令，再临时使用原始终端命令。
 `guardian mcp` 属于长时间运行的 stdio 服务，仍建议在 AI IDE 的 MCP 配置里启动，不作为 `guardian-cmd` 的普通短命令。
 
 ## 快速使用
@@ -332,6 +334,11 @@ guardian mcp
 ## 常用命令
 
 ```bash
+# 查看总帮助、单命令帮助和机器可读命令契约
+guardian help
+guardian help query
+guardian commands --json
+
 # 检查项目是否已经正确接入
 guardian doctor
 
@@ -347,6 +354,10 @@ guardian update "修复登录验证码校验失败" --summary "统一验证码�
 # 只读检查或确定性修复记忆顺序与决策索引
 guardian repair-memory
 guardian repair-memory --write
+
+# 先预览、再安全迁移旧版记忆路径；目标已存在时拒绝覆盖
+guardian migrate-memory --dry-run
+guardian migrate-memory
 
 # 按模板手动追加一条记忆，字段模板和 Run 控制台一致
 guardian append-memory --file STATE --template state-progress --task "修复登录验证码校验失败" --current-status "已定位问题" --next-step "补充测试" --verification "本地冒烟检查"
@@ -384,6 +395,8 @@ guardian mcp
 guardian install-hooks
 ```
 
+CLI 以同一份命令契约生成帮助并校验参数，支持 `--key value` 和 `--key=value`。未知命令、拼错选项、缺少选项值或多余位置参数都会被明确拒绝；用法错误返回退出码 `2`，便于脚本和 AI IDE 区分“调用方式错误”与运行失败。
+
 如果目标项目有 `package.json`，`init` 会自动补充这些 npm scripts：
 
 ```bash
@@ -392,8 +405,11 @@ npm run guardian:update -- "任务说明"
 npm run guardian:handover
 npm run guardian:check
 npm run guardian:query
+npm run guardian:commands -- --json
 npm run guardian:reviews
 npm run guardian:mcp
+npm run guardian:migrate-memory -- --dry-run
+npm run guardian:repair-memory
 ```
 
 ## 统一质量入口

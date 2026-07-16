@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
 const { isChinese, loadConfig } = require("./config");
-const { ensureInitialized, fail, parseFlags, readMaybe, timestamp, writeFile } = require("./shared");
+const { ensureInitialized, fail, parseFlags, readMaybe, timestamp, validateMemoryWriteText } = require("./shared");
 
 async function addDecision(root, args = []) {
   const config = loadConfig(root);
@@ -15,16 +15,16 @@ async function addDecision(root, args = []) {
     fail(`--date must be in YYYY-MM-DD format, got: ${date}`);
   }
   const fields = {
-    title: await requiredValue(flags.title || flags._.join(" "), "Title"),
-    context: await requiredValue(flags.context, "Context"),
-    decision: await requiredValue(flags.decision, "Decision"),
-    alternatives: await optionalValue(flags.alternatives, "Alternatives considered"),
-    files: await optionalValue(flags.files, "Affected files/modules"),
-    relatedChange: await optionalValue(flags.relatedChange || flags["related-change"], "Related change"),
-    verification: await optionalValue(flags.verification, "Verification"),
-    risks: await optionalValue(flags.risks, "Risks"),
-    reviewAfter: await optionalValue(flags.reviewAfter || flags["review-after"], "Review after"),
-    followUp: await optionalValue(flags.followUp || flags["follow-up"], "Follow-up"),
+    title: safeDecisionValue(await requiredValue(flags.title || flags._.join(" "), "Title"), "Title", 160, true),
+    context: safeDecisionValue(await requiredValue(flags.context, "Context"), "Context", 4000, true),
+    decision: safeDecisionValue(await requiredValue(flags.decision, "Decision"), "Decision", 4000, true),
+    alternatives: safeDecisionValue(await optionalValue(flags.alternatives, "Alternatives considered"), "Alternatives considered", 4000),
+    files: safeDecisionValue(await optionalValue(flags.files, "Affected files/modules"), "Affected files/modules", 2000),
+    relatedChange: safeDecisionValue(await optionalValue(flags.relatedChange || flags["related-change"], "Related change"), "Related change", 2000),
+    verification: safeDecisionValue(await optionalValue(flags.verification, "Verification"), "Verification", 4000),
+    risks: safeDecisionValue(await optionalValue(flags.risks, "Risks"), "Risks", 4000),
+    reviewAfter: safeDecisionValue(await optionalValue(flags.reviewAfter || flags["review-after"], "Review after"), "Review after", 10),
+    followUp: safeDecisionValue(await optionalValue(flags.followUp || flags["follow-up"], "Follow-up"), "Follow-up", 4000),
   };
   if (fields.reviewAfter && !/^\d{4}-\d{2}-\d{2}$/.test(fields.reviewAfter)) {
     fail(`--review-after must be in YYYY-MM-DD format, got: ${fields.reviewAfter}`);
@@ -94,12 +94,8 @@ function writeDecisionFile(root, config, date, fields, entry) {
   const slug = slugify(fields.title) || `decision-${Date.now()}`;
   const safeDate = date.replace(/[^0-9-]/g, "");
   const safeSlug = slug.replace(/[^\p{Letter}\p{Number}-]/gu, "");
-  const relative = path.join(dir, `${safeDate}-${safeSlug}.md`).replace(/\\/g, "/");
-  const fullPath = path.join(root, relative);
+  const baseName = `${safeDate}-${safeSlug}`;
   const rootResolved = path.resolve(root);
-  if (!path.resolve(fullPath).startsWith(rootResolved + path.sep) && path.resolve(fullPath) !== rootResolved) {
-    fail(`Decision file path escapes project root: ${relative}`);
-  }
   const dateLabel = isChinese(config) ? "日期" : "Date";
   const recordHeading = isChinese(config) ? "## 决策记录" : "## Decision Record";
   const content = [
@@ -111,8 +107,30 @@ function writeDecisionFile(root, config, date, fields, entry) {
     entry.trim(),
     "",
   ].join("\n");
-  writeFile(path.join(root, relative), content);
-  return relative;
+  for (let suffix = 1; suffix <= 10000; suffix += 1) {
+    const fileName = suffix === 1 ? `${baseName}.md` : `${baseName}-${suffix}.md`;
+    const relative = path.join(dir, fileName).replace(/\\/g, "/");
+    const fullPath = path.join(root, relative);
+    if (!path.resolve(fullPath).startsWith(rootResolved + path.sep) && path.resolve(fullPath) !== rootResolved) {
+      fail(`Decision file path escapes project root: ${relative}`);
+    }
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    try {
+      fs.writeFileSync(fullPath, content, { encoding: "utf8", flag: "wx" });
+      return relative;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  fail(`Could not create a unique decision file for: ${fields.title}`);
+}
+
+function safeDecisionValue(value, label, maxLength, required = false) {
+  try {
+    return validateMemoryWriteText(value, label, maxLength, { required });
+  } catch (error) {
+    fail(error.message, 2);
+  }
 }
 
 function prompt(label) {

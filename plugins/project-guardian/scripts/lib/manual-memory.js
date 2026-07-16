@@ -93,14 +93,33 @@ function defaultTemplateForMemory(name) {
 
 function buildManualMemoryContent(name, templateId, fields = {}, rawContent = "") {
   const normalized = normalizeMemoryName(name);
-  if (!templateId && rawContent) return validateManualMemoryContent(rawContent);
+  if (!templateId && rawContent) {
+    validateTemplateFieldKeys(null, fields, ["content"]);
+    return validateManualMemoryContent(rawContent);
+  }
 
   const selectedTemplateId = templateId || defaultTemplateForMemory(normalized);
   const selected = templatesForMemory(normalized).find((item) => item.id === selectedTemplateId);
   if (!selected) throw new Error(`Unknown memory append template: ${selectedTemplateId}`);
 
+  validateTemplateFieldKeys(selected, fields);
   const values = validatedTemplateFields(selected, fields);
   return renderTemplateContent(selected.id, values);
+}
+
+function validateTemplateFieldKeys(selected, fields, extraAllowed = []) {
+  if (!fields || typeof fields !== "object") return;
+  const controls = ["_", "file", "name", "target", "template", "templates"];
+  const allowed = new Set([
+    ...controls,
+    ...extraAllowed,
+    ...(selected ? selected.fields.map((fieldDef) => fieldDef.name) : []),
+  ]);
+  const unexpected = Object.keys(fields).filter((name) => !allowed.has(name));
+  if (unexpected.length > 0) {
+    const templateName = selected ? selected.id : "custom content";
+    throw new Error(`Unexpected field for ${templateName}: --${unexpected[0]}`);
+  }
 }
 
 function validatedTemplateFields(selected, fields) {

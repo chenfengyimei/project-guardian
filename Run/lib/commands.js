@@ -22,6 +22,7 @@ const INSTALL_ADAPTERS = new Set([
 const COMMAND_DEFINITIONS = [
   readCommand("help", "Help 帮助", ["help"], "查看 Guardian CLI 帮助和全部命令。"),
   readCommand("version", "Version 版本", ["--version"], "查看当前 Project Guardian 版本。"),
+  readCommand("commands", "Commands 契约", ["commands"], "查看可被脚本和 AI 工具稳定调用的 CLI 命令契约。"),
   readCommand("doctor", "Doctor 体检", ["doctor"], "检查记忆文件、AI 规则、配置和 Git 变更状态。"),
   readCommand("check", "Check 变更关联", ["check"], "检查代码变更是否带有对应项目记忆更新。"),
   readCommand("validate-docs", "Validate Docs", ["validate-docs"], "检查项目记忆文档是否仍是空模板或低质量内容。"),
@@ -31,6 +32,8 @@ const COMMAND_DEFINITIONS = [
   readCommand("reviews-due", "Reviews Due", ["reviews", "due"], "检查已到期但还未完成的决策复审。"),
   readCommand("conflicts", "Conflicts 冲突", ["conflicts"], "查看 Git 合并冲突和记忆文件冲突处理建议。"),
   readCommand("adapters-doctor", "Adapters Doctor", ["adapters", "doctor"], "检查各 AI IDE 适配器文件是否已安装。"),
+  readCommand("repair-memory-check", "Repair Memory Check", ["repair-memory"], "只读检查变更日志顺序和决策索引漂移。"),
+  readCommand("migrate-memory-preview", "Migrate Memory Preview", ["migrate-memory", "--dry-run"], "只读预览旧记忆路径迁移计划和目标冲突。"),
   linkedCommand("init", "Init 初始化", "init", "使用插件初始化页面运行 guardian init。", "guardian init --language zh-CN"),
   linkedCommand("append-memory", "Append Memory", "append", "使用追加记忆页面按模板补充核心项目记忆。", "guardian append-memory --file STATE --template state-progress"),
   linkedCommand("brief", "Brief 读取计划", "brief", "使用读取计划页面生成预算友好的记忆读取计划。", "guardian brief \"任务\" --mode auto --limit 3"),
@@ -45,6 +48,7 @@ const COMMAND_DEFINITIONS = [
     textAreaField("nextStep", "下一步，可选", "下一个开发者需要做什么"),
   ], buildUpdateArgs),
   writeCommand("repair-memory", "Repair Memory", "同步决策索引并修复变更日志顺序。", "guardian repair-memory --write", [], () => ["repair-memory", "--write"]),
+  writeCommand("migrate-memory", "Migrate Memory", "在完整预检通过后迁移旧记忆文件和决策目录，不覆盖已有目标。", "guardian migrate-memory", [], () => ["migrate-memory"]),
   writeCommand("handover", "Handover 生成交接", "根据当前记忆和项目文件重新生成交接指南。", "guardian handover", [], () => ["handover"]),
   writeCommand("decision-add", "Decision Add", "新增结构化决策记录。", "guardian decision add --title ... --context ... --decision ...", [
     textField("title", "标题", "例如：采用本地命令目录"),

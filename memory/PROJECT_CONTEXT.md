@@ -50,9 +50,9 @@
    - 已知边界情况：`brief` 使用本地文件大小估算粗略 token，不能替代语义检索；按需读取不是硬限制，bug、回归、测试失败、高风险模块、历史不清楚或准备重构时必须升级到 `deep`，新人接手、交接、上线、审计、大范围重构或完整上下文请求必须升级到 `full`。
 
 6. 通过受控命令层记录 AI IDE 命令执行。
-   - 入口：`guardian-cmd list`、`guardian-cmd git-status`、`guardian-cmd npm-test`、`guardian-cmd guardian-verify`；源码内置模式使用 `node plugins/project-guardian/cmd/guardian-cmd.js <command-id>`。
+   - 入口：`guardian-cmd list`、`guardian-cmd git-status`、`guardian-cmd npm-test`、`guardian-cmd guardian-commands --json`、`guardian-cmd guardian-verify`；源码内置模式使用 `node plugins/project-guardian/cmd/guardian-cmd.js <command-id>`。
    - 重要文件：`plugins/project-guardian/cmd/guardian-cmd.js`、`plugins/project-guardian/cmd/README.md`、`.project-guardian/cmd-audit.jsonl`。
-   - 规则：AI IDE 执行 Git、npm、Node 和 Guardian 常见命令前先查受控命令目录；能替代的命令优先走 `guardian-cmd`，由代码自动记录时间、命令 ID、参数摘要、工作目录、成功状态、退出码和耗时。
+   - 规则：AI IDE 执行 Git、npm、Node 和 Guardian 常见命令前先查受控命令目录；能替代的命令优先走 `guardian-cmd`，由代码自动记录时间、命令 ID、参数摘要、工作目录、成功状态、退出码和耗时；审计摘要会同时脱敏内联和分离写法的敏感选项值。
    - 已知边界情况：`guardian-cmd` 只开放固定白名单，不是任意 shell 代理；日志是本地 JSONL，不是企业集中审计或不可变存储；`guardian mcp` 是长时间 stdio 服务，仍在 AI IDE 的 MCP 配置里启动。
 
 7. 在提交前执行记忆质量闸门。
@@ -85,6 +85,12 @@
    - 规则：文档校验拒绝疑似编码损坏、非法控制字符和未按最新在前排列的历史；独立决策文件是结构化决策与复审状态的事实源；修复命令默认只读，只有显式 `--write` 才修改文件。
    - 已知边界情况：确定性修复只能重建已有事实源和顺序，不能凭空恢复缺失历史；写入后必须审阅 Git diff 并重新运行 `guardian verify`。
 
+12. 发现和安全调用 CLI 能力。
+   - 入口：`guardian help <command>`、`guardian commands --json`、`guardian migrate-memory --dry-run` 和 `guardian migrate-memory`。
+   - 重要文件：`plugins/project-guardian/scripts/lib/cli-catalog.js`、`plugins/project-guardian/scripts/guardian.js`、`plugins/project-guardian/scripts/lib/migrate.js`。
+   - 规则：帮助、机器可读命令目录和参数校验共享同一份 CLI 契约；未知命令、拼错选项、缺少值、多余位置参数和互斥输入必须明确失败，用法错误统一返回退出码 `2`。旧记忆路径迁移必须先完整预检，拒绝覆盖已有目标或把配置指向源和目标都不存在的路径，移动失败要回滚，成功后才更新配置。
+   - 已知边界情况：`migrate-memory --dry-run` 遇到冲突也会返回失败；源已不存在但目标已存在时视为人工已经移动，只更新配置。严格校验可能暴露依赖旧版静默忽略行为的外部脚本，调用方应先使用命令级帮助或 JSON 契约修正参数。
+
 ## 外部依赖
 
 | 依赖 | 用途 | 负责人 | 备注 |
@@ -107,6 +113,7 @@
 | MCP 工具 | 工具名、输入 schema、CLI 子命令映射、返回文本、Web/stdio 共享执行器 | 由 `scripts/lib/mcp.js` 维护，支持 MCP 的 IDE 通过 stdio 调用，也支持 Run 通过 `/api/mcp/call` 复用；多余参数、错误类型和越界 query limit 会被拒绝 |
 | Run 可视化层 | 本地 HTTP server、静态页面、侧边栏导航、Markdown 记忆预览、受控初始化、手动追加记忆、命令搜索、操作日志、写入前 diff 预览、只读命令白名单、MCP 工具调用 | 存放在 `Run/`，默认只监听 localhost，通过固定参数调用现有 CLI，并通过 MCP 共享执行器调用启用工具，不复制核心业务逻辑；记忆路径优先来自 `project-guardian.config.json` |
 | 受控命令日志 | 命令 ID、参数摘要、工作目录、执行类型、成功状态、退出码、耗时、错误摘要 | 存放在 `.project-guardian/cmd-audit.jsonl`；由 `guardian-cmd` 自动追加，默认被 `.gitignore` 忽略 |
+| CLI 命令契约 | 命令键、用法、说明、是否可能写入、选项别名、是否需要值 | 由 `scripts/lib/cli-catalog.js` 维护，同时驱动总帮助、命令级帮助、严格参数校验和 `guardian commands --json` |
 | 读取计划 | 任务问题、读取模式、推荐文件、必读文件、按需文件、粗略 token 估算、建议查询 limit、升级触发条件 | 由 `guardian brief` 和 MCP `guardian_brief` 输出，用于让 AI 在打开大型历史记忆前先做成本判断；支持 `auto`、`quick`、`deep` 和 `full` |
 | 语言配置 | `zh-CN` 或 `en` | 控制初始化模板，以及 update、handover、decision 和适配器规则的生成语言 |
 | 决策记录 | 标题、日期、背景、决策、备选方案、影响文件、验证方式、风险、复审时间、后续动作 | `memory/DECISIONS.md` 是由独立决策事实源同步生成的总索引 |
@@ -114,6 +121,7 @@
 | 复审结果 | 复审状态、完成时间、复审人、结论、验证方式、后续复审 | `guardian reviews complete` 会追加到对应决策文件；标记无需继续复审后不再触发到期失败 |
 | 查询文档 | 文件路径、起始行、片段文本、分数、匹配词 | 运行时从记忆、源码和 Git 历史构建；排序使用零依赖混合检索，并优先提供不同来源 |
 | 记忆修复计划 | changelog 顺序、决策索引漂移、独立决策文件数量、待写内容 | 默认只读；`--write` 时稳定排序 changelog，并按独立决策事实源重建索引 |
+| 记忆迁移计划 | 旧路径、新路径、文件或目录类型、冲突、缺失、已人工移动状态、配置键升级 | `--dry-run` 只预检；正式迁移拒绝覆盖和空目标，失败时回滚已移动项，最后才更新配置 |
 
 ## 如何运行
 
@@ -128,6 +136,10 @@ guardian init
 guardian-cmd list
 guardian-cmd git-status
 
+# 查看命令级帮助和机器可读 CLI 契约
+guardian help query
+guardian commands --json
+
 # 安装其它 AI 工具的适配规则
 guardian install-adapters --adapter cursor,copilot
 
@@ -137,6 +149,10 @@ guardian brief "我要修改登录流程"
 # 检查记忆完整性；确认 diff 后才显式写入修复
 guardian repair-memory
 guardian repair-memory --write
+
+# 预览并安全迁移旧记忆路径
+guardian migrate-memory --dry-run
+guardian migrate-memory
 
 # 运行完整本地质量闸门
 guardian verify
@@ -156,6 +172,8 @@ npm.cmd test
 - CLI 必须保持轻量，小仓库不需要部署服务、数据库或付费 API 也能使用。
 - 默认工作流必须兼容 Windows PowerShell 和常见 Unix shell。
 - 已有项目记忆必须保留；模板生成不覆盖人工文件，update/decision 使用最新在前插入，repair 只做可审阅的确定性重排与索引重建。
+- CLI 不得静默忽略未知选项、多余参数或模板不使用的字段；帮助与校验必须来自同一命令契约，用法错误应稳定返回退出码 `2`。
+- 路径迁移和同日同标题决策写入不得覆盖已有事实源；迁移必须先预检并支持失败回滚。
 - 安全检查必须输出文件和行号，同时隐藏疑似敏感值。
 - 文档要面向非专业开发者保持实用，不依赖没有记录下来的 AI 聊天历史。
 

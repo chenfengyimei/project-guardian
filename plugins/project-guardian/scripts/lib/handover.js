@@ -176,7 +176,8 @@ function fenced(text) {
 
 function trimForDoc(text, max) {
   if (!text) return "No content recorded.";
-  return text.length <= max ? text : `${text.slice(0, max)}\n...`;
+  const normalized = String(text).split(/\r?\n/).map((line) => line.trimEnd()).join("\n");
+  return normalized.length <= max ? normalized : `${normalized.slice(0, max).trimEnd()}\n[snapshot truncated]`;
 }
 
 module.exports = {
@@ -184,4 +185,5 @@ module.exports = {
   generateHandover,
   readDecisions,
   readPackageInfo,
+  trimForDoc,
 };

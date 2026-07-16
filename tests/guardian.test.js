@@ -509,6 +509,45 @@ test("package exposes guardian CLI bin entries", () => {
   assert.equal(pkg.scripts.ui, "node Run/server.js");
 });
 
+test("CLI contract provides command help, JSON discovery, and strict usage errors", () => {
+  const help = run(repoRoot, ["query", "--help"]);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /guardian query \[question\]/);
+  assert.doesNotMatch(help.stdout, /query loop/);
+
+  const catalog = run(repoRoot, ["commands", "--json"]);
+  assert.equal(catalog.status, 0, catalog.stderr);
+  const commands = JSON.parse(catalog.stdout);
+  assert.ok(commands.some((item) => item.command === "migrate-memory" && item.mutates));
+  assert.ok(commands.some((item) => item.command === "query" && !item.mutates));
+
+  const unknownOption = run(repoRoot, ["query", "memory", "--limt", "1"]);
+  assert.equal(unknownOption.status, 2);
+  assert.match(unknownOption.stderr, /Did you mean --limit/);
+
+  const noArgCommand = run(repoRoot, ["doctor", "unexpected"]);
+  assert.equal(noArgCommand.status, 2);
+  assert.match(noArgCommand.stderr, /Unexpected argument/);
+
+  const extraVersionArg = run(repoRoot, ["--version", "unexpected"]);
+  assert.equal(extraVersionArg.status, 2);
+
+  const duplicateDecisionTitle = run(repoRoot, ["decision", "add", "Positional title", "--title", "Flag title"]);
+  assert.equal(duplicateDecisionTitle.status, 2);
+  assert.match(duplicateDecisionTitle.stderr, /either positionally or with --title/);
+});
+
+test("CLI supports --key=value without weakening option validation", () => {
+  const result = run(repoRoot, ["brief", "CLI contract", "--mode=quick", "--limit=1"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Mode: quick/);
+  assert.match(result.stdout, /--limit 1/);
+
+  const missing = run(repoRoot, ["brief", "CLI contract", "--mode"]);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /brief --mode must be one of: auto, quick, deep, full/);
+});
+
 test("guardian-cmd runs controlled commands and writes an audit log", () => {
   const root = tempDir("guardian-cmd-log");
   try {
@@ -612,6 +651,9 @@ test("guardian-cmd exposes guardian workflow commands and logs init", () => {
     assert.match(list.stdout, /guardian-update/);
     assert.match(list.stdout, /guardian-handover/);
     assert.match(list.stdout, /guardian-install-adapters/);
+    assert.match(list.stdout, /guardian-commands/);
+    assert.match(list.stdout, /guardian-version/);
+    assert.match(list.stdout, /guardian-migrate-memory/);
 
     const result = runCmd(root, ["guardian-init", "--language", "en"]);
     assert.equal(result.status, 0);
@@ -699,6 +741,8 @@ test("Run command module builds guarded command args", () => {
   const update = runCommands.COMMANDS.get("update");
   const adapters = runCommands.COMMANDS.get("install-adapters");
   const reviewsComplete = runCommands.COMMANDS.get("reviews-complete");
+  const migratePreview = runCommands.COMMANDS.get("migrate-memory-preview");
+  const migrate = runCommands.COMMANDS.get("migrate-memory");
 
   assert.equal(runCommands.COMMAND_DEFINITIONS.length, runCommands.COMMANDS.size);
   assert.deepEqual(update.buildArgs({ summary: "同步项目记忆" }), ["update", "同步项目记忆"]);
@@ -706,6 +750,8 @@ test("Run command module builds guarded command args", () => {
   assert.throws(() => adapters.buildArgs({ adapter: "all,cursor" }), /Adapter all cannot be combined/);
   assert.throws(() => adapters.buildArgs({ adapter: "unknown-ai" }), /Adapter must be one of/);
   assert.throws(() => reviewsComplete.buildArgs({ file: "../DECISIONS.md", summary: "ok", verification: "checked" }), /relative path inside the project/);
+  assert.deepEqual(migratePreview.args, ["migrate-memory", "--dry-run"]);
+  assert.deepEqual(migrate.buildArgs({}), ["migrate-memory"]);
 
   const publicUpdate = runCommands.publicCommandDefinition(update);
   assert.equal(publicUpdate.kind, "write");
@@ -879,6 +925,9 @@ test("decision, review, and handover modules preserve CLI workflows", async () =
     assert.match(text, /# Handover Guide/);
     assert.match(text, /Decision Snapshot/);
     assert.match(text, /Module split decision/);
+    const trimmedSnapshot = handover.trimForDoc(`line with spaces   \n${"x".repeat(40)}`, 20);
+    assert.doesNotMatch(trimmedSnapshot, /[ \t]+$/m);
+    assert.match(trimmedSnapshot, /\[snapshot truncated\]$/);
   } finally {
     cleanup(root);
   }
@@ -1267,6 +1316,22 @@ test("append-memory CLI uses the same guarded templates as Run", () => {
     const templates = run(root, ["append-memory", "--templates", "--file", "STATE"]);
     assert.equal(templates.status, 0, `${templates.stdout}\n${templates.stderr}`);
     assert.match(templates.stdout, /state-progress/);
+
+    const wrongTemplateField = run(root, [
+      "append-memory",
+      "--file",
+      "STATE",
+      "--template",
+      "state-progress",
+      "--business-meaning",
+      "This field belongs to context-note.",
+    ]);
+    assert.notEqual(wrongTemplateField.status, 0);
+    assert.match(`${wrongTemplateField.stdout}\n${wrongTemplateField.stderr}`, /Unexpected field for state-progress: --business-meaning/);
+
+    const templatesWithWriteField = run(root, ["append-memory", "--templates", "--content", "ignored"]);
+    assert.equal(templatesWithWriteField.status, 2);
+    assert.match(templatesWithWriteField.stderr, /cannot be used with --templates/);
 
     const invalidDate = run(root, [
       "append-memory",
@@ -2569,6 +2634,14 @@ test("shared.js parseFlags supports -- terminator", () => {
   assert.deepEqual(result._, ["--not-a-flag", "value"]);
 });
 
+test("shared.js parseFlags supports --key=value", () => {
+  const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
+  const result = shared.parseFlags(["--mode=deep", "--limit=3", "question"]);
+  assert.equal(result.mode, "deep");
+  assert.equal(result.limit, "3");
+  assert.deepEqual(result._, ["question"]);
+});
+
 test("shared.js containsLikelySecret detects English and Chinese secrets", () => {
   const shared = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "shared.js"));
   assert.ok(shared.containsLikelySecret("password=secret123"));
@@ -2648,6 +2721,20 @@ test("Git helper preserves readable Unicode paths", () => {
     const files = gitUtils.changedFilesForUpdate(root);
     assert.ok(files.includes("memory/决策记录.md"));
     assert.ok(files.every((file) => !/\\\d{3}/.test(file)));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("guardian-cmd redacts values following sensitive option names", () => {
+  const root = tempDir("guardian-cmd-redact-split-secret");
+  try {
+    const result = runCmd(root, ["guardian-query", "memory", "--token", "hunter2"]);
+    assert.notEqual(result.status, 0);
+    const logFile = path.join(root, ".project-guardian", "cmd-audit.jsonl");
+    const entry = JSON.parse(fs.readFileSync(logFile, "utf8").trim());
+    assert.deepEqual(entry.args, ["memory", "--token", "[redacted]"]);
+    assert.doesNotMatch(fs.readFileSync(logFile, "utf8"), /hunter2/);
   } finally {
     cleanup(root);
   }
@@ -2733,10 +2820,151 @@ test("update supports complete structured records and prepends the latest entry"
     const latest = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "doc-validation.js")).latestChangelogText(changelog);
     assert.doesNotMatch(latest, /TODO|待填写/);
     assert.match(latest, /deterministic integrity checks/);
+    const updateModule = require(path.join(repoRoot, "plugins", "project-guardian", "scripts", "lib", "update.js"));
+    const rendered = updateModule.buildChangeEntry(defaultConfig(), "Formatting", "Formatting", [], [], "first\n\nsecond", {
+      summary: "Keep generated Markdown clean.",
+    });
+    assert.doesNotMatch(rendered, /[ \t]+$/m);
     const state = fs.readFileSync(path.join(root, "memory", "STATE.md"), "utf8");
     assert.match(state, /Added deterministic integrity checks/);
   } finally {
     cleanup(root);
+  }
+});
+
+test("structured memory writes reject likely secrets before changing files", () => {
+  const root = tempDir("structured-write-secret");
+  try {
+    writeValidMemory(root);
+    const changelogPath = path.join(root, "memory", "AI_CHANGELOG.md");
+    const decisionsPath = path.join(root, "memory", "DECISIONS.md");
+    const beforeChangelog = fs.readFileSync(changelogPath, "utf8");
+    const beforeDecisions = fs.readFileSync(decisionsPath, "utf8");
+
+    const updateResult = run(root, ["update", "Unsafe write", "--summary", "token=hunter2"]);
+    assert.equal(updateResult.status, 2);
+    assert.match(updateResult.stderr, /may contain a password, token/);
+    assert.equal(fs.readFileSync(changelogPath, "utf8"), beforeChangelog);
+
+    const decisionResult = run(root, [
+      "decision", "add", "--title", "Unsafe decision", "--context", "secret=hunter2", "--decision", "Do not write it",
+    ]);
+    assert.equal(decisionResult.status, 2);
+    assert.match(decisionResult.stderr, /may contain a password, token/);
+    assert.equal(fs.readFileSync(decisionsPath, "utf8"), beforeDecisions);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("decision add never overwrites a same-day decision with the same title", () => {
+  const root = tempDir("decision-collision");
+  try {
+    writeValidMemory(root);
+    const args = [
+      "decision", "add", "--date", "2026-07-14", "--title", "CLI contract", "--context", "Need strict input", "--decision", "Validate every option",
+    ];
+    const first = run(root, args);
+    const second = run(root, args);
+    assert.equal(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    assert.equal(second.status, 0, `${second.stdout}\n${second.stderr}`);
+    const directory = path.join(root, "memory", "decisions");
+    assert.ok(fs.existsSync(path.join(directory, "2026-07-14-cli-contract.md")));
+    assert.ok(fs.existsSync(path.join(directory, "2026-07-14-cli-contract-2.md")));
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("migrate-memory previews and safely moves legacy files and decision directories", () => {
+  const root = tempDir("migrate-memory-safe");
+  try {
+    const legacy = {
+      context: "PROJECT_CONTEXT.md",
+      state: "docs/STATE.md",
+      decisions: "docs/DECISIONS.md",
+      changelog: "docs/AI_CHANGELOG.md",
+      handover: "docs/HANDOVER.md",
+      decisionsDirectory: "docs/decisions",
+    };
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ memoryFiles: legacy }));
+    for (const file of Object.values(legacy).filter((value) => value.endsWith(".md"))) {
+      writeFile(path.join(root, file), `content for ${file}\n`);
+    }
+    writeFile(path.join(root, "docs", "decisions", "one.md"), "# Decision source\n");
+
+    const preview = run(root, ["migrate-memory", "--dry-run"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.match(preview.stdout, /MOVE\s+PROJECT_CONTEXT\.md -> memory\/PROJECT_CONTEXT\.md/);
+    assert.match(preview.stdout, /docs\/decisions -> memory\/decisions \(directory\)/);
+    assert.ok(fs.existsSync(path.join(root, "PROJECT_CONTEXT.md")));
+    assert.ok(!fs.existsSync(path.join(root, "memory", "PROJECT_CONTEXT.md")));
+
+    const migrated = run(root, ["migrate-memory"]);
+    assert.equal(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    assert.ok(!fs.existsSync(path.join(root, "PROJECT_CONTEXT.md")));
+    assert.ok(fs.existsSync(path.join(root, "memory", "PROJECT_CONTEXT.md")));
+    assert.ok(fs.existsSync(path.join(root, "memory", "decisions", "one.md")));
+    const config = JSON.parse(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"));
+    assert.equal(config.memoryFiles.context, "memory/PROJECT_CONTEXT.md");
+    assert.equal(config.memoryFiles.decisionsDirectory, "memory/decisions");
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("migrate-memory refuses destination collisions without partial writes", () => {
+  const root = tempDir("migrate-memory-collision");
+  try {
+    const memoryFiles = defaultConfig().memoryFiles;
+    memoryFiles.state = "STATE.md";
+    writeJson(path.join(root, "project-guardian.config.json"), defaultConfig({ memoryFiles }));
+    writeFile(path.join(root, "STATE.md"), "legacy state\n");
+    writeFile(path.join(root, "memory", "STATE.md"), "existing state\n");
+    const beforeConfig = fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8");
+
+    const preview = run(root, ["migrate-memory", "--dry-run"]);
+    assert.notEqual(preview.status, 0);
+    assert.match(`${preview.stdout}\n${preview.stderr}`, /CONFLICT/);
+    assert.equal(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"), beforeConfig);
+
+    const result = run(root, ["migrate-memory"]);
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /CONFLICT/);
+    assert.equal(fs.readFileSync(path.join(root, "STATE.md"), "utf8"), "legacy state\n");
+    assert.equal(fs.readFileSync(path.join(root, "memory", "STATE.md"), "utf8"), "existing state\n");
+    assert.equal(fs.readFileSync(path.join(root, "project-guardian.config.json"), "utf8"), beforeConfig);
+  } finally {
+    cleanup(root);
+  }
+});
+
+test("migrate-memory upgrades legacy config keys and never points at missing destinations", () => {
+  const legacyRoot = tempDir("migrate-memory-legacy-key");
+  const missingRoot = tempDir("migrate-memory-missing");
+  try {
+    const legacy = defaultConfig().memoryFiles;
+    writeJson(path.join(legacyRoot, "project-guardian.config.json"), { memory: legacy, language: "zh-CN" });
+    const preview = run(legacyRoot, ["migrate-memory", "--dry-run"]);
+    assert.equal(preview.status, 0, preview.stderr);
+    assert.match(preview.stdout, /CONFIG\s+legacy memory key -> memoryFiles/);
+    const migrated = run(legacyRoot, ["migrate-memory"]);
+    assert.equal(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    const config = JSON.parse(fs.readFileSync(path.join(legacyRoot, "project-guardian.config.json"), "utf8"));
+    assert.deepEqual(config.memoryFiles, legacy);
+    assert.equal(Object.hasOwn(config, "memory"), false);
+
+    const missingFiles = defaultConfig().memoryFiles;
+    missingFiles.state = "legacy/STATE.md";
+    writeJson(path.join(missingRoot, "project-guardian.config.json"), defaultConfig({ memoryFiles: missingFiles }));
+    const before = fs.readFileSync(path.join(missingRoot, "project-guardian.config.json"), "utf8");
+    const missing = run(missingRoot, ["migrate-memory"]);
+    assert.notEqual(missing.status, 0);
+    assert.match(`${missing.stdout}\n${missing.stderr}`, /MISSING[\s\S]*destination memory\/STATE\.md is also absent/);
+    assert.equal(fs.readFileSync(path.join(missingRoot, "project-guardian.config.json"), "utf8"), before);
+  } finally {
+    cleanup(legacyRoot);
+    cleanup(missingRoot);
   }
 });
 

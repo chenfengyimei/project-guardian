@@ -104,12 +104,15 @@ function addPackageScripts(packagePath, guardianScript) {
       "guardian:verify": `${runner} verify`,
       "guardian:brief": `${runner} brief`,
       "guardian:query": `${runner} query`,
+      "guardian:commands": `${runner} commands`,
       "guardian:conflicts": `${runner} conflicts`,
       "guardian:reviews": `${runner} reviews`,
       "guardian:adapters-doctor": `${runner} adapters doctor`,
       "guardian:install-adapters": `${runner} install-adapters`,
       "guardian:mcp": `${runner} mcp`,
       "guardian:install-ci": `${runner} install-ci`,
+      "guardian:migrate-memory": `${runner} migrate-memory`,
+      "guardian:repair-memory": `${runner} repair-memory`,
     };
     for (const [name, command] of Object.entries(scripts)) {
       pkg.scripts[name] = pkg.scripts[name] || command;

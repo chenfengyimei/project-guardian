@@ -44,6 +44,8 @@ registerExec("npm-audit", "Run npm audit --audit-level=moderate.", NPM_SPEC.exec
 registerExec("node-check", "Run node --check for a relative project file.", process.execPath, (args, cwd) => ["--check", relativeFileArg(cwd, args, "node-check")]);
 
 registerGuardian("guardian-help", "Run Project Guardian help.", ["help"]);
+registerGuardian("guardian-version", "Print the Project Guardian version.", ["--version"]);
+registerGuardianPassthrough("guardian-commands", "List the Project Guardian CLI contract, optionally as JSON.", ["commands"], { allowEmpty: true });
 registerGuardianPassthrough("guardian-init", "Run Project Guardian init with optional flags.", ["init"], { allowEmpty: true });
 registerGuardianPassthrough("guardian-update", "Run Project Guardian update with a task summary.", ["update"]);
 registerGuardianPassthrough("guardian-append-memory", "Run Project Guardian append-memory with provided flags.", ["append-memory"]);
@@ -62,6 +64,7 @@ registerGuardianPassthrough("guardian-install-adapters", "Run Project Guardian i
 registerGuardian("guardian-adapters-doctor", "Run Project Guardian adapters doctor.", ["adapters", "doctor"]);
 registerGuardian("guardian-install-hooks", "Run Project Guardian install-hooks.", ["install-hooks"]);
 registerGuardian("guardian-install-ci", "Run Project Guardian install-ci.", ["install-ci"]);
+registerGuardianPassthrough("guardian-migrate-memory", "Safely migrate legacy memory paths, optionally with --dry-run.", ["migrate-memory"], { allowEmpty: true });
 registerGuardianPassthrough("guardian-query", "Run Project Guardian query with provided question and flags.", ["query"]);
 registerGuardianPassthrough("guardian-brief", "Run Project Guardian brief with provided task/question and flags.", ["brief"]);
 registerGuardianPassthrough("guardian-repair-memory", "Check or repair memory ordering and decision-index drift.", ["repair-memory"], { allowEmpty: true });
@@ -302,7 +305,27 @@ function logPath(cwd) {
 }
 
 function sanitizeArgs(args) {
-  return args.map((arg) => sanitizeText(arg, MAX_ARG_LENGTH)).slice(0, 40);
+  const output = [];
+  let redactNext = false;
+  for (const arg of args.slice(0, 40)) {
+    const value = String(arg || "");
+    if (redactNext) {
+      output.push("[redacted]");
+      redactNext = false;
+      continue;
+    }
+    const sensitive = value.match(/^(--?)(password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key|access[_-]?key|authorization|bearer)(=(.*))?$/i);
+    if (sensitive) {
+      if (sensitive[3] !== undefined) output.push(`${sensitive[1]}${sensitive[2]}=[redacted]`);
+      else {
+        output.push(sanitizeText(value, MAX_ARG_LENGTH));
+        redactNext = true;
+      }
+      continue;
+    }
+    output.push(sanitizeText(value, MAX_ARG_LENGTH));
+  }
+  return output;
 }
 
 function sanitizeText(value, limit) {

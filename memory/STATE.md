@@ -1,11 +1,15 @@
 # 项目状态
 
-最后更新：2026-07-12 13:45
+最后更新：2026-07-14 22:06
 
 ## 当前状态
 
 - Project Guardian 是一个本地 Codex 插件加 Node.js CLI，用于为 AI 辅助编程项目创建和维护可持续的项目记忆。
-- 当前版本升级为 `0.4.0`，重点强化记忆完整性、结构化记录、配置安全、查询证据定位和 MCP 并发可靠性。
+- 当前版本升级为 `0.5.0`（Codex 本地开发 manifest 使用 `0.5.0+codex.20260714134113` 缓存标识），重点强化 CLI 精确调用、安全迁移、写入保护和可发现性。
+- 新增集中式 `cli-catalog.js`：总帮助、单命令帮助、`guardian commands --json` 和严格参数校验共享同一事实源，支持 `--key=value`，用法错误稳定返回退出码 `2`。
+- 未知命令、拼错选项、缺少值、多余位置参数、重复别名、决策标题双重来源和模板未使用字段不再被静默忽略。
+- `guardian migrate-memory --dry-run` 现在执行完整预检；正式迁移支持核心文件和决策目录、旧配置键升级、已人工移动目标采纳、冲突与空目标拒绝以及失败回滚。
+- 结构化 update、decision 和 review complete 在写文件前统一做长度与疑似敏感值检查；同日同标题决策使用排他创建和递增后缀保留全部事实源。
 - `validate-docs` 现在会发现编码损坏、非法控制字符、疑似损坏的 CJK 文本，以及未按最新在前排列的决策和 changelog。
 - 新增 `guardian repair-memory`、MCP `guardian_memory_health` 与 `guardian_memory_repair`；独立决策文件成为结构化决策和复审状态的事实源。
 - `guardian update` 已支持一次提供总结、原因、验证、风险、敏感信息检查和下一步，并把最新记录插到文件顶部。
@@ -87,7 +91,7 @@
 - 新增 6 个测试：密钥检测脱敏、大文件 chunks、brief 大文件、审计重入保护。
 - 修复 `containsLikelySecret` 的 `lastIndex` bug（带 `g` 标志的正则 `test()` 需要重置 `lastIndex`）。
 - 恢复 4 份曾被错误转码的独立决策文件，补齐 4 份早期决策事实源，并重建无损决策总索引。
-- 新增记忆修复、编码完整性、结构化 update、配置污染、MCP 公平队列、Unicode Git 路径与 query 来源定位回归测试；测试总数提升到 100 个。
+- 新增 CLI 契约、命令帮助、用法退出码、参数拼写建议、审计分离参数脱敏、写入前敏感值阻断、模板字段精确校验、决策防覆盖和安全迁移回归测试；测试总数提升到 109 个。
 
 ## 进行中
 
@@ -108,7 +112,7 @@
 | 查询仍不是完整语义向量检索 | 表达差异特别大或长文本规模很大时仍可能搜不到最佳答案 | 维护者 | 已升级为零依赖混合检索；可选向量索引和 RAG 仍规划在后续迭代 |
 | 决策索引与独立文件同时存在 | 文档输出略多 | 维护者 | 独立文件是事实源，索引可由 `guardian repair-memory --write` 确定性重建 |
 | Gitee Go 语法可能因账号模板不同而变化 | 团队可能需要调整生成的流水线细节 | 仓库负责人 | CLI 保持工作流小而可配置 |
-| 已有项目保留旧配置时仍会写旧路径 | 旧项目不会自动迁移到 `memory/` | 维护者 | 已新增 `guardian migrate-memory` 命令支持迁移 |
+| 旧项目记忆路径不会自动改动 | 自动迁移可能意外移动团队文件，因此仍需维护者显式执行 | 维护者 | 先运行 `guardian migrate-memory --dry-run`；冲突、空目标或覆盖风险会被拒绝，确认计划后再执行正式迁移 |
 | AI IDE 规则格式会变化 | 某些适配器模板未来可能失效 | 维护者 | 已新增 `adapters doctor` 帮助发现缺失文件；仍需定期复核官方规则格式 |
 | MCP 不做身份认证或逐次审批 | 支持 MCP 的 IDE 仍能调用已开放的本地 Guardian 命令 | 维护者 | 已新增 `mcp.readOnly` 和 `mcp.allowedTools` 降低误调用风险；仍需依赖仓库权限、Git 权限和代码评审 |
 | 记忆读取仍会消耗模型上下文 | 其它项目接入后，AI 读取规则、核心记忆和查询片段会增加少量 token | 维护者 | 使用 `guardian brief` / `guardian_brief` 先做读取计划，再用 `guardian_query.limit` 或 `guardian query --limit` 控制返回片段数 |
@@ -118,7 +122,8 @@
 
 ## 风险区域
 
-- `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI、决策、复审、交接和扫描。
+- `plugins/project-guardian/scripts/lib/cli-catalog.js` 是 CLI 帮助、发现和用法校验的单一事实源；新增或修改命令时必须同步契约、实现、Run/guardian-cmd 入口、文档与测试，避免再次漂移。
+- `plugins/project-guardian/scripts/guardian.js` 和 `plugins/project-guardian/scripts/lib/*.js` 共同承接 CLI 行为，修改时需要重点测试命令入口、配置、文档校验、query/brief、MCP、hooks、CI、决策、复审、迁移、交接和扫描。
 - `plugins/project-guardian/cmd/guardian-cmd.js` 只允许固定白名单命令；新增替代项时必须校验参数、禁止任意 shell、记录日志并补测试。
 - Run 审计日志有本地 hash 链和可选 `GUARDIAN_RUN_TOKEN`，但仍然不是企业集中审计或不可变存储；如果离开 localhost 或多人共享，需要单独补登录鉴权、访问控制、HTTPS、集中采集和保留策略。
 - 文档校验既要严格阻止空模板，又不能严格到让新团队难以逐步接入。
@@ -127,45 +132,35 @@
 
 ## 最新 AI 协助变更
 
-- 任务：发布 Project Guardian 0.4.0 记忆完整性与可靠性增强
-- 总结：新增确定性 repair-memory、结构化 update、记忆编码与顺序校验、可重建决策索引、查询行号与来源多样性；修复配置原型污染、畸形配置崩溃、最新记录顺序错误、MCP 写任务饥饿和 abort 后队列计数问题，并恢复历史损坏的决策事实源。
+- 任务：完成 Project Guardian 0.5.0 CLI 全面分析与优化
+- 总结：新增集中式 CLI 契约、命令级帮助和 JSON 发现，严格拒绝未知或冲突参数；强化结构化写入防护、决策防覆盖、安全记忆迁移、受控命令审计脱敏、Run 命令入口和发布文档。
 - 文件：
   - `CHANGELOG.md`
   - `README.md`
   - `Run/README.md`
   - `Run/lib/commands.js`
   - `explain/PROJECT_FILES_EXPLANATION.md`
-  - `memory/AI_CHANGELOG.md`
   - `memory/DECISIONS.md`
-  - `memory/HANDOVER.md`
   - `memory/PROJECT_CONTEXT.md`
   - `memory/STATE.md`
-  - `memory/decisions/2026-06-03-run-command-catalog.md`
-  - `memory/decisions/2026-06-03-run-visual-layer.md`
-  - `memory/decisions/2026-06-04-cli-module-and-run-ops.md`
-  - `memory/decisions/2026-06-04-run-command-catalog-module.md`
   - `package-lock.json`
   - `package.json`
   - `plugins/project-guardian/.codex-plugin/plugin.json`
   - `plugins/project-guardian/cmd/README.md`
   - `plugins/project-guardian/cmd/guardian-cmd.js`
   - `plugins/project-guardian/docs/CLI_AND_CI.md`
-  - `plugins/project-guardian/docs/STANDARD.md`
   - `plugins/project-guardian/scripts/guardian.js`
-  - `plugins/project-guardian/scripts/lib/config.js`
   - `plugins/project-guardian/scripts/lib/decisions.js`
-  - `plugins/project-guardian/scripts/lib/doc-validation.js`
-  - `plugins/project-guardian/scripts/lib/git-utils.js`
-  - `plugins/project-guardian/scripts/lib/knowledge.js`
-  - `plugins/project-guardian/scripts/lib/mcp.js`
+  - `plugins/project-guardian/scripts/lib/handover.js`
+  - `plugins/project-guardian/scripts/lib/init.js`
+  - `plugins/project-guardian/scripts/lib/manual-memory.js`
+  - `plugins/project-guardian/scripts/lib/migrate.js`
+  - `plugins/project-guardian/scripts/lib/reviews.js`
+  - `plugins/project-guardian/scripts/lib/shared.js`
   - `plugins/project-guardian/scripts/lib/update.js`
   - `plugins/project-guardian/skills/project-guardian/SKILL.md`
   - `tests/guardian.test.js`
-  - `memory/decisions/2026-05-14-portable-cli-and-adapters.md`
-  - `memory/decisions/2026-05-14-repository-memory-source-of-truth.md`
-  - `memory/decisions/2026-05-14-zero-service-cli.md`
-  - `memory/decisions/2026-05-15-default-chinese-memory.md`
-  - `memory/decisions/2026-07-12-以独立决策文件为事实源并增加确定性记忆修复.md`
-  - `plugins/project-guardian/scripts/lib/memory-repair.js`
-- 验证：npm run verify 通过（lint、100 项测试、Guardian 全质量门），npm pack --dry-run 成功，npm audit 0 漏洞，git diff --check、repair-memory 幂等检查、UTF-8 全仓扫描和 query 来源行号冒烟全部通过。
-- 后续：审阅并提交完整 diff；提交后在真实 Windows/Linux、Run 浏览器和至少一个 MCP AI IDE 中联调。
+  - `memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md`
+  - `plugins/project-guardian/scripts/lib/cli-catalog.js`
+- 验证：最终 `npm run verify` 通过（lint、109 项自动化测试、doctor、check、文档校验、决策复审和密钥扫描）；`guardian repair-memory` 报告无需修复；npm audit 为 0 漏洞；npm pack --dry-run 成功并包含 cli-catalog.js；Codex 插件 manifest 校验通过；命令帮助、JSON 契约、退出码和迁移预览冒烟通过。
+- 后续：完成 git diff、UTF-8 和发布文件最终复核后提交；提交后在真实 Windows、Linux、Run 浏览器和至少一个 MCP AI IDE 中联调，并在可执行 Codex CLI 的终端刷新插件安装。

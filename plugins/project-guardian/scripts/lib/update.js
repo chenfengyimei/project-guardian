@@ -11,23 +11,21 @@ const {
   publicMemoryAppendTemplates,
   resolveMemoryTarget: resolveManualMemoryTarget,
 } = require("./manual-memory");
-const { ensureInitialized, lines, parseFlags, readMaybe, timestamp } = require("./shared");
+const { ensureInitialized, fail, lines, parseFlags, readMaybe, timestamp, validateMemoryWriteText } = require("./shared");
 
 function update(root, args = []) {
   const config = loadConfig(root);
   ensureInitialized(root, config);
 
   const flags = parseFlags(Array.isArray(args) ? args : [String(args || "")]);
-  const task = flags._.join(" ").trim();
-  if (!task) {
-    process.stderr.write("Missing task summary. Use: guardian update \"task summary\" [--summary ... --reason ... --verification ... --risks ... --sensitive-data ... --next-step ...]\n");
-    process.exit(1);
+  let task;
+  let details;
+  try {
+    task = validateMemoryWriteText(flags._.join(" "), "Task summary", 500, { required: true });
+    details = updateDetails(flags);
+  } catch (error) {
+    fail(error.message, 2);
   }
-  if (task.length > 500) {
-    process.stderr.write("Task summary must be 500 characters or fewer.\n");
-    process.exit(1);
-  }
-  const details = updateDetails(flags);
   const title = task || "AI-assisted change";
   const changedFiles = changedFilesForUpdate(root);
   const diffStat = gitChangeSummary(root) || "No git diff stat available.";
@@ -50,6 +48,8 @@ function appendMemory(root, args = []) {
   const flags = parseFlags(args);
 
   if (flags.templates) {
+    const unexpected = Object.keys(flags).filter((name) => !["_", "templates", "file", "name", "target"].includes(name));
+    if (unexpected.length > 0) fail(`Option --${unexpected[0]} cannot be used with --templates.`, 2);
     printAppendMemoryTemplates(flags.file || flags.name || "");
     return;
   }
@@ -116,7 +116,7 @@ function buildChangeEntry(config, title, task, changedFiles, changedLines, diffS
       "  ```text",
       diffStat
         .split(/\r?\n/)
-        .map((line) => `  ${line}`)
+        .map((line) => line ? `  ${line}` : "")
         .join("\n"),
       "  ```",
       `- 验证方式：${fieldValue(details.verification, "待填写：记录命令或人工检查。")}`,
@@ -141,7 +141,7 @@ function buildChangeEntry(config, title, task, changedFiles, changedLines, diffS
     "  ```text",
     diffStat
       .split(/\r?\n/)
-      .map((line) => `  ${line}`)
+      .map((line) => line ? `  ${line}` : "")
       .join("\n"),
     "  ```",
     `- Verification: ${fieldValue(details.verification, "TODO: record commands or manual checks.")}`,
@@ -207,12 +207,12 @@ function prependChangelogEntry(file, entry) {
 
 function updateDetails(flags) {
   return {
-    summary: flags.summary,
-    reason: flags.reason || flags["business-reason"],
-    verification: flags.verification,
-    risks: flags.risks || flags.risk,
-    sensitiveData: flags.sensitiveData || flags["sensitive-data"] || flags.sensitive,
-    nextStep: flags.nextStep || flags["next-step"] || flags.followUp || flags["follow-up"],
+    summary: validateMemoryWriteText(flags.summary, "Summary", 4000),
+    reason: validateMemoryWriteText(flags.reason || flags["business-reason"], "Reason", 4000),
+    verification: validateMemoryWriteText(flags.verification, "Verification", 4000),
+    risks: validateMemoryWriteText(flags.risks || flags.risk, "Risks", 4000),
+    sensitiveData: validateMemoryWriteText(flags.sensitiveData || flags["sensitive-data"] || flags.sensitive, "Sensitive-data check", 2000),
+    nextStep: validateMemoryWriteText(flags.nextStep || flags["next-step"] || flags.followUp || flags["follow-up"], "Next step", 4000),
   };
 }
 

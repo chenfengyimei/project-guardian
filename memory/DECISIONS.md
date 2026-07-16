@@ -4,6 +4,19 @@
 
 ## 有效决策
 
+### 2026-07-14 - 以集中式 CLI 契约和安全预检作为命令边界
+
+- 背景：旧 CLI 的帮助文本、解析规则和实际命令分散，未知选项与多余参数可能被静默忽略，旧记忆迁移也缺少完整预检和回滚。
+- 决策：以 cli-catalog.js 作为帮助、命令发现和用法校验的单一事实源；用法错误统一返回退出码 2；所有记忆写入先做长度与敏感值检查；迁移必须先生成完整计划、拒绝冲突和空目标、失败时回滚，并提供 dry-run。
+- 备选方案：继续在各命令内部零散校验，或引入第三方 CLI 框架；前者会继续漂移，后者增加依赖和迁移成本。
+- 影响文件/模块：plugins/project-guardian/scripts/lib/cli-catalog.js, guardian.js, shared.js, migrate.js, decisions.js, update.js, reviews.js, guardian-cmd.js, Run/lib/commands.js
+- 关联变更：Project Guardian 0.5.0 CLI 全面审计与优化
+- 验证方式：109 项自动化测试、npm audit 0 漏洞、npm pack dry-run、插件 manifest 校验和 CLI 冒烟。
+- 风险：严格校验可能暴露依赖旧版静默忽略行为的调用方；通过旧别名、旧错误文案回归测试和命令级帮助降低兼容风险。
+- 复审时间：2026-08-14
+- 后续动作：在真实 Windows 和 Linux、Run 浏览器以及至少一个 MCP AI IDE 中复核命令发现、退出码和迁移流程。
+- 决策文件：`memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md`
+
 ### 2026-07-12 - 架构与耦合度分析：识别 10 个问题并制定改进优先级
 
 - 背景：项目已经过多轮模块拆分，但工具函数在 3-6 个文件中各自复制、核心记忆文件列表有 5 套不一致定义、config.js 对 adapters.js 和 mcp.js 存在循环依赖隐患、guardian.js 仍有 600 行承担路由编排和工具函数三重职责、Run 层直接 import 4 个插件内部模块且重复 spawn 和 appendLimited 实现、两套审计日志重复实现 redactLikelySecret、密钥检测有 3 套不一致正则

@@ -4,6 +4,201 @@
 
 ## 2026 记录
 
+### 2026-07-14 22:06 - 完成 Project Guardian 0.5.0 CLI 全面分析与优化
+
+- 用户需求：完成 Project Guardian 0.5.0 CLI 全面分析与优化
+- AI 总结：新增集中式 CLI 契约、命令级帮助和 JSON 发现，严格拒绝未知或冲突参数；强化结构化写入防护、决策防覆盖、安全记忆迁移、受控命令审计脱敏、Run 命令入口和发布文档。
+- 变更文件：
+  - `CHANGELOG.md`
+  - `README.md`
+  - `Run/README.md`
+  - `Run/lib/commands.js`
+  - `explain/PROJECT_FILES_EXPLANATION.md`
+  - `memory/DECISIONS.md`
+  - `memory/PROJECT_CONTEXT.md`
+  - `memory/STATE.md`
+  - `package-lock.json`
+  - `package.json`
+  - `plugins/project-guardian/.codex-plugin/plugin.json`
+  - `plugins/project-guardian/cmd/README.md`
+  - `plugins/project-guardian/cmd/guardian-cmd.js`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md`
+  - `plugins/project-guardian/scripts/guardian.js`
+  - `plugins/project-guardian/scripts/lib/decisions.js`
+  - `plugins/project-guardian/scripts/lib/handover.js`
+  - `plugins/project-guardian/scripts/lib/init.js`
+  - `plugins/project-guardian/scripts/lib/manual-memory.js`
+  - `plugins/project-guardian/scripts/lib/migrate.js`
+  - `plugins/project-guardian/scripts/lib/reviews.js`
+  - `plugins/project-guardian/scripts/lib/shared.js`
+  - `plugins/project-guardian/scripts/lib/update.js`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md`
+  - `tests/guardian.test.js`
+  - `memory/decisions/2026-07-14-以集中式-cli-契约和安全预检作为命令边界.md`
+  - `plugins/project-guardian/scripts/lib/cli-catalog.js`
+- 变更行：
+  - `CHANGELOG.md:3-18`
+  - `README.md:149`
+  - `README.md:170-171`
+  - `README.md:183`
+  - `README.md:337-341`
+  - `README.md:358-361`
+  - `README.md:398-399`
+  - `README.md:408`
+  - `README.md:411-412`
+  - `Run/README.md:18`
+  - `Run/README.md:30`
+  - `Run/README.md:154`
+  - `Run/lib/commands.js:25`
+  - `Run/lib/commands.js:35-36`
+  - `Run/lib/commands.js:51`
+  - `explain/PROJECT_FILES_EXPLANATION.md:146-147`
+  - `explain/PROJECT_FILES_EXPLANATION.md:203`
+  - `explain/PROJECT_FILES_EXPLANATION.md:215`
+  - `explain/PROJECT_FILES_EXPLANATION.md:229`
+  - `memory/DECISIONS.md:7-19`
+  - `memory/PROJECT_CONTEXT.md:53`
+  - `memory/PROJECT_CONTEXT.md:55`
+  - `memory/PROJECT_CONTEXT.md:88-93`
+  - `memory/PROJECT_CONTEXT.md:116`
+  - `memory/PROJECT_CONTEXT.md:124`
+  - `memory/PROJECT_CONTEXT.md:139-142`
+  - `memory/PROJECT_CONTEXT.md:153-156`
+  - `memory/PROJECT_CONTEXT.md:175-176`
+  - `memory/STATE.md:8-12`
+  - `memory/STATE.md:94`
+  - `memory/STATE.md:115`
+  - `memory/STATE.md:125-126`
+  - `package-lock.json:3`
+  - `package-lock.json:9`
+  - `package.json:3`
+  - `package.json:39`
+  - `package.json:54`
+  - `package.json:60-62`
+  - `plugins/project-guardian/.codex-plugin/plugin.json:3`
+  - `plugins/project-guardian/.codex-plugin/plugin.json:37-40`
+  - `plugins/project-guardian/cmd/README.md:45`
+  - `plugins/project-guardian/cmd/README.md:71`
+  - `plugins/project-guardian/cmd/README.md:75-76`
+  - `plugins/project-guardian/cmd/guardian-cmd.js:47-48`
+  - `plugins/project-guardian/cmd/guardian-cmd.js:67`
+  - `plugins/project-guardian/cmd/guardian-cmd.js:308-328`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:18-20`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:40-41`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:63-64`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:76`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:81-82`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:110-112`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:131`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:135`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:416`
+  - `plugins/project-guardian/docs/CLI_AND_CI.md:489-498`
+  - `plugins/project-guardian/scripts/guardian.js:7`
+  - `plugins/project-guardian/scripts/guardian.js:14-15`
+  - `plugins/project-guardian/scripts/guardian.js:17`
+  - `plugins/project-guardian/scripts/guardian.js:23-31`
+  - `plugins/project-guardian/scripts/guardian.js:38`
+  - `plugins/project-guardian/scripts/guardian.js:40-55`
+  - `plugins/project-guardian/scripts/guardian.js:100`
+  - `plugins/project-guardian/scripts/guardian.js:102`
+  - `plugins/project-guardian/scripts/guardian.js:103`
+  - `plugins/project-guardian/scripts/guardian.js:106-115`
+  - `plugins/project-guardian/scripts/guardian.js:122-123`
+  - `plugins/project-guardian/scripts/guardian.js:135`
+  - `plugins/project-guardian/scripts/guardian.js:140-143`
+  - `plugins/project-guardian/scripts/guardian.js:145`
+  - `plugins/project-guardian/scripts/guardian.js:146`
+  - `plugins/project-guardian/scripts/guardian.js:150`
+  - `plugins/project-guardian/scripts/guardian.js:340-343`
+  - `plugins/project-guardian/scripts/lib/decisions.js:7`
+  - `plugins/project-guardian/scripts/lib/decisions.js:18-27`
+  - `plugins/project-guardian/scripts/lib/decisions.js:97`
+  - `plugins/project-guardian/scripts/lib/decisions.js:98`
+  - `plugins/project-guardian/scripts/lib/decisions.js:110-133`
+  - `plugins/project-guardian/scripts/lib/init.js:107`
+  - `plugins/project-guardian/scripts/lib/init.js:114-115`
+  - `plugins/project-guardian/scripts/lib/manual-memory.js:96-99`
+  - `plugins/project-guardian/scripts/lib/manual-memory.js:105`
+  - `plugins/project-guardian/scripts/lib/manual-memory.js:110-124`
+  - `plugins/project-guardian/scripts/lib/migrate.js:5-6`
+  - `plugins/project-guardian/scripts/lib/migrate.js:8-12`
+  - `plugins/project-guardian/scripts/lib/migrate.js:14-19`
+  - `plugins/project-guardian/scripts/lib/migrate.js:22-29`
+  - `plugins/project-guardian/scripts/lib/migrate.js:31-62`
+  - `plugins/project-guardian/scripts/lib/migrate.js:65-74`
+  - `plugins/project-guardian/scripts/lib/migrate.js:76`
+  - `plugins/project-guardian/scripts/lib/migrate.js:78-80`
+  - `plugins/project-guardian/scripts/lib/migrate.js:82-89`
+  - `plugins/project-guardian/scripts/lib/migrate.js:93-100`
+  - `plugins/project-guardian/scripts/lib/migrate.js:102`
+  - `plugins/project-guardian/scripts/lib/migrate.js:104-123`
+  - `plugins/project-guardian/scripts/lib/migrate.js:126-129`
+  - `plugins/project-guardian/scripts/lib/migrate.js:131-143`
+  - `plugins/project-guardian/scripts/lib/migrate.js:145-147`
+  - `plugins/project-guardian/scripts/lib/migrate.js:149-159`
+  - `plugins/project-guardian/scripts/lib/migrate.js:162`
+  - `plugins/project-guardian/scripts/lib/reviews.js:6`
+  - `plugins/project-guardian/scripts/lib/reviews.js:129-131`
+  - `plugins/project-guardian/scripts/lib/reviews.js:156-163`
+  - `plugins/project-guardian/scripts/lib/shared.js:28`
+  - `plugins/project-guardian/scripts/lib/shared.js:30`
+  - `plugins/project-guardian/scripts/lib/shared.js:45-46`
+  - `plugins/project-guardian/scripts/lib/shared.js:51-54`
+  - `plugins/project-guardian/scripts/lib/shared.js:133-147`
+  - `plugins/project-guardian/scripts/lib/shared.js:182`
+  - `plugins/project-guardian/scripts/lib/update.js:14`
+  - `plugins/project-guardian/scripts/lib/update.js:21-27`
+  - `plugins/project-guardian/scripts/lib/update.js:28`
+  - `plugins/project-guardian/scripts/lib/update.js:51-52`
+  - `plugins/project-guardian/scripts/lib/update.js:210-215`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md:35`
+  - `plugins/project-guardian/skills/project-guardian/SKILL.md:37`
+  - `tests/guardian.test.js:512-550`
+  - `tests/guardian.test.js:654-656`
+  - `tests/guardian.test.js:744-745`
+  - `tests/guardian.test.js:753-754`
+  - `tests/guardian.test.js:1317-1332`
+  - `tests/guardian.test.js:2634-2641`
+  - `tests/guardian.test.js:2726-2739`
+  - `tests/guardian.test.js:2827-2962`
+- 业务原因：消除旧 CLI 静默忽略参数、帮助与实现漂移、迁移覆盖或部分失败、同名决策覆盖和写入敏感值等高风险行为，让人、脚本和 AI IDE 都能精确调用。
+- 技术说明：
+  ```text
+  Staged changes:
+  No staged changes.
+
+  Unstaged changes:
+  CHANGELOG.md                                       |  16 ++
+   README.md                                          |  20 +-
+   Run/README.md                                      |   6 +-
+   Run/lib/commands.js                                |   4 +
+   explain/PROJECT_FILES_EXPLANATION.md               |   8 +-
+   memory/DECISIONS.md                                |  13 ++
+   memory/PROJECT_CONTEXT.md                          |  22 ++-
+   memory/STATE.md                                    |  13 +-
+   package-lock.json                                  |   4 +-
+   package.json                                       |   9 +-
+   plugins/project-guardian/.codex-plugin/plugin.json |  10 +-
+   plugins/project-guardian/cmd/README.md             |   6 +-
+   plugins/project-guardian/cmd/guardian-cmd.js       |  25 ++-
+   plugins/project-guardian/docs/CLI_AND_CI.md        |  29 ++-
+   plugins/project-guardian/scripts/guardian.js       | 150 +++++---------
+   plugins/project-guardian/scripts/lib/decisions.js  |  54 +++--
+   plugins/project-guardian/scripts/lib/init.js       |   3 +
+   .../project-guardian/scripts/lib/manual-memory.js  |  21 +-
+   plugins/project-guardian/scripts/lib/migrate.js    | 184 ++++++++++++-----
+   plugins/project-guardian/scripts/lib/reviews.js    |  16 +-
+   plugins/project-guardian/scripts/lib/shared.js     |  27 ++-
+   plugins/project-guardian/scripts/lib/update.js     |  32 +--
+   .../skills/project-guardian/SKILL.md               |   2 +
+   tests/guardian.test.js                             | 220 +++++++++++++++++++++
+   24 files changed, 677 insertions(+), 217 deletions(-)
+  ```
+- 验证方式：最终 `npm run verify` 通过（lint、109 项自动化测试、doctor、check、文档校验、决策复审和密钥扫描）；`guardian repair-memory` 报告无需修复；npm audit 为 0 漏洞；npm pack --dry-run 成功并包含 cli-catalog.js；Codex 插件 manifest 校验通过；命令帮助、JSON 契约、退出码和迁移预览冒烟通过。
+- 风险：严格用法校验可能让依赖旧版静默忽略行为的外部脚本暴露错误；本地 Codex CLI 因 WindowsApps 执行权限被拒绝，缓存标识已刷新但本轮无法自动重装，需在可执行 Codex CLI 的终端重装并新建任务复核。
+- 敏感信息检查：已检查变更和审计输出，未写入真实凭据或客户隐私。
+- 下一步：完成 git diff、UTF-8 和发布文件最终复核后提交；提交后在真实 Windows、Linux、Run 浏览器和至少一个 MCP AI IDE 中联调，并在可执行 Codex CLI 的终端刷新插件安装。
+
 ### 2026-07-12 13:45 - 发布 Project Guardian 0.4.0 记忆完整性与可靠性增强
 
 - 用户需求：发布 Project Guardian 0.4.0 记忆完整性与可靠性增强

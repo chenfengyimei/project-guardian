@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { isChinese, loadConfig } = require("./config");
-const { ensureInitialized, fail, parseFlags, readMaybe, timestamp } = require("./shared");
+const { ensureInitialized, fail, parseFlags, readMaybe, timestamp, validateMemoryWriteText } = require("./shared");
 
 function reviews(root, args = []) {
   const config = loadConfig(root);
@@ -126,9 +126,9 @@ function resolveReviewFile(root, config, target) {
 }
 
 function buildReviewCompletion(config, flags) {
-  const reviewer = flags.reviewer || flags.by || (isChinese(config) ? "AI 或人工复审者" : "AI or human reviewer");
-  const summary = flags.summary || flags.result || (isChinese(config) ? "复审通过，当前决策仍然有效。" : "Review passed; the decision remains valid.");
-  const verification = flags.verification || (isChinese(config) ? "复审时已检查相关代码、文档或测试结果。" : "Relevant code, docs, or test results were checked during review.");
+  const reviewer = safeReviewValue(flags.reviewer || flags.by || (isChinese(config) ? "AI 或人工复审者" : "AI or human reviewer"), "Reviewer", 160);
+  const summary = safeReviewValue(flags.summary || flags.result || (isChinese(config) ? "复审通过，当前决策仍然有效。" : "Review passed; the decision remains valid."), "Review summary", 4000);
+  const verification = safeReviewValue(flags.verification || (isChinese(config) ? "复审时已检查相关代码、文档或测试结果。" : "Relevant code, docs, or test results were checked during review."), "Review verification", 4000);
   if (isChinese(config)) {
     return [
       "## 复审结果",
@@ -151,6 +151,14 @@ function buildReviewCompletion(config, flags) {
     `- Verification: ${verification}`,
     "- Further review: no further review needed",
   ].join("\n");
+}
+
+function safeReviewValue(value, label, maxLength) {
+  try {
+    return validateMemoryWriteText(value, label, maxLength, { required: true });
+  } catch (error) {
+    fail(error.message, 2);
+  }
 }
 
 function normalizePath(file) {
