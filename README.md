@@ -119,14 +119,14 @@ Run/
 
 你是一个没有编程基础的小白？也没问题！
 
-1.[小白零基础傻瓜式使用教程](零基础超简单入门.md)
+1.[小白零基础傻瓜式使用教程](https://github.com/chenfengyimei/project-guardian/blob/master/零基础超简单入门.md)
 
 第一次使用请按顺序阅读：
 
-1. [接入文档](plugins/project-guardian/docs/INTEGRATION.md)
-2. [工作流文档](plugins/project-guardian/docs/WORKFLOW.md)
-3. [规范文档](plugins/project-guardian/docs/STANDARD.md)
-4. [CI 与命令行操作文档](plugins/project-guardian/docs/CLI_AND_CI.md)
+1. [接入文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/INTEGRATION.md)
+2. [工作流文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/WORKFLOW.md)
+3. [规范文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/STANDARD.md)
+4. [CI 与命令行操作文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/CLI_AND_CI.md)
 
 ## 一句话工作循环
 

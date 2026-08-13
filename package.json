@@ -1,8 +1,9 @@
 {
   "name": "project-guardian",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": false,
   "license": "MIT",
+  "author": "Project Guardian Maintainers",
   "description": "Lightweight project memory guard for AI-assisted coding handover and onboarding.",
   "homepage": "https://github.com/chenfengyimei/project-guardian",
   "repository": {
