@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-08-13
+
+### Changed
+
+- Rewrote README to follow a structured layout: centered title with badges, "what is this", "why it's different", feature maturity matrix, tech stack, project structure, quick start, CLI reference, MCP tools, AI IDE support matrix, test coverage, documentation navigation, project status, and license footer.
+- All README documentation links converted to absolute GitHub URLs to prevent 404s on the npm registry page.
+
+## [0.5.1] - 2026-08-13
+
+### Added
+
+- Added `author` field to `package.json`.
+
+### Changed
+
+- Changed license from Apache-2.0 to MIT across `package.json`, `package-lock.json`, and `.codex-plugin/plugin.json`.
+- Updated repository URLs in `package.json` and `plugin.json` to point to GitHub.
+- Converted README relative links to absolute GitHub URLs to fix 404s on the npm registry page.
+
 ## [0.5.0] - 2026-07-14
 
 ### Added
