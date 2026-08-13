@@ -17,6 +17,27 @@ project-guardian/
     guardian.js
     lib/
       adapters.js
+      brief.js
+      check.js
+      cli-catalog.js
+      config.js
+      decisions.js
+      doc-validation.js
+      git-utils.js
+      handover.js
+      hooks-ci.js
+      init.js
+      knowledge.js
+      manual-memory.js
+      mcp.js
+      memory-repair.js
+      messages.js
+      migrate.js
+      reviews.js
+      security.js
+      shared.js
+      update.js
+      validators.js
   assets/
     icon.svg
     templates/

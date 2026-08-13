@@ -20,8 +20,29 @@ project-guardian/
   .codex-plugin/plugin.json
   skills/project-guardian/SKILL.md
   scripts/guardian.js
-  scripts/lib/adapters.js
-  scripts/lib/mcp.js
+  scripts/lib/
+    adapters.js
+    brief.js
+    check.js
+    cli-catalog.js
+    config.js
+    decisions.js
+    doc-validation.js
+    git-utils.js
+    handover.js
+    hooks-ci.js
+    init.js
+    knowledge.js
+    manual-memory.js
+    mcp.js
+    memory-repair.js
+    messages.js
+    migrate.js
+    reviews.js
+    security.js
+    shared.js
+    update.js
+    validators.js
   cmd/
     README.md
     guardian-cmd.js
@@ -34,6 +55,7 @@ project-guardian/
     HANDOVER.md
     AGENTS.md
     cursor-rules.mdc
+    cursorrules
     copilot-instructions.md
     copilot-project-guardian.instructions.md
     windsurf-rule.md
@@ -42,6 +64,7 @@ project-guardian/
     CLAUDE.md
     GEMINI.md
     vscode-tasks.json
+    gitee-go-project-guardian.yml
     zh-CN/
       PROJECT_CONTEXT.md
       STATE.md
@@ -49,6 +72,10 @@ project-guardian/
       AI_CHANGELOG.md
       HANDOVER.md
       AGENTS.md
+      cursor-rules.mdc
+      cursorrules
+      copilot-instructions.md
+      copilot-project-guardian.instructions.md
       windsurf-rule.md
       cline-rule.md
       continue-rule.md
@@ -62,6 +89,10 @@ project-guardian/
 Run/
   README.md
   server.js
+  lib/
+    audit.js
+    commands.js
+    guardian-bridge.js
   public/
     index.html
     styles.css
@@ -70,15 +101,19 @@ Run/
 
 - `SKILL.md`：Codex 使用本插件时遵守的项目记忆规则。
 - `guardian.js`：本地 CLI，负责初始化、更新、交接、检查和查询。
+- `scripts/lib/`：按职责拆分的 CLI 模块，包括配置、初始化、更新、校验、知识检索、MCP、安全扫描、适配器、决策、复审、交接、记忆修复、记忆迁移和受控命令等。
 - `cmd/guardian-cmd.js`：受控命令替代层，给 AI IDE 优先调用常见 Git、npm、Node 和 Guardian 命令，并自动写入 `.project-guardian/cmd-audit.jsonl`。
 - `.codex-plugin/plugin.json`：Codex 本地插件入口元数据，必须进入仓库。
 - `assets/icon.svg`：插件图标资源。
 - `assets/templates/`：标准记忆文件模板。
 - `assets/templates/zh-CN/`：中文记忆文件和 AI 工具规则模板，默认初始化使用这一套。
+- `assets/templates/gitee-go-project-guardian.yml`：Gitee Go CI 流水线模板，`guardian install-ci` 使用。
 - `docs/CLI_AND_CI.md`：命令行、Git Hook 和 Gitee CI 操作说明。
 - `docs/INTEGRATION.md`：如何把插件接入新项目或已有项目。
 - `docs/STANDARD.md`：团队使用规范、目录标准和记录标准。
+- `docs/WORKFLOW.md`：记录、交接、新人接手的完整工作流。
 - `Run/`：可选本地可视化运行层，和核心插件代码隔离，但随插件一起发布。
+- `Run/lib/`：Run 层内部模块，包括审计日志、命令目录和与核心插件的桥接层。
 
 ## 推荐阅读顺序
 

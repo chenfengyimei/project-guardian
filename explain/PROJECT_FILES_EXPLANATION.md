@@ -4,15 +4,15 @@
 
 当前统计口径：
 
-- 仓库文件总数：84 个。
-- 普通文件清单：78 个。
+- 仓库文件总数：122 个。
+- 普通文件清单：116 个。
 - 隐藏配置和隐藏插件元数据：6 个。
 - 统计不包含 `.git/`、`node_modules/` 和被 `.gitignore` 排除的本地材料。
 
 ## 目录结构
 
 ```text
-project_ai/
+project-guardian/
   .agents/
     plugins/
       marketplace.json
@@ -29,7 +29,7 @@ project_ai/
       2026-05-14-use-per-decision-files.md
       2026-05-15-ai-ide.md
       2026-05-15-memory.md
-  explaiw/
+  explain/
     PROJECT_FILES_EXPLANATION.md
   Run/
     README.md
@@ -37,6 +37,7 @@ project_ai/
     lib/
       audit.js
       commands.js
+      guardian-bridge.js
     public/
       index.html
       styles.css
@@ -94,16 +95,27 @@ project_ai/
         guardian.js
         lib/
           adapters.js
+          brief.js
+          check.js
+          cli-catalog.js
           config.js
           decisions.js
           doc-validation.js
           git-utils.js
           handover.js
+          hooks-ci.js
+          init.js
           knowledge.js
           manual-memory.js
           mcp.js
+          memory-repair.js
+          messages.js
+          migrate.js
           reviews.js
           security.js
+          shared.js
+          update.js
+          validators.js
       skills/
         project-guardian/
           SKILL.md
@@ -129,7 +141,7 @@ project_ai/
 | `README.md` | 仓库入口文档 | 第一次打开项目的人需要先知道这是什么、怎么开始 | 插件介绍、适用场景、安装方式、快速使用、常用命令、推荐工作流 | 安装方式、命令、目录、主要能力或用户入口变化时 |
 | `CONTRIBUTING.md` | 贡献指南 | 降低单人维护风险，让后续贡献者知道如何安全改项目 | 开发前检查、提交前验证、查询能力贡献标准、文档和记忆更新要求、优先贡献方向 | 贡献流程、测试要求、发布标准或查询增强方向变化时 |
 | `零基础超简单入门.md` | 小白教程 | 给完全没编程基础的人按步骤照做 | 从 0 开始使用插件、初始化、记录、验证、提交的傻瓜式流程 | 新手反馈看不懂、命令变化、接入步骤变化时 |
-| `LICENSE` | 开源许可证 | 明确代码使用、复制、分发和修改规则 | Apache-2.0 许可证文本 | 基本不修改；只有更换许可证时才改 |
+| `LICENSE` | 开源许可证 | 明确代码使用、复制、分发和修改规则 | MIT 许可证文本 | 基本不修改；只有更换许可证时才改 |
 | `AGENTS.md` | 通用 AI Agent 规则 | 让 Codex 或其它通用 AI Agent 知道本项目使用 Project Guardian 记忆 | 修改前先做 `brief` 读取计划、按需读记忆、修改后更新记忆、禁止写入密钥 | AI 工作规则、记忆文件路径或质量要求变化时 |
 | `.cursorrules` | Cursor 旧版规则文件 | 兼容仍读取 `.cursorrules` 的 Cursor 版本 | 要求 Cursor 先做读取计划、按需读项目记忆，修改后更新记忆 | Cursor 兼容规则变化；可长期保留作为兼容层 |
 | `.cursor/rules/project-guardian.mdc` | Cursor 新版规则文件 | 适配 Cursor rules 目录机制 | Cursor 中的 Project Guardian 必读和更新规则 | Cursor 新规则格式、项目记忆规则变化时 |

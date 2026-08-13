@@ -4,11 +4,11 @@
   "description": "A reliable local project-memory guardian with integrity checks, repair workflows, MCP tools, handover, and evidence-based knowledge lookup.",
   "author": {
     "name": "Project Guardian Maintainers",
-    "url": "https://gitee.com/chenfengloveyuri/project-guardian"
+    "url": "https://github.com/chenfengyimei/project-guardian"
   },
-  "homepage": "https://gitee.com/chenfengloveyuri/project-guardian",
-  "repository": "https://gitee.com/chenfengloveyuri/project-guardian.git",
-  "license": "Apache-2.0",
+  "homepage": "https://github.com/chenfengyimei/project-guardian",
+  "repository": "https://github.com/chenfengyimei/project-guardian.git",
+  "license": "MIT",
   "keywords": [
     "ai-coding",
     "project-memory",
@@ -30,9 +30,9 @@
       "Handover",
       "Audit"
     ],
-    "websiteURL": "https://gitee.com/chenfengloveyuri/project-guardian",
-    "privacyPolicyURL": "https://gitee.com/chenfengloveyuri/project-guardian",
-    "termsOfServiceURL": "https://gitee.com/chenfengloveyuri/project-guardian",
+    "websiteURL": "https://github.com/chenfengyimei/project-guardian",
+    "privacyPolicyURL": "https://github.com/chenfengyimei/project-guardian",
+    "termsOfServiceURL": "https://github.com/chenfengyimei/project-guardian",
     "defaultPrompt": [
       "\u521d\u59cb\u5316\u9879\u76ee\u8bb0\u5fc6\u6587\u4ef6",
       "\u67e5\u8be2\u8fd9\u4e2a\u9879\u76ee\u7684\u5386\u53f2\u4e0a\u4e0b\u6587",

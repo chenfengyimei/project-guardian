@@ -2,15 +2,15 @@
   "name": "project-guardian",
   "version": "0.5.0",
   "private": false,
-  "license": "Apache-2.0",
+  "license": "MIT",
   "description": "Lightweight project memory guard for AI-assisted coding handover and onboarding.",
-  "homepage": "https://gitee.com/chenfengloveyuri/project-guardian",
+  "homepage": "https://github.com/chenfengyimei/project-guardian",
   "repository": {
     "type": "git",
-    "url": "git+https://gitee.com/chenfengloveyuri/project-guardian.git"
+    "url": "git+https://github.com/chenfengyimei/project-guardian.git"
   },
   "bugs": {
-    "url": "https://gitee.com/chenfengloveyuri/project-guardian/issues"
+    "url": "https://github.com/chenfengyimei/project-guardian/issues"
   },
   "bin": {
     "guardian": "plugins/project-guardian/scripts/guardian.js",
