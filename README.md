@@ -1,325 +1,303 @@
+<div align="center">
+
 # Project Guardian
 
-Project Guardian 是一个专为 AI 辅助编程团队设计的项目记忆插件，它通过将项目背景、技术决策、开发状态和交接文档固化到代码仓库里的 Markdown 记忆文件中，来解决 AI 协作中 “上下文只留在一个人聊天窗口里” 的团队知识流失痛点。
+**给 AI 编程团队装上"记忆"——让项目背景、技术决策和开发状态固化在代码仓库里，不再只留在一个人聊天窗口里。**
 
-这个插件适合小项目多、人员流动快、开发者大量依赖 AI IDE 的团队。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org/)
+[![npm](https://img.shields.io/badge/npm-project--guardian-red.svg)](https://www.npmjs.com/package/project-guardian)
+[![Tests](https://img.shields.io/badge/Tests-109%20passed-brightgreen.svg)](#测试覆盖率)
+[![Status: Stable](https://img.shields.io/badge/Status-Stable-brightgreen.svg)](#项目状态)
 
-已完成最新的文档更新，流程优化，超级小白也能使用也能看懂！
+</div>
 
-## 适用场景
+---
 
-- 项目已经上传到 Gitee、GitHub、GitLab 等代码平台。
-- 团队有较多实习生或流动开发者。
-- 代码大量由 AI 生成，但历史对话和修改原因容易丢失。
-- 希望形成“开发、记录、提交、交接、接手”的固定工作循环。
+## 这是什么？
 
-## 插件包含什么
+Project Guardian 是一个**本地项目记忆守护插件**，专为 AI 辅助编程团队设计。
 
-```text
-project-guardian/
-  .codex-plugin/plugin.json
-  skills/project-guardian/SKILL.md
-  scripts/guardian.js
-  scripts/lib/
-    adapters.js
-    brief.js
-    check.js
-    cli-catalog.js
-    config.js
-    decisions.js
-    doc-validation.js
-    git-utils.js
-    handover.js
-    hooks-ci.js
-    init.js
-    knowledge.js
-    manual-memory.js
-    mcp.js
-    memory-repair.js
-    messages.js
-    migrate.js
-    reviews.js
-    security.js
-    shared.js
-    update.js
-    validators.js
-  cmd/
-    README.md
-    guardian-cmd.js
-  assets/icon.svg
-  assets/templates/
-    PROJECT_CONTEXT.md
-    STATE.md
-    DECISIONS.md
-    AI_CHANGELOG.md
-    HANDOVER.md
-    AGENTS.md
-    cursor-rules.mdc
-    cursorrules
-    copilot-instructions.md
-    copilot-project-guardian.instructions.md
-    windsurf-rule.md
-    cline-rule.md
-    continue-rule.md
-    CLAUDE.md
-    GEMINI.md
-    vscode-tasks.json
-    gitee-go-project-guardian.yml
-    zh-CN/
-      PROJECT_CONTEXT.md
-      STATE.md
-      DECISIONS.md
-      AI_CHANGELOG.md
-      HANDOVER.md
-      AGENTS.md
-      cursor-rules.mdc
-      cursorrules
-      copilot-instructions.md
-      copilot-project-guardian.instructions.md
-      windsurf-rule.md
-      cline-rule.md
-      continue-rule.md
-      CLAUDE.md
-      GEMINI.md
-      vscode-tasks.json
-  docs/CLI_AND_CI.md
-  docs/INTEGRATION.md
-  docs/STANDARD.md
-  docs/WORKFLOW.md
-Run/
-  README.md
-  server.js
-  lib/
-    audit.js
-    commands.js
-    guardian-bridge.js
-  public/
-    index.html
-    styles.css
-    app.js
-```
+当 AI 编程助手（Codex、Claude Code、Cursor、Copilot 等）参与项目开发时，历史对话、修改原因和技术决策往往只留在某个人的聊天窗口里——人员一流动，知识就断了。Project Guardian 解决这个问题：它在代码仓库里维护结构化的 Markdown 记忆文件，通过 CLI、MCP 或本地 Web UI 完成**初始化、更新、校验、查询和交接**的完整闭环，让任何 AI Agent 和新人都能快速获取项目上下文。
 
-- `SKILL.md`：Codex 使用本插件时遵守的项目记忆规则。
-- `guardian.js`：本地 CLI，负责初始化、更新、交接、检查和查询。
-- `scripts/lib/`：按职责拆分的 CLI 模块，包括配置、初始化、更新、校验、知识检索、MCP、安全扫描、适配器、决策、复审、交接、记忆修复、记忆迁移和受控命令等。
-- `cmd/guardian-cmd.js`：受控命令替代层，给 AI IDE 优先调用常见 Git、npm、Node 和 Guardian 命令，并自动写入 `.project-guardian/cmd-audit.jsonl`。
-- `.codex-plugin/plugin.json`：Codex 本地插件入口元数据，必须进入仓库。
-- `assets/icon.svg`：插件图标资源。
-- `assets/templates/`：标准记忆文件模板。
-- `assets/templates/zh-CN/`：中文记忆文件和 AI 工具规则模板，默认初始化使用这一套。
-- `assets/templates/gitee-go-project-guardian.yml`：Gitee Go CI 流水线模板，`guardian install-ci` 使用。
-- `docs/CLI_AND_CI.md`：命令行、Git Hook 和 Gitee CI 操作说明。
-- `docs/INTEGRATION.md`：如何把插件接入新项目或已有项目。
-- `docs/STANDARD.md`：团队使用规范、目录标准和记录标准。
-- `docs/WORKFLOW.md`：记录、交接、新人接手的完整工作流。
-- `Run/`：可选本地可视化运行层，和核心插件代码隔离，但随插件一起发布。
-- `Run/lib/`：Run 层内部模块，包括审计日志、命令目录和与核心插件的桥接层。
+**目标**：在不改变现有开发流程的前提下，让项目记忆可追溯、可校验、可交接，把"上下文只留在一个人脑子里"的痛点彻底消除。
 
-## 推荐阅读顺序
+---
 
-你是一个没有编程基础的小白？也没问题！
+## 为什么它不一样？
 
-1.[小白零基础傻瓜式使用教程](https://github.com/chenfengyimei/project-guardian/blob/master/零基础超简单入门.md)
+市面上不缺文档工具，但 Project Guardian 有几个独特的设计决策：
 
-第一次使用请按顺序阅读：
+### 🧠 零依赖本地混合检索
 
-1. [接入文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/INTEGRATION.md)
-2. [工作流文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/WORKFLOW.md)
-3. [规范文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/STANDARD.md)
-4. [CI 与命令行操作文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/CLI_AND_CI.md)
+不是一个简单的全文搜索。Project Guardian 的 `guardian query` 结合多种检索策略：
 
-## 一句话工作循环
+| 检索策略 | 作用 |
+|----------|------|
+| **关键词匹配** | 标准记忆文件中的精确文本命中 |
+| **同义词扩展** | 中英文常见同义词自动扩展，如"登录"↔"login" |
+| **n-gram 相似度** | 模糊匹配拼写变体和近似表述 |
+| **源码补充** | 记忆未命中时从项目源码文件中提取证据 |
+| **Git 历史** | 从变更历史中补充上下文 |
+| **来源多样性** | 优先提供不同来源的结果，减少同一文件占满返回 |
 
-新项目先 `init` 建立记忆文件；每天开发前先用 `brief` 判断该读哪些记忆，再读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`；AI 改完代码后运行 `update`；提交前运行 `verify`；换人或阶段结束运行 `handover`；新人接手先用 `brief` 和 `query --limit 3` 定向了解项目。
+不依赖外部模型 API、向量库或数据库，纯本地 Node.js 运行，零安装依赖。
 
-## Token 成本控制
+### 🎯 Token 预算感知的分层读取
 
-Project Guardian 不要求 AI 每轮都把所有记忆文件塞进上下文。推荐使用分层读取：
+不是把所有记忆文件塞给模型。Project Guardian 用 `guardian brief` 给出精准读取计划：
 
-1. 先运行 `guardian brief "当前任务或问题"`，让 CLI 给出推荐读取文件和粗略 token 预算。
-2. 默认只读 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md`。
-3. 涉及架构、依赖、安全、兼容性、工作流或复审时再读 `memory/DECISIONS.md`。
-4. 需要排查历史原因、最近改动、回归或风险时再读 `memory/AI_CHANGELOG.md`。
-5. 新人接手、交接、上线准备时再读 `memory/HANDOVER.md`。
-6. 查询历史时优先用 `guardian query "问题" --limit 3`，先拿少量片段，不够再提高到 5 或 10。
+- `quick`：只读项目长期上下文和当前状态，适合低风险日常小任务
+- `deep`：额外读取决策和 AI 变更日志，适合 bug 修复、回归、重构
+- `full`：读取全部核心记忆，适合新人接手、交接、审计、大范围重构
 
-接入 MCP 的 AI IDE 可以调用 `guardian_brief` 获取同样的读取计划，再用 `guardian_query` 的 `limit` 参数控制返回片段数量。
+`brief` 会估算 token 预算并推荐优先读取的文件，AI 按需读取而非全量加载。`query --limit 3` 进一步控制返回片段数量。
 
-`brief` 支持三档手动升级，避免按需读取误判：
+### 🔒 安全策略贯穿全链路
+
+不只是"写完再检查"。Project Guardian 在多个环节强制执行安全策略：
+
+- **密钥扫描**：`scan-secrets` 检测 5 种密钥模式（API Key / 密码 / 私钥 / 连接字符串 / Bearer Token），支持中文关键词（密码/密钥/令牌/私钥）
+- **写入拦截**：`update`、`decision add`、`reviews complete` 在写入前检查疑似密钥，阻止敏感数据进入记忆文件
+- **审计日志脱敏**：`guardian-cmd` 审计日志自动识别 `--token=value` 和 `--token value` 格式的敏感参数并隐藏值
+- **MCP 权限控制**：`readOnly` 模式隐藏写入工具，`allowedTools` 白名单限制可用工具
+- **Run API 安全**：Bearer Token 认证、loopback 绑定、CORS 拦截、路径遍历防护
+
+### 📊 可校验的记忆完整性
+
+不是写了就不管了。Project Guardian 提供完整的校验链：
 
 ```bash
-guardian brief "普通小改动" --mode quick
-guardian brief "修复登录回归" --mode deep
-guardian brief "新人接手项目" --mode full
-```
-
-- `quick`：只读项目长期上下文和当前状态，适合低风险日常小任务。
-- `deep`：额外读取决策和 AI 变更日志，适合 bug、回归、历史不清楚、高风险模块、测试失败或准备重构。
-- `full`：读取全部核心记忆，适合新人接手、交接、上线、审计、大范围重构，或用户明确要求完整上下文。
-
-按需读取不是硬限制。只要证据不足、查询结果冲突、任务风险变高，Agent 必须升级到 `deep` 或 `full` 后再修改。
-
-## 可视化运行层
-
-如果不想一直敲命令，可以启动 `Run/` 下的本地网页界面：
-
-```bash
-npm run ui
-```
-
-或者：
-
-```bash
-node Run/server.js
-```
-
-默认访问地址是：
-
-```text
-http://127.0.0.1:4357
-```
-
-这个界面是可选层，不替代 CLI/MCP。它使用可收起的左侧侧边栏切换功能，首页只保留插件状态概览；核心记忆预览会把常见 Markdown 标题、列表、代码块和表格渲染成文档样式。它还可以生成 brief、在知识查询模块独立查看 query 输出、在命令操作模块查看 CLI 全量指令目录，也可以通过固定表单运行 `guardian init`。命令操作会按专用模块、只读检查、写入维护和终端服务分组，方便快速找到入口。命令操作里需要参数的命令会先打开弹窗，用户在弹窗里填写参数后再确认运行或取消。手动追加记忆提供预设模板，用户只填写任务、状态、验证、风险、下一步等关键字段，不需要自己组织整段 Markdown；如果模板列表暂时没有加载到专用模板，界面仍保留“自定义完整记录”入口。写入类入口必须输入确认词：初始化输入 `RUN_INIT`，追加记忆输入 `APPEND_MEMORY`，命令操作里的写入类 CLI 输入 `RUN_COMMAND`。
-
-Run 不开放任意 shell。`/api/command` 只允许固定 CLI 命令目录：只读命令可直接运行，包括 `migrate-memory --dry-run` 迁移预览；`update`、`handover`、`decision add`、`reviews complete`、`migrate-memory`、`install-adapters`、`install-hooks`、`install-ci` 等写入类命令必须输入 `RUN_COMMAND`；`init`、`brief`、`query` 使用各自专用模块，`mcp` 需要在终端或 AI IDE 配置中启动。
-
-如果目标项目在 `project-guardian.config.json` 里改过记忆文件路径，Run 会按配置读取和追加；没有配置时使用默认 `memory/` 目录。
-
-如果要给其它项目指定目录：
-
-```bash
-node Run/server.js --cwd D:\your-project
-```
-
-不要直接把它暴露到公网；如果必须局域网访问，需要团队自行加登录认证、访问控制和审计。
-
-## AI IDE 受控命令层
-
-AI IDE 或 Agent 需要执行常见系统命令时，优先使用 `guardian-cmd`，这样每次调用都会自动追加一行代码级日志，不需要 AI 手写记录：
-
-```bash
-guardian-cmd list
-guardian-cmd git-status
-guardian-cmd npm-test
-guardian-cmd guardian-verify
-guardian-cmd guardian-commands --json
-guardian-cmd guardian-migrate-memory --dry-run
-guardian-cmd guardian-update "完成登录修复"
-guardian-cmd guardian-handover
-```
-
-如果没有全局安装 CLI，可以使用源码路径：
-
-```bash
-node plugins/project-guardian/cmd/guardian-cmd.js list
-node plugins/project-guardian/cmd/guardian-cmd.js git-status
-```
-
-日志默认写入 `.project-guardian/cmd-audit.jsonl`。这是一层固定白名单命令目录，不开放任意 shell；审计摘要会同时识别 `--token=value` 和 `--token value` 这类敏感参数并隐藏后续值。如果日志无法写入，`guardian-cmd` 会提示失败，原本成功的命令也会返回失败状态，避免出现“执行了但没有记录”的假成功。如果常用命令还没有替代项，应先评估是否新增受控命令，再临时使用原始终端命令。
-`guardian mcp` 属于长时间运行的 stdio 服务，仍建议在 AI IDE 的 MCP 配置里启动，不作为 `guardian-cmd` 的普通短命令。
-
-## 快速使用
-
-### 环境要求
-
-- Node.js 18 或更新版本。
-- Git。`check`、`update`、`verify`、hooks 和 CI 会读取 Git 状态；纯初始化可以在非 Git 目录运行，但正式项目建议放在 Git 仓库里。
-- npm 只在全局安装、运行测试或发布包时需要。目标业务项目不强制使用 npm。
-- 不需要数据库、后端服务、OpenAI API Key 或向量库；当前查询是本地混合检索，结合关键词、同义词扩展和 n-gram 相似度，不是外部 RAG。
-
-推荐先把 CLI 安装成全局命令，这样任何项目里都可以直接运行 `guardian`：
-
-```bash
-# 从 npm 包安装时
-npm install -g project-guardian
-
-# 从当前 Gitee 仓库安装
-npm install -g git+https://gitee.com/chenfengloveyuri/project-guardian.git
-
-guardian init
 guardian verify
 ```
 
-默认 `guardian init` 会生成中文模板，适合中文团队直接使用。如果项目团队主要写英文文档，可以这样初始化：
+`verify` 一次性运行 `doctor` → `check` → `validate-docs` → `reviews` → `scan-secrets`，覆盖配置健康、代码变更与记忆同步、文档填充质量、决策复审到期和密钥泄漏。`repair-memory` 可确定性修复记忆顺序和决策索引漂移。
 
-```bash
-guardian init --language en
-```
+### 🔄 Agent 无关 — 任何工具都能用
 
-如果还没有发布 npm 包，或者团队选择把插件源码随项目提交，也可以继续使用脚本路径。
+不绑定特定 AI Agent 的私有协议。三种接入方式覆盖所有场景：
 
-在目标项目根目录运行：
+| 方式 | 适用场景 | 示例 |
+|------|----------|------|
+| **CLI** | 最简单，直接调命令 | `guardian brief "修复登录bug"` |
+| **MCP** | 支持 MCP 的 AI IDE，stdio 直连 | `guardian mcp` |
+| **Web UI** | 可视化操作，浏览器界面 | `npm run ui` → `http://127.0.0.1:4357` |
 
-```bash
-node plugins/project-guardian/scripts/guardian.js init
-```
+---
 
-脚本路径同样支持语言选择：
+## 功能成熟度矩阵
 
-```bash
-node plugins/project-guardian/scripts/guardian.js init --language zh-CN
-node plugins/project-guardian/scripts/guardian.js init --language en
-```
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 项目记忆初始化 | ✅ Stable | 中英文双语模板，支持 `--language` 和 `--adapter` |
+| CLI 命令行 | ✅ Stable | 20+ 命令，统一契约校验，`--key=value` 支持，`commands --json` 机器可读 |
+| 记忆更新与结构化记录 | ✅ Stable | `update` 支持 summary/reason/verification/risks/sensitive-data/next-step 一次性写入 |
+| 分层读取计划（brief） | ✅ Stable | quick/deep/full 三档，token 预算估算 |
+| 零依赖混合检索（query） | ✅ Stable | 关键词 + 同义词 + n-gram，源码补充，来源多样性 |
+| 记忆完整性修复 | ✅ Stable | `repair-memory` 排序变更日志 + 重建决策索引，dry-run 支持 |
+| 记忆迁移 | ✅ Stable | `migrate-memory` 预览 + 安全移动，目标冲突拒绝覆盖 |
+| 决策记录与复审 | ✅ Stable | `decision add` 结构化决策，`reviews due` 到期复审提醒 |
+| 交接文档生成 | ✅ Stable | `handover` 自动生成新人交接文档 |
+| 提交前检查 | ✅ Stable | `check` 拦截"代码变更但记忆未更新"的提交 |
+| 文档质量校验 | ✅ Stable | `validate-docs` 检测 TODO 残留、空字段、乱序历史 |
+| 密钥扫描 | ✅ Stable | 5 种模式 + 中文关键词，写入前拦截 |
+| 安全策略出口强制 | ✅ Stable | CLI/MCP/Web UI 三条路径全部强制安全策略 |
+| MCP 工具服务 | ✅ Stable | 14 个工具，readOnly 模式，allowedTools 白名单，参数校验 |
+| 受控命令层 | ✅ Stable | `guardian-cmd` 白名单命令 + JSONL 审计日志 + 脱敏 |
+| AI IDE 适配器 | ✅ Stable | Cursor/VS Code/Copilot/Windsurf/Cline/Continue/Claude/Gemini |
+| 可视化 Web UI | ✅ Stable | 本地 HTTP 服务，侧边栏导航，Markdown 渲染，命令操作 |
+| 统一质量入口 | ✅ Stable | `verify` 一次运行全部检查 |
+| Gitee Go CI 集成 | ✅ Stable | `install-ci` 生成流水线模板 |
+| Pre-commit Hook | ✅ Stable | `install-hooks` 自动安装 Git 钩子 |
+| 配置安全 | ✅ Stable | 原型污染防护，路径校验，畸形配置归一化 |
 
-如果插件放在项目外部，使用插件实际路径：
+**图例**：✅ Stable = 已实现且有测试覆盖
 
-```bash
-node path/to/project-guardian/scripts/guardian.js init
-```
+---
 
-初始化后会生成：
+## 技术栈
+
+| 区域 | 技术选型 |
+|------|----------|
+| 主语言 | JavaScript (Node.js ≥ 18) |
+| 依赖 | 零运行时依赖，纯 Node.js 标准库 |
+| 存储 | Markdown 文件 + JSONL 审计日志 |
+| 检索 | 本地混合检索（关键词 + 同义词 + n-gram） |
+| MCP | stdio JSON-RPC 2.0 |
+| Web UI | 原生 HTTP server + 静态文件 |
+| 测试 | Node.js 内置 `node --test` — 109 测试通过 |
+| CI/CD | Gitee Go 流水线模板 |
+| 许可证 | MIT |
+
+---
+
+## 项目结构
 
 ```text
-memory/PROJECT_CONTEXT.md
-memory/STATE.md
-memory/DECISIONS.md
-memory/AI_CHANGELOG.md
-memory/HANDOVER.md
-AGENTS.md
-.cursorrules
-.cursor/rules/project-guardian.mdc
+project-guardian/
+├── package.json              # npm 包定义、CLI bin、scripts
+├── LICENSE                   # MIT 许可证
+├── CHANGELOG.md              # 变更日志
+├── CONTRIBUTING.md           # 贡献指南
+├── README.md                 # 项目入口文档
+├── AGENTS.md                 # 通用 AI Agent 规则
+├── 零基础超简单入门.md         # 小白教程
+│
+├── plugins/project-guardian/
+│   ├── .codex-plugin/
+│   │   └── plugin.json       # Codex 插件元数据
+│   ├── assets/
+│   │   ├── icon.svg           # 插件图标
+│   │   └── templates/         # 标准记忆文件模板
+│   │       ├── *.md           # 英文模板
+│   │       ├── zh-CN/*.md     # 中文模板（默认）
+│   │       ├── cursor-rules.mdc
+│   │       ├── vscode-tasks.json
+│   │       └── gitee-go-project-guardian.yml
+│   ├── scripts/
+│   │   ├── guardian.js        # CLI 入口
+│   │   └── lib/               # 按职责拆分的 CLI 模块
+│   │       ├── init.js        # 初始化
+│   │       ├── config.js      # 配置管理
+│   │       ├── check.js       # 提交前检查
+│   │       ├── update.js      # 记忆更新
+│   │       ├── brief.js       # 读取计划
+│   │       ├── knowledge.js   # 知识检索
+│   │       ├── decisions.js   # 决策记录
+│   │       ├── reviews.js     # 复审管理
+│   │       ├── handover.js    # 交接文档
+│   │       ├── mcp.js         # MCP 工具服务
+│   │       ├── security.js    # 密钥扫描
+│   │       ├── shared.js      # 公共工具
+│   │       ├── validators.js  # 校验器
+│   │       ├── doc-validation.js  # 文档校验
+│   │       ├── git-utils.js   # Git 工具
+│   │       ├── hooks-ci.js    # Hook 与 CI
+│   │       ├── adapters.js    # AI IDE 适配器
+│   │       ├── manual-memory.js   # 手动追加记忆
+│   │       ├── memory-repair.js   # 记忆修复
+│   │       ├── migrate.js     # 记忆迁移
+│   │       ├── messages.js    # 国际化消息
+│   │       └── cli-catalog.js # 命令目录
+│   ├── cmd/
+│   │   └── guardian-cmd.js    # 受控命令替代层
+│   ├── docs/
+│   │   ├── INTEGRATION.md     # 接入文档
+│   │   ├── WORKFLOW.md        # 工作流文档
+│   │   ├── STANDARD.md        # 规范文档
+│   │   └── CLI_AND_CI.md      # CI 与命令行
+│   └── skills/
+│       └── project-guardian/
+│           └── SKILL.md      # Codex 技能规则
+│
+└── Run/                       # 可选可视化运行层
+    ├── server.js              # 本地 HTTP server
+    ├── lib/
+    │   ├── audit.js           # 审计日志
+    │   ├── commands.js        # 命令目录
+    │   └── guardian-bridge.js # 核心插件桥接
+    └── public/
+        ├── index.html         # 页面结构
+        ├── styles.css         # 页面样式
+        └── app.js             # 浏览器交互
 ```
 
-如果需要一次生成所有 AI 工具适配规则：
+**架构分层清晰**：`scripts/lib/` 为核心 CLI 模块层；`cmd/` 为受控命令层；`Run/` 为可选可视化层，通过 `guardian-bridge.js` 与核心层解耦。无循环依赖。
+
+---
+
+## 快速开始
+
+### 安装
 
 ```bash
-guardian init --adapter all
-guardian install-adapters --adapter cursor,copilot,windsurf,cline,continue,claude,gemini,vscode
-guardian adapters doctor
+# 从 npm 安装（推荐）
+npm install -g project-guardian
+
+# 从 GitHub 安装
+npm install -g git+https://github.com/chenfengyimei/project-guardian.git
+
+# 验证
+guardian --version
+guardian doctor
 ```
 
-适配层只生成规则文件，不改变核心记忆文件。已有同名规则文件会被保留，不会被覆盖。
+> 📖 详细安装步骤见 [小白零基础傻瓜式使用教程](https://github.com/chenfengyimei/project-guardian/blob/master/零基础超简单入门.md)。
 
-如果项目里有 `package.json`，`guardian init` 会补充 `guardian:*` scripts。用全局 CLI 初始化的项目会写入 `guardian verify` 这类可移植命令；如果插件源码就放在项目内，则会写入本地 `node plugins/project-guardian/scripts/guardian.js ...` 路径。
-
-## AI IDE 支持矩阵
-
-| 工具 | 当前支持方式 | 生成文件 | 使用建议 |
-| --- | --- | --- | --- |
-| 任意 IDE 终端 | CLI | 无额外文件 | 只要能运行 Node.js，就能运行 `guardian init/brief/update/verify/query` |
-| 支持 MCP 的 AI IDE | stdio MCP | 无额外文件 | 使用 `guardian mcp` 暴露查询、更新、验证、决策等工具 |
-| Codex | 插件元数据 + AGENTS | `.codex-plugin/plugin.json`、`AGENTS.md`、`SKILL.md` | 当前支持度最高 |
-| Cursor | Project Rules | `.cursor/rules/project-guardian.mdc`、`.cursorrules` | 推荐安装 `cursor` 适配器 |
-| VS Code | Tasks + Copilot instructions | `.vscode/tasks.json`、`.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` | 使用 `vscode` 或 `vscode-copilot` 适配器 |
-| GitHub Copilot | Repository instructions | `.github/copilot-instructions.md`、`.github/instructions/project-guardian.instructions.md` | 适用于 VS Code Copilot 和 GitHub 侧 Copilot 场景 |
-| Windsurf | AGENTS + workspace rule | `AGENTS.md`、`.windsurf/rules/project-guardian.md` | 使用 `windsurf` 适配器 |
-| Cline | Project rules | `.clinerules/project-guardian.md` | 使用 `cline` 适配器 |
-| Continue | Repository rules | `.continue/rules/project-guardian.md` | 使用 `continue` 适配器 |
-| Claude Code | Project memory file | `CLAUDE.md` | 使用 `claude` 适配器 |
-| Gemini CLI | Project context file | `GEMINI.md` | 使用 `gemini` 适配器 |
-| Roo Code | 不优先支持 | 无 | 暂不内置专用适配；如团队仍使用，可先走 CLI 或 generic 规则 |
-
-检查当前项目适配状态：
+### 30 秒上手
 
 ```bash
-guardian adapters doctor
+# 初始化项目记忆文件（默认中文模板）
+guardian init
+
+# 判断本轮任务应该读哪些记忆文件，并估算 token
+guardian brief "修复登录验证码校验失败"
+
+# 记录一次 AI 辅助开发
+guardian update "修复登录验证码校验失败"
+
+# 提交前检查代码变更是否包含记忆更新
+guardian check
+
+# 一次运行全部质量检查
+guardian verify
+
+# 新人接手先生成交接文档
+guardian handover
+
+# 多轮项目知识查询
+guardian query "登录流程" --limit 3
 ```
 
-VS Code tasks 默认调用 `guardian-cmd` 命令，因此使用前要保证 npm 包已全局安装，或项目已把 Project Guardian 作为依赖安装到可执行路径中。如果团队选择把插件源码直接复制进项目，也可以继续在终端使用 `node plugins/project-guardian/cmd/guardian-cmd.js ...`；需要使用 VS Code 任务时，把 `.vscode/tasks.json` 中的命令改成本地脚本路径即可。
+### Web UI
+
+```bash
+npm run ui
+# 或
+node Run/server.js
+
+# 浏览器访问 http://127.0.0.1:4357
+# 可选：设置环境变量 GUARDIAN_RUN_TOKEN 启用 API 认证
+```
+
+---
+
+## CLI 命令参考
+
+| 命令 | 功能 |
+|------|------|
+| `init` | 初始化项目记忆文件和 AI IDE 适配规则 |
+| `doctor` | 检查项目是否正确接入 |
+| `brief` | 生成任务相关的记忆读取计划和 token 预算 |
+| `update` | 记录一次 AI 辅助开发的完整变更记录 |
+| `query` | 多轮项目知识查询（支持 `--limit`） |
+| `check` | 提交前检查代码变更是否包含记忆更新 |
+| `verify` | 一次运行全部质量检查（doctor + check + validate-docs + reviews + scan-secrets） |
+| `validate-docs` | 检查记忆文档是否还有过多 TODO 或空字段 |
+| `scan-secrets` | 扫描记忆文件中的疑似密钥 |
+| `handover` | 生成或刷新新人交接文档 |
+| `decision add` | 记录一条结构化决策 |
+| `reviews` | 查看决策复审状态；`reviews due` 查看到期复审 |
+| `reviews complete` | 完成决策复审 |
+| `conflicts` | 查看 Git 冲突，尤其是记忆文件冲突 |
+| `append-memory` | 按模板手动追加一条记忆 |
+| `repair-memory` | 修复记忆顺序与决策索引（支持 `--write`） |
+| `migrate-memory` | 安全迁移旧版记忆路径（支持 `--dry-run`） |
+| `install-hooks` | 安装 pre-commit hook |
+| `install-ci` | 安装 Gitee Go 流水线模板 |
+| `adapters doctor` | 检查 AI IDE 适配状态 |
+| `install-adapters` | 安装 AI IDE 适配规则文件 |
+| `mcp` | 启动 MCP server，给支持 MCP 的 AI IDE 调用 |
+| `commands` | 查看命令目录（支持 `--json`） |
+| `version` | 查看版本信息 |
+
+**全局选项**：`--help` / `--json` / `--language` / `--adapter` / `--mode` / `--dry-run` / `--limit`
+
+---
 
 ## MCP 工具调用
 
-支持 MCP 的 AI IDE 可以不只读取规则文件，还能通过 stdio 直接调用 Project Guardian：
+支持 MCP 的 AI IDE 可以通过 stdio 直接调用 Project Guardian 的 14 个工具：
 
 ```bash
 guardian mcp
@@ -338,22 +316,24 @@ guardian mcp
 }
 ```
 
-如果没有全局安装 CLI，可以改成本地脚本路径：
+| MCP 工具 | 功能 |
+|----------|------|
+| `guardian_brief` | 生成任务相关的记忆读取计划 |
+| `guardian_query` | 查询项目知识（支持 `limit`） |
+| `guardian_update` | 一次性写入完整变更记录 |
+| `guardian_decision_add` | 记录结构化决策 |
+| `guardian_verify` | 运行全部质量检查 |
+| `guardian_doctor` | 检查项目接入状态 |
+| `guardian_scan_secrets` | 扫描疑似密钥 |
+| `guardian_handover` | 生成交接文档 |
+| `guardian_conflicts` | 查看记忆文件冲突 |
+| `guardian_adapters_doctor` | 检查 AI IDE 适配状态 |
+| `guardian_reviews_due` | 查看到期决策复审 |
+| `guardian_review_complete` | 完成决策复审 |
+| `guardian_memory_health` | 只读检查记忆完整性 |
+| `guardian_memory_repair` | 执行确定性记忆修复 |
 
-```json
-{
-  "mcpServers": {
-    "project-guardian": {
-      "command": "node",
-      "args": ["plugins/project-guardian/scripts/guardian.js", "mcp"]
-    }
-  }
-}
-```
-
-当前 MCP 暴露工具：`guardian_brief`、`guardian_query`、`guardian_update`、`guardian_decision_add`、`guardian_verify`、`guardian_doctor`、`guardian_scan_secrets`、`guardian_handover`、`guardian_conflicts`、`guardian_adapters_doctor`、`guardian_reviews_due`、`guardian_review_complete`、`guardian_memory_health`、`guardian_memory_repair`。`guardian_update` 可一次传入总结、原因、验证、风险、敏感信息检查和下一步，直接生成完整记录；`guardian_memory_health` 只读检查记忆顺序与索引漂移，`guardian_memory_repair` 执行确定性修复。
-
-如果团队担心 MCP 客户端误调用写入类工具，可以在 `project-guardian.config.json` 收紧权限：
+权限控制：
 
 ```json
 {
@@ -364,162 +344,95 @@ guardian mcp
 }
 ```
 
-`readOnly: true` 会隐藏并阻止 `guardian_update`、`guardian_decision_add`、`guardian_review_complete`、`guardian_handover` 和 `guardian_memory_repair`。`guardian_memory_health` 仍可只读使用。`allowedTools` 为空数组时表示允许全部标准工具；写入高风险场景建议只开放查询、体检、复审查看和验证工具。
+---
 
-## 常用命令
+## AI IDE 支持矩阵
 
-```bash
-# 查看总帮助、单命令帮助和机器可读命令契约
-guardian help
-guardian help query
-guardian commands --json
+| 工具 | 支持方式 | 生成文件 |
+|------|----------|----------|
+| 任意 IDE 终端 | CLI | 无额外文件 |
+| 支持 MCP 的 AI IDE | stdio MCP | 无额外文件 |
+| Codex | 插件元数据 + AGENTS | `.codex-plugin/plugin.json`、`AGENTS.md`、`SKILL.md` |
+| Cursor | Project Rules | `.cursor/rules/project-guardian.mdc`、`.cursorrules` |
+| VS Code | Tasks + Copilot instructions | `.vscode/tasks.json`、`.github/copilot-instructions.md` |
+| GitHub Copilot | Repository instructions | `.github/copilot-instructions.md` |
+| Windsurf | AGENTS + workspace rule | `AGENTS.md`、`.windsurf/rules/project-guardian.md` |
+| Cline | Project rules | `.clinerules/project-guardian.md` |
+| Continue | Repository rules | `.continue/rules/project-guardian.md` |
+| Claude Code | Project memory file | `CLAUDE.md` |
+| Gemini CLI | Project context file | `GEMINI.md` |
 
-# 检查项目是否已经正确接入
-guardian doctor
-
-# 先判断本轮任务应该读取哪些记忆文件，并估算 token
-guardian brief "修复登录验证码校验失败"
-
-# 记录一次 AI 辅助开发
-guardian update "修复登录验证码校验失败"
-
-# 一次生成完整、可直接校验的变更记录
-guardian update "修复登录验证码校验失败" --summary "统一验证码过期判断" --reason "修复边界时间误判" --verification "npm test" --risks "仅影响过期分支" --sensitive-data "已检查，无真实密钥" --next-step "观察线上错误率"
-
-# 只读检查或确定性修复记忆顺序与决策索引
-guardian repair-memory
-guardian repair-memory --write
-
-# 先预览、再安全迁移旧版记忆路径；目标已存在时拒绝覆盖
-guardian migrate-memory --dry-run
-guardian migrate-memory
-
-# 按模板手动追加一条记忆，字段模板和 Run 控制台一致
-guardian append-memory --file STATE --template state-progress --task "修复登录验证码校验失败" --current-status "已定位问题" --next-step "补充测试" --verification "本地冒烟检查"
-
-# 生成或刷新新人交接文档
-guardian handover
-
-# 提交前检查代码变更是否包含记忆更新
-guardian check
-
-# 一次运行全部质量检查
-guardian verify
-
-# 记录一条结构化决策
-guardian decision add --title "采用配置文件" --context "需要跨项目适配" --decision "使用 project-guardian.config.json"
-
-# 查看决策复审状态；到期复审会让 verify 失败
-guardian reviews
-guardian reviews due
-guardian reviews complete memory/decisions/example.md --summary "复审通过" --verification "已检查测试和文档"
-
-# 查看 Git 冲突，尤其是记忆文件冲突
-guardian conflicts
-
-# 进入多轮项目知识查询
-guardian query
-
-# 非交互查询并限制返回片段数量
-guardian query "登录流程" --limit 3
-
-# 启动 MCP server，给支持 MCP 的 AI IDE 调用
-guardian mcp
-
-# 安装 pre-commit hook
-guardian install-hooks
-```
-
-CLI 以同一份命令契约生成帮助并校验参数，支持 `--key value` 和 `--key=value`。未知命令、拼错选项、缺少选项值或多余位置参数都会被明确拒绝；用法错误返回退出码 `2`，便于脚本和 AI IDE 区分“调用方式错误”与运行失败。
-
-如果目标项目有 `package.json`，`init` 会自动补充这些 npm scripts：
+检查适配状态：
 
 ```bash
-npm run guardian:doctor
-npm run guardian:update -- "任务说明"
-npm run guardian:handover
-npm run guardian:check
-npm run guardian:query
-npm run guardian:commands -- --json
-npm run guardian:reviews
-npm run guardian:mcp
-npm run guardian:migrate-memory -- --dry-run
-npm run guardian:repair-memory
+guardian adapters doctor
 ```
 
-## 统一质量入口
+---
 
-当前版本推荐提交前优先运行：
+## 测试覆盖率
+
+| 类别 | 数量 | 说明 |
+|------|------|------|
+| 单元 + 集成测试 | 109 通过 | 覆盖全部模块 |
+| 安全测试 | 15+ | 密钥扫描、路径遍历、CORS、prototype 污染、CRLF |
+| MCP 工具测试 | 10+ | 14 个工具全覆盖，含权限控制和参数校验 |
+| 适配器测试 | 5+ | 多 IDE 适配器生成与保留 |
+| 记忆完整性测试 | 10+ | 修复、迁移、决策索引、变更日志排序 |
+| **总计** | **109** | 全部通过 |
 
 ```bash
-guardian verify
+npm test
 ```
 
-`verify` 会按顺序运行：
+---
 
-```text
-doctor
-check
-validate-docs
-reviews
-scan-secrets
-```
+## 文档导航
 
-如果团队安装了 `install-hooks`，默认 pre-commit hook 也会运行 `check`、`validate-docs` 和安全扫描。Gitee Go 模板推荐运行同一套检查，避免本地能过、远端遗漏。
+| 文档 | 说明 |
+|------|------|
+| [小白零基础傻瓜式使用教程](https://github.com/chenfengyimei/project-guardian/blob/master/零基础超简单入门.md) | 从 0 开始的完整使用教程 |
+| [接入文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/INTEGRATION.md) | 如何把插件接入新项目或已有项目 |
+| [工作流文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/WORKFLOW.md) | 记录、交接、新人接手的完整工作流 |
+| [规范文档](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/STANDARD.md) | 团队使用规范、目录标准和记录标准 |
+| [CI 与命令行](https://github.com/chenfengyimei/project-guardian/blob/master/plugins/project-guardian/docs/CLI_AND_CI.md) | 命令行、Git Hook 和 Gitee CI 操作说明 |
+| [变更日志](https://github.com/chenfengyimei/project-guardian/blob/master/CHANGELOG.md) | 版本历史 |
+| [贡献指南](https://github.com/chenfengyimei/project-guardian/blob/master/CONTRIBUTING.md) | 如何参与开发 |
+| [npm 包页面](https://www.npmjs.com/package/project-guardian) | npm 发布页面 |
 
-## 多轮知识查询
+---
 
-运行：
+## 项目状态
 
-```bash
-guardian brief "登录逻辑在哪里"
-guardian query
-guardian query "登录逻辑在哪里" --limit 3
-```
+Project Guardian 当前版本 **v0.5.x**，核心功能稳定，已在实际项目中使用。
 
-示例问题：
+**已完成**：
 
-```text
-guardian> 登录逻辑在哪里？
-guardian> 之前为什么要这样处理跨域？
-guardian> 这个项目下一步应该做什么？
-guardian> 哪些地方风险最高？
-guardian> exit
-```
+- v0.1-v0.3：核心记忆文件、CLI 命令、混合检索、MCP 工具、AI IDE 适配器、Web UI
+- v0.4：记忆修复、结构化 update 记录、配置安全加固、知识检索增强
+- v0.5：CLI 契约校验、命令目录、迁移预览、安全预检、模块拆分、i18n 消息系统
 
-查询会优先检索标准记忆文件，再把源码和 Git 历史作为补充证据。结果会给出来源文件与起始行，并优先提供不同来源，减少同一文件的重叠片段占满结果。确实要查源码时，问题里带上文件名、路径、函数名、报错文本或模块名。它是本地轻量混合检索，会结合关键词、常见中英文同义词和 n-gram 相似度，不依赖外部模型 API；日常使用建议先 `brief` 判断读取范围，再用 `query --limit 3` 获取少量证据。
+**后续方向**：
 
-## 参与贡献
+- 查询能力持续增强：同义词扩展、分片排序、摘要缓存
+- 可选向量索引（保持零依赖默认路径）
+- 更多 AI IDE 适配器
+- 团队协作场景支持
 
-如果团队或社区要一起维护，请先看 `CONTRIBUTING.md`。当前最值得贡献的方向是查询能力：保持零依赖默认路径，同时逐步增强同义词、分片、排序、摘要缓存，未来再做可选向量索引。
+---
 
-## 推荐工作流
+## 许可证
 
-1. 新项目创建后立刻运行 `init`。
-2. 开发者先填写 `memory/PROJECT_CONTEXT.md` 和 `memory/STATE.md` 的基础内容。
-3. 每次 AI 辅助改代码后运行 `update`，补全 TODO 字段。
-4. 每次提交前运行 `verify`，或安装 `install-hooks` 自动检查。
-5. 换人、离职、暂停超过一周或版本交付前运行 `handover`。
-6. 新人接手时先运行 `brief`，再按结果读取 `memory/HANDOVER.md` 或其它记忆，并用 `query --limit 3` 连续提问。
+[MIT License](LICENSE) — Copyright (c) 2026 Project Guardian Maintainers
 
-## 新增质量检查命令
+---
 
-```bash
-# 检查记忆文档是否还有过多 TODO 或空字段
-guardian validate-docs
+<div align="center">
 
-# 扫描记忆文件中的疑似密钥
-guardian scan-secrets
+**如果这个项目对你有帮助，请给一个 ⭐ Star！**
 
-# 一次运行全部质量检查
-guardian verify
+[报告问题](https://github.com/chenfengyimei/project-guardian/issues) · [发起讨论](https://github.com/chenfengyimei/project-guardian/issues) · [查看文档](https://github.com/chenfengyimei/project-guardian#文档导航)
 
-# 安装 Gitee Go 流水线模板
-guardian install-ci
-```
+> 📌 本项目同时在 [GitHub](https://github.com/chenfengyimei/project-guardian) 和 [Gitee](https://gitee.com/chenfengloveyuri/project-guardian) 开源，npm 包地址 [npmjs.com/package/project-guardian](https://www.npmjs.com/package/project-guardian)，欢迎在任一平台 Star / 提 Issue / 提 PR。
 
-推荐提交前至少运行：
-
-```bash
-guardian verify
-```
+</div>
